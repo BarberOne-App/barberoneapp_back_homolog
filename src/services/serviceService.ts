@@ -1,0 +1,124 @@
+// src/services/serviceService.ts
+import { Prisma } from "@prisma/client";
+import {
+  createService,
+  findServiceById,
+  listServices,
+  softDeleteService,
+  updateService,
+} from "../repository/serviceRepository.js";
+
+function decimalToNumber(v: any) {
+  if (v == null) return v;
+  if (typeof v === "number") return v;
+  if (typeof v === "string") return Number(v);
+  // Prisma.Decimal
+  if (typeof v?.toNumber === "function") return v.toNumber();
+  return Number(v);
+}
+
+function serializeService(s: any) {
+  return {
+    id: s.id,
+    name: s.name,
+    basePrice: decimalToNumber(s.base_price),
+    durationMinutes: s.duration_minutes,
+    imageUrl: s.image_url,
+    active: s.active,
+    createdAt: s.created_at,
+    updatedAt: s.updated_at,
+    barbershopId: s.barbershop_id,
+  };
+}
+
+export async function createServiceService(barbershopId: string, data: {
+  name: string;
+  basePrice: number;
+  durationMinutes: number;
+  imageUrl?: string | null;
+  active?: boolean;
+}) {
+  const created = await createService({
+    barbershopId,
+    name: data.name,
+    base_price: data.basePrice,
+    duration_minutes: data.durationMinutes,
+    image_url: data.imageUrl ?? null,
+    active: data.active ?? true,
+  });
+
+  return serializeService(created);
+}
+
+export async function listServicesService(params: {
+  barbershopId: string;
+  isAdmin: boolean;
+  q?: string;
+  includeInactive?: boolean;
+  page?: number;
+  limit?: number;
+}) {
+  const page = params.page ?? 1;
+  const limit = params.limit ?? 20;
+
+  // se não for admin, nunca lista inativos
+  const includeInactive = params.isAdmin ? !!params.includeInactive : false;
+
+  const { items, total } = await listServices({
+    barbershopId: params.barbershopId,
+    q: params.q?.trim() || undefined,
+    includeInactive,
+    page,
+    limit,
+  });
+
+  return {
+    page,
+    limit,
+    total,
+    items: items.map(serializeService),
+  };
+}
+
+export async function getServiceByIdService(params: {
+  barbershopId: string;
+  id: string;
+  isAdmin: boolean;
+}) {
+  const s = await findServiceById(params.barbershopId, params.id);
+  if (!s) return null;
+
+  // não-admin não vê inativo
+  if (!params.isAdmin && !s.active) return null;
+
+  return serializeService(s);
+}
+
+export async function updateServiceService(params: {
+  barbershopId: string;
+  id: string;
+  data: {
+    name?: string;
+    basePrice?: number;
+    durationMinutes?: number;
+    imageUrl?: string | null;
+    active?: boolean;
+  };
+}) {
+  const updated = await updateService(params.barbershopId, params.id, {
+    ...(params.data.name != null ? { name: params.data.name } : {}),
+    ...(params.data.basePrice != null ? { base_price: params.data.basePrice } : {}),
+    ...(params.data.durationMinutes != null ? { duration_minutes: params.data.durationMinutes } : {}),
+    ...(params.data.imageUrl !== undefined ? { image_url: params.data.imageUrl } : {}),
+    ...(params.data.active != null ? { active: params.data.active } : {}),
+  });
+
+  if (!updated) return null;
+  return serializeService(updated);
+}
+
+export async function deleteServiceService(barbershopId: string, id: string) {
+  const deleted = await softDeleteService(barbershopId, id);
+  if (!deleted) return null;
+  return serializeService(deleted);
+}
