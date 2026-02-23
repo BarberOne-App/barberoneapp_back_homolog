@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { mpPayment, mpPreference, MP_NOTIFICATION_URL } from "../config/mercadopago.js";
 import prisma from "../database/database.js";
 import { badRequest, notFound } from "../errors/index.js";
@@ -153,24 +154,41 @@ export interface ProcessPaymentInput {
   };
 }
 
+/** Verifica se um ID tem formato UUID válido */
+function isValidUuid(id?: string): boolean {
+  if (!id) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+}
+
 export async function processPayment(input: ProcessPaymentInput) {
   if (input.transactionAmount <= 0) throw badRequest("Valor deve ser maior que 0");
 
-  // Detectar tipo de método de pagamento para salvar no registro local
   const localMethod = detectLocalMethod(input.paymentMethodId);
 
-  // Criar registro local (status pending)
-  const tx = await prisma.payment_transactions.create({
-    data: {
-      barbershop_id: input.barbershopId,
-      user_id: input.userId,
-      appointment_id: input.appointmentId ?? null,
-      amount: input.transactionAmount,
-      method: localMethod,
-      status: "pending",
-      status_raw: "processing",
-    },
-  });
+  /*
+   * Se os IDs são UUIDs válidos (auth integrado), cria registro local no banco.
+   * Caso contrário (frontend mockado), vai direto pro Mercado Pago sem salvar.
+   * TODO: remover esse bypass quando o frontend integrar o login real.
+   */
+  const canPersist = isValidUuid(input.barbershopId);
+  let tx: { id: string; appointment_id: string | null } | null = null;
+
+  if (canPersist) {
+    tx = await prisma.payment_transactions.create({
+      data: {
+        barbershop_id: input.barbershopId,
+        user_id: isValidUuid(input.userId) ? input.userId : null,
+        appointment_id: isValidUuid(input.appointmentId) ? input.appointmentId : null,
+        amount: input.transactionAmount,
+        method: localMethod,
+        status: "pending",
+        status_raw: "processing",
+      },
+    });
+  }
+
+  // ID usado como external_reference e idempotency key
+  const referenceId = tx?.id ?? crypto.randomUUID();
 
   // Montar body para a API do Mercado Pago
   const paymentBody: Record<string, any> = {
@@ -185,7 +203,7 @@ export async function processPayment(input: ProcessPaymentInput) {
         ? { type: input.payer.identification.type, number: input.payer.identification.number }
         : undefined,
     },
-    external_reference: tx.id,
+    external_reference: referenceId,
     notification_url: MP_NOTIFICATION_URL || undefined,
   };
 
@@ -214,39 +232,42 @@ export async function processPayment(input: ProcessPaymentInput) {
     payment = await mpPayment.create({
       body: paymentBody,
       requestOptions: {
-        idempotencyKey: tx.id,    // usa o UUID da transação como chave de idempotência
+        idempotencyKey: referenceId,
       },
     });
   } catch (err: any) {
-    await prisma.payment_transactions.delete({ where: { id: tx.id } }).catch(() => {});
+    if (tx) await prisma.payment_transactions.delete({ where: { id: tx.id } }).catch(() => {});
     mpError(err);
   }
 
-  // Atualizar registro local com dados do MP
+  // Atualizar registro local (se existir) com dados do MP
   const newStatus = mapMpStatus(payment.status ?? "");
-  await prisma.payment_transactions.update({
-    where: { id: tx.id },
-    data: {
-      mp_payment_id: String(payment.id),
-      status: newStatus as any,
-      status_raw: payment.status,
-      method: mapMpPaymentMethod(payment.payment_method_id ?? input.paymentMethodId),
-      paid_at: payment.status === "approved" ? new Date() : null,
-      updated_at: new Date(),
-    },
-  });
 
-  // Se aprovado e tem appointment, confirmar agendamento
-  if (payment.status === "approved" && tx.appointment_id) {
-    await prisma.appointments.update({
-      where: { id: tx.appointment_id },
-      data: { status: "confirmed", updated_at: new Date() },
-    }).catch(() => {});
+  if (tx) {
+    await prisma.payment_transactions.update({
+      where: { id: tx.id },
+      data: {
+        mp_payment_id: String(payment.id),
+        status: newStatus as any,
+        status_raw: payment.status,
+        method: mapMpPaymentMethod(payment.payment_method_id ?? input.paymentMethodId),
+        paid_at: payment.status === "approved" ? new Date() : null,
+        updated_at: new Date(),
+      },
+    });
+
+    // Se aprovado e tem appointment, confirmar agendamento
+    if (payment.status === "approved" && tx.appointment_id) {
+      await prisma.appointments.update({
+        where: { id: tx.appointment_id },
+        data: { status: "confirmed", updated_at: new Date() },
+      }).catch(() => {});
+    }
   }
 
   // Montar resposta baseada no tipo de pagamento
   const baseResponse = {
-    transactionId: tx.id,
+    transactionId: referenceId,
     mpPaymentId: payment.id,
     status: payment.status,
     statusDetail: payment.status_detail,

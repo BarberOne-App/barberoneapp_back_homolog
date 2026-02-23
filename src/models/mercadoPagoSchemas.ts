@@ -3,11 +3,11 @@ import Joi from "joi";
 /* ═══════ Checkout Pro (Preferência) ═══════ */
 
 export const CreateCheckoutSchema = Joi.object({
-  /** TODO: remover quando auth estiver integrado no frontend */
-  barbershopId: Joi.string().uuid().optional(),
-  userId: Joi.string().uuid().optional(),
+  /** TODO: voltar para .uuid() quando auth estiver integrado no frontend */
+  barbershopId: Joi.string().optional(),
+  userId: Joi.string().optional(),
 
-  appointmentId: Joi.string().uuid().optional(),
+  appointmentId: Joi.string().optional(),
   items: Joi.array()
     .items(
       Joi.object({
@@ -33,11 +33,11 @@ export const CreateCheckoutSchema = Joi.object({
 /* ═══════ Checkout Transparente — process_payment ═══════ */
 
 export const ProcessPaymentSchema = Joi.object({
-  /** TODO: remover quando auth estiver integrado no frontend */
-  barbershopId: Joi.string().uuid().optional(),
-  userId: Joi.string().uuid().optional(),
+  /** TODO: voltar para .uuid() quando auth estiver integrado no frontend */
+  barbershopId: Joi.string().optional(),
+  userId: Joi.string().optional(),
 
-  appointmentId: Joi.string().uuid().optional(),
+  appointmentId: Joi.string().optional(),
   transactionAmount: Joi.number().positive().required(),
   description: Joi.string().required(),
   token: Joi.string().optional(),              // obrigatório para cartão
@@ -66,11 +66,11 @@ export const ProcessPaymentSchema = Joi.object({
 /* ═══════ PIX (retrocompatibilidade) ═══════ */
 
 export const CreatePixSchema = Joi.object({
-  /** TODO: remover quando auth estiver integrado no frontend */
-  barbershopId: Joi.string().uuid().optional(),
-  userId: Joi.string().uuid().optional(),
+  /** TODO: voltar para .uuid() quando auth estiver integrado no frontend */
+  barbershopId: Joi.string().optional(),
+  userId: Joi.string().optional(),
 
-  appointmentId: Joi.string().uuid().optional(),
+  appointmentId: Joi.string().optional(),
   amount: Joi.number().positive().required(),
   description: Joi.string().required(),
   payer: Joi.object({
