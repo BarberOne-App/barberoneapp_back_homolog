@@ -3,6 +3,10 @@ import Joi from "joi";
 /* ═══════ Checkout Pro (Preferência) ═══════ */
 
 export const CreateCheckoutSchema = Joi.object({
+  /** TODO: remover quando auth estiver integrado no frontend */
+  barbershopId: Joi.string().uuid().optional(),
+  userId: Joi.string().uuid().optional(),
+
   appointmentId: Joi.string().uuid().optional(),
   items: Joi.array()
     .items(
@@ -29,6 +33,10 @@ export const CreateCheckoutSchema = Joi.object({
 /* ═══════ Checkout Transparente — process_payment ═══════ */
 
 export const ProcessPaymentSchema = Joi.object({
+  /** TODO: remover quando auth estiver integrado no frontend */
+  barbershopId: Joi.string().uuid().optional(),
+  userId: Joi.string().uuid().optional(),
+
   appointmentId: Joi.string().uuid().optional(),
   transactionAmount: Joi.number().positive().required(),
   description: Joi.string().required(),
@@ -58,6 +66,10 @@ export const ProcessPaymentSchema = Joi.object({
 /* ═══════ PIX (retrocompatibilidade) ═══════ */
 
 export const CreatePixSchema = Joi.object({
+  /** TODO: remover quando auth estiver integrado no frontend */
+  barbershopId: Joi.string().uuid().optional(),
+  userId: Joi.string().uuid().optional(),
+
   appointmentId: Joi.string().uuid().optional(),
   amount: Joi.number().positive().required(),
   description: Joi.string().required(),
