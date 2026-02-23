@@ -16,7 +16,7 @@ const router = Router();
  */
 
 /** Checkout Transparente — recebe dados do MercadoPago.js (cartão/pix/boleto) */
-router.post("/mercadopago/process-payment", optionalAuth, asyncHandler(processPaymentController));
+router.post("/mercadopago/process-payment", asyncHandler(processPaymentController));
 
 /** Checkout Pro (Preferência) — retorna init_point para redirect */
 router.post("/mercadopago/checkout", optionalAuth, asyncHandler(createCheckout));

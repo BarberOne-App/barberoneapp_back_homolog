@@ -11,6 +11,7 @@ import {
   processPayment,
   getPaymentStatusService,
 } from "../services/mercadoPagoService.js";
+import { MercadoPagoConfig, Payment, Preference } from "mercadopago";
 
 function joiErrors(error: any) {
   return error.details?.map((d: any) => d.message) ?? ["Dados inválidos"];
@@ -37,28 +38,60 @@ export async function createCheckout(req: Request, res: Response) {
 }
 
 /* ═══════ POST /mercadopago/process-payment (Checkout Transparente) ═══════ */
+// export async function processPaymentController(req: Request, res: Response) {
+//   const { error, value } = ProcessPaymentSchema.validate(req.body, { abortEarly: false });
+//   if (error) return res.status(422).send(joiErrors(error));
+
+//   // Usa JWT se disponível, senão body, senão placeholder (modo teste sem auth/banco)
+//   const barbershopId = req.user?.barbershopId ?? value.barbershopId ?? "test";
+//   const userId = req.user?.id ?? value.userId ?? "test";
+
+//   const result = await processPayment({
+//     barbershopId,
+//     userId,
+//     appointmentId: value.appointmentId,
+//     transactionAmount: value.transactionAmount,
+//     description: value.description,
+//     token: value.token,
+//     issuerId: value.issuerId,
+//     paymentMethodId: value.paymentMethodId,
+//     installments: value.installments,
+//     payer: value.payer,
+//   });
+
+//   return res.status(201).send(result);
+// }
+
+const client = new MercadoPagoConfig({ accessToken: 'APP_USR-6875497196865280-021114-9152b2d1afbda8e50dd61fee0f6921fe-3198516818' });
+const payments = new Payment(client);
+
 export async function processPaymentController(req: Request, res: Response) {
-  const { error, value } = ProcessPaymentSchema.validate(req.body, { abortEarly: false });
-  if (error) return res.status(422).send(joiErrors(error));
-
-  // Usa JWT se disponível, senão body, senão placeholder (modo teste sem auth/banco)
-  const barbershopId = req.user?.barbershopId ?? value.barbershopId ?? "test";
-  const userId = req.user?.id ?? value.userId ?? "test";
-
-  const result = await processPayment({
-    barbershopId,
-    userId,
-    appointmentId: value.appointmentId,
-    transactionAmount: value.transactionAmount,
-    description: value.description,
-    token: value.token,
-    issuerId: value.issuerId,
-    paymentMethodId: value.paymentMethodId,
-    installments: value.installments,
-    payer: value.payer,
-  });
-
-  return res.status(201).send(result);
+  payments.create({
+    body: {
+      transaction_amount: 100,
+      payment_method_id: 'credit_card',
+      payer: {
+        email: 'test@example.com',
+        first_name: 'Test',
+        last_name: 'User',
+        identification: {
+          type: 'CPF',
+          number: '12345678909'
+        },
+        address: {
+          zip_code: '88000000',
+          city: 'São Paulo',
+          neighborhood: 'Jardim Paulista',
+          street_name: 'Rua da Consolação',
+          street_number: '1234',
+          federal_unit: 'SP'
+        }
+      }
+    },
+    requestOptions: { idempotencyKey: '1234567890' }
+  })
+    .then((result) => console.log(result))
+    .catch((error) => console.log(error));
 }
 
 /* ═══════ POST /mercadopago/pix (retrocompat) ═══════ */
