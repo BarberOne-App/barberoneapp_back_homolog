@@ -112,6 +112,7 @@ app.get("/", function (req, res) {
 app.post("/process_payment", async (req, res) => {
     const paymentApi = new Payment(client);
 
+    console.log("Processando pagamento com dados:", req.body);
     try {
         const body = req.body;
 
