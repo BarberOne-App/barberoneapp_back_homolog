@@ -41,19 +41,19 @@ app.use(express.json());
 app.get("/health", (_req, res) => res.send({ ok: true }));
 
 
-const mercadoPagoPublicKey = process.env.MERCADO_PAGO_PUBLIC_KEY_TEST;
+const mercadoPagoPublicKey = process.env.MERCADO_PAGO_PUBLIC_KEY_PROD;
 if (!mercadoPagoPublicKey) {
     console.log("Error: public key not defined");
     process.exit(1);
 }
 
-const mercadoPagoAccessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN_TEST;
+const mercadoPagoAccessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN_PROD;
 if (!mercadoPagoAccessToken) {
     console.log("Error: access token not defined");
     process.exit(1);
 }
 
-const client = new MercadoPagoConfig({ accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN_TEST ?? "" });
+const client = new MercadoPagoConfig({ accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN_PROD ?? "" });
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -86,7 +86,7 @@ app.post("/process_payment", async (req, res) => {
             installments: Number(body.installments),
             payment_method_id: body.payment_method_id,
             issuer_id: body.issuer_id,
-            statement_descriptor: "BARBER_ONE",
+            // statement_descriptor: "BARBER_ONE",
             payer: {
                 email: body.payer?.email,
                 identification: {
