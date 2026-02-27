@@ -82,7 +82,7 @@ app.post("/process_payment", async (req, res) => {
         const paymentData = {
             transaction_amount: Number(body.transaction_amount),
             token: body.token,
-            description: body.description, // descrição geral
+            description: body.description,
             installments: Number(body.installments),
             payment_method_id: body.payment_method_id,
             issuer_id: body.issuer_id,
@@ -194,8 +194,6 @@ app.post("/process_payment", async (req, res) => {
 
 // mapeia status do MP -> teu enum
 function mapMpStatusToLocal(mpStatus: string) {
-    // MP costuma usar valores como authorized/paused/cancelled/etc.
-    // Ajuste conforme você observar na prática (salve o raw também se quiser).
     if (!mpStatus) return "active";
     const s = String(mpStatus).toLowerCase();
     if (s === "paused") return "paused";
@@ -204,14 +202,12 @@ function mapMpStatusToLocal(mpStatus: string) {
 }
 
 app.post("/webhooks/mercadopago", async (req, res) => {
-    // responde rápido pro MP não re-tentar por timeout
     res.sendStatus(200);
 
     try {
         const preapprovalId = req.body?.data?.id || req.body?.id;
         if (!preapprovalId) return;
 
-        // 1) Busca detalhes oficiais no MP
         const { data: mpSub } = await axios.get(
             `https://api.mercadopago.com/preapproval/${preapprovalId}`,
             { headers: { Authorization: `Bearer ${MP_TOKEN}` } }
@@ -223,24 +219,20 @@ app.post("/webhooks/mercadopago", async (req, res) => {
 
         if (!payerEmail || !mpPlanId) return;
 
-        // 2) Acha seu plano (multi-tenant) pelo mp_preapproval_plan_id
         const plan = await prisma.subscription_plans.findFirst({
             where: { mp_preapproval_plan_id: String(mpPlanId) },
             select: { id: true, barbershop_id: true },
         });
         if (!plan) return;
 
-        // 3) Acha o usuário pelo email
         const user = await prisma.users.findFirst({
             where: { email: payerEmail },
             select: { id: true },
         });
         if (!user) return;
 
-        // 4) Upsert na assinatura 1 por usuário por barbearia
         await prisma.subscriptions.upsert({
             where: {
-                // nome do where pode variar; em geral Prisma gera algo como user_id_barbershop_id
                 user_id_barbershop_id: { user_id: user.id, barbershop_id: String(plan.barbershop_id) },
             },
             create: {
