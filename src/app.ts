@@ -82,17 +82,28 @@ app.post("/process_payment", async (req, res) => {
         const paymentData = {
             transaction_amount: Number(body.transaction_amount),
             token: body.token,
-            description: body.description,
+            description: body.description, // descrição geral
             installments: Number(body.installments),
             payment_method_id: body.payment_method_id,
             issuer_id: body.issuer_id,
-            // statement_descriptor: "BARBER_ONE",
             payer: {
                 email: body.payer?.email,
                 identification: {
                     type: body.payer?.identification?.type,
                     number: body.payer?.identification?.number,
                 },
+            },
+            additional_info: {
+                items: [
+                    {
+                        id: "SVC-001",
+                        title: "Corte degradê",
+                        description: "Corte + finalização",
+                        category_id: "services",
+                        quantity: 1,
+                        unit_price: 45.0,
+                    },
+                ],
             },
         };
 
