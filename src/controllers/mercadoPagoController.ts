@@ -38,61 +38,32 @@ export async function createCheckout(req: Request, res: Response) {
 }
 
 /* ═══════ POST /mercadopago/process-payment (Checkout Transparente) ═══════ */
-// export async function processPaymentController(req: Request, res: Response) {
-//   const { error, value } = ProcessPaymentSchema.validate(req.body, { abortEarly: false });
-//   if (error) return res.status(422).send(joiErrors(error));
+export async function processPaymentController(req: Request, res: Response) {
+  const { error, value } = ProcessPaymentSchema.validate(req.body, { abortEarly: false });
+  if (error) return res.status(422).send(joiErrors(error));
 
-//   // Usa JWT se disponível, senão body, senão placeholder (modo teste sem auth/banco)
-//   const barbershopId = req.user?.barbershopId ?? value.barbershopId ?? "test";
-//   const userId = req.user?.id ?? value.userId ?? "test";
+  // Usa JWT se disponível, senão body, senão placeholder (modo teste sem auth/banco)
+  const barbershopId = req.user?.barbershopId ?? value.barbershopId ?? "test";
+  const userId = req.user?.id ?? value.userId ?? "test";
 
-//   const result = await processPayment({
-//     barbershopId,
-//     userId,
-//     appointmentId: value.appointmentId,
-//     transactionAmount: value.transactionAmount,
-//     description: value.description,
-//     token: value.token,
-//     issuerId: value.issuerId,
-//     paymentMethodId: value.paymentMethodId,
-//     installments: value.installments,
-//     payer: value.payer,
-//   });
+  const result = await processPayment({
+    barbershopId,
+    userId,
+    appointmentId: value.appointmentId,
+    transactionAmount: value.transactionAmount,
+    description: value.description,
+    token: value.token,
+    issuerId: value.issuerId,
+    paymentMethodId: value.paymentMethodId,
+    installments: value.installments,
+    payer: value.payer,
+  });
 
-//   return res.status(201).send(result);
-// }
+  return res.status(201).send(result);
+}
 
 const client = new MercadoPagoConfig({ accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN ?? "" });
 const payments = new Payment(client);
-
-export async function processPaymentController(req: Request, res: Response) {
-  payments.create({
-    body: {
-      transaction_amount: 100,
-      payment_method_id: 'credit_card',
-      payer: {
-        email: 'test@example.com',
-        first_name: 'Test',
-        last_name: 'User',
-        identification: {
-          type: 'CPF',
-          number: '12345678909'
-        },
-        address: {
-          zip_code: '88000000',
-          city: 'São Paulo',
-          neighborhood: 'Jardim Paulista',
-          street_name: 'Rua da Consolação',
-          street_number: '1234',
-          federal_unit: 'SP'
-        }
-      }
-    },
-    requestOptions: { idempotencyKey: '123e4567-e89b-12d3-a456-426614174000' }
-  })
-    .then((result) => console.log(result))
-    .catch((error) => console.log(error));
-}
 
 /* ═══════ POST /mercadopago/pix (retrocompat) ═══════ */
 export async function createPix(req: Request, res: Response) {

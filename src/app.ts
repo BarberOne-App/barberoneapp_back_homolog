@@ -23,11 +23,17 @@ import path from "path";
 import hbs from "hbs";
 import { fileURLToPath } from "url";
 import { MercadoPagoConfig, Payment } from "mercadopago";
+import { PrismaClient } from "@prisma/client";
+import axios from "axios";
+
 
 
 dotenv.config();
 
 const app = express();
+const prisma = new PrismaClient();
+const MP_TOKEN = process.env.MP_ACCESS_TOKEN;
+
 
 app.use(cors({ origin: true }));
 app.use(express.json());
@@ -112,7 +118,6 @@ app.post("/process_payment", async (req, res) => {
     }
 });
 
-
 // app.post("/process_payment", async (req, res) => {
 //     const paymentApi = new Payment(client);
 
@@ -175,23 +180,97 @@ app.post("/process_payment", async (req, res) => {
 //     }
 // });
 
-app.post("/mp/webhook", async (req, res) => {
+// mapeia status do MP -> teu enum
+function mapMpStatusToLocal(mpStatus: string) {
+    // MP costuma usar valores como authorized/paused/cancelled/etc.
+    // Ajuste conforme você observar na prática (salve o raw também se quiser).
+    if (!mpStatus) return "active";
+    const s = String(mpStatus).toLowerCase();
+    if (s === "paused") return "paused";
+    if (s === "cancelled" || s === "canceled") return "cancelled";
+    return "active";
+}
+
+app.post("/webhooks/mercadopago", async (req, res) => {
+    // responde rápido pro MP não re-tentar por timeout
+    res.sendStatus(200);
+
     try {
-        const paymentId = req.body?.data?.id || req.query?.["data.id"] || req.query?.id;
-        if (!paymentId) return res.sendStatus(200);
+        const preapprovalId = req.body?.data?.id || req.body?.id;
+        if (!preapprovalId) return;
 
-        const paymentApi = new Payment(client);
-        const p = await paymentApi.get({ id: String(paymentId) }) as any;
+        // 1) Busca detalhes oficiais no MP
+        const { data: mpSub } = await axios.get(
+            `https://api.mercadopago.com/preapproval/${preapprovalId}`,
+            { headers: { Authorization: `Bearer ${MP_TOKEN}` } }
+        );
 
-        if (isFinalForYourFront(p.status)) {
-            resolveWaiter(String(paymentId), p);
+        const payerEmail = (mpSub?.payer_email || "").toLowerCase().trim();
+        const mpPlanId = mpSub?.preapproval_plan_id;
+        const mpStatus = mpSub?.status;
+
+        if (!payerEmail || !mpPlanId) return;
+
+        // 2) Acha seu plano (multi-tenant) pelo mp_preapproval_plan_id
+        const plan = await prisma.subscription_plans.findFirst({
+            where: { mp_preapproval_plan_id: String(mpPlanId) },
+            select: { id: true, barbershop_id: true },
+        });
+        if (!plan) return;
+
+        // 3) Acha o usuário pelo email
+        const user = await prisma.users.findFirst({
+            where: { email: payerEmail },
+            select: { id: true },
+        });
+        if (!user) return;
+
+        // 4) Upsert na assinatura 1 por usuário por barbearia
+        await prisma.subscriptions.upsert({
+            where: {
+                // nome do where pode variar; em geral Prisma gera algo como user_id_barbershop_id
+                user_id_barbershop_id: { user_id: user.id, barbershop_id: String(plan.barbershop_id) },
+            },
+            create: {
+                user_id: user.id,
+                barbershop_id: String(plan.barbershop_id),
+                plan_id: plan.id,
+                status: mapMpStatusToLocal(mpStatus),
+                mp_preapproval_id: String(preapprovalId),
+            },
+            update: {
+                plan_id: plan.id,
+                status: mapMpStatusToLocal(mpStatus),
+                mp_preapproval_id: String(preapprovalId),
+                updated_at: new Date(),
+            },
+        });
+    } catch (err) {
+        if (err && typeof err === "object" && "response" in err && err.response && "data") {
+            console.error("Webhook MP erro:", err.response);
+        } else {
+            console.error("Webhook MP erro:", err);
         }
-
-        return res.sendStatus(200);
-    } catch (e) {
-        return res.sendStatus(200);
     }
 });
+
+// app.post("/mp/webhook", async (req, res) => {
+//     try {
+//         const paymentId = req.body?.data?.id || req.query?.["data.id"] || req.query?.id;
+//         if (!paymentId) return res.sendStatus(200);
+
+//         const paymentApi = new Payment(client);
+//         const p = await paymentApi.get({ id: String(paymentId) }) as any;
+
+//         if (isFinalForYourFront(p.status)) {
+//             resolveWaiter(String(paymentId), p);
+//         }
+
+//         return res.sendStatus(200);
+//     } catch (e) {
+//         return res.sendStatus(200);
+//     }
+// });
 
 app.post("/criar_pix", async (req, res) => {
     try {

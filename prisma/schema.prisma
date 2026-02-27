@@ -81,7 +81,7 @@ model barbers {
   barbershops  barbershops    @relation(fields: [barbershop_id], references: [id], onUpdate: NoAction, map: "fk_barbers_barbershop")
 
   monthly_subscriptions subscriptions[] @relation("MonthlyBarber")
-  blocked_dates          blocked_dates[]
+  blocked_dates         blocked_dates[]
 }
 
 model gallery_images {
@@ -115,10 +115,10 @@ model payment_transactions {
 
   mp_payment_id    String?
   mp_preference_id String?
-  barbershops     barbershops    @relation(fields: [barbershop_id], references: [id], onUpdate: NoAction, map: "fk_payments_barbershop")
-  appointments    appointments?  @relation(fields: [appointment_id], references: [id], onUpdate: NoAction)
-  subscriptions   subscriptions? @relation(fields: [subscription_id], references: [id], onUpdate: NoAction)
-  users           users?         @relation(fields: [user_id], references: [id], onUpdate: NoAction)
+  barbershops      barbershops    @relation(fields: [barbershop_id], references: [id], onUpdate: NoAction, map: "fk_payments_barbershop")
+  appointments     appointments?  @relation(fields: [appointment_id], references: [id], onUpdate: NoAction)
+  subscriptions    subscriptions? @relation(fields: [subscription_id], references: [id], onUpdate: NoAction)
+  users            users?         @relation(fields: [user_id], references: [id], onUpdate: NoAction)
 
   @@index([appointment_id], map: "idx_payments_appointment")
   @@index([subscription_id], map: "idx_payments_subscription")
@@ -208,7 +208,8 @@ model subscription_plans {
   color       String?
   recommended Boolean @default(false)
 
-  mp_subscription_url String?
+  mp_subscription_url    String?
+  mp_preapproval_plan_id String? @unique
 
   created_at DateTime @default(now()) @db.Timestamptz(6)
   updated_at DateTime @default(now()) @db.Timestamptz(6)
