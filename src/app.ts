@@ -43,19 +43,19 @@ app.use(express.json());
 app.get("/health", (_req, res) => res.send({ ok: true }));
 
 
-const mercadoPagoPublicKey = process.env.MERCADO_PAGO_PUBLIC_KEY_PROD;
+const mercadoPagoPublicKey = process.env.MERCADO_PAGO_PUBLIC_KEY_TEST;
 if (!mercadoPagoPublicKey) {
     console.log("Error: public key not defined");
     process.exit(1);
 }
 
-const mercadoPagoAccessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN_PROD;
+const mercadoPagoAccessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN_TEST;
 if (!mercadoPagoAccessToken) {
     console.log("Error: access token not defined");
     process.exit(1);
 }
 
-const client = new MercadoPagoConfig({ accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN_PROD ?? "" });
+const client = new MercadoPagoConfig({ accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN_TEST ?? "" });
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -286,7 +286,7 @@ app.post("/webhooks/mercadopago", async (req, res) => {
 
 app.post("/criar_pix", async (req, res) => {
     try {
-        const clientPix = new MercadoPagoConfig({ accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN_PROD ?? "" });
+        const clientPix = new MercadoPagoConfig({ accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN_TEST ?? "" });
         const payment = new Payment(clientPix);
 
         // Gerar referência externa única para correlacionar com o payment_id do MP
@@ -328,7 +328,7 @@ app.post("/criar_pix", async (req, res) => {
 });
 
 app.get("/pixstatus/:id", async (req, res) => {
-    const clientPixStatus = new MercadoPagoConfig({ accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN_PROD ?? "" });
+    const clientPixStatus = new MercadoPagoConfig({ accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN_TEST ?? "" });
     const payment = new Payment(clientPixStatus);
 
     const result = await payment.get({
