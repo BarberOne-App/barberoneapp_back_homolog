@@ -297,7 +297,62 @@ export async function processPayment(input: ProcessPaymentInput) {
     };
   }
 
-  // Cartão — retorno padrão
+  // Cartão — se ainda está in_process, aguardar resolução via polling
+  if (payment.status === "in_process" && payment.id) {
+    const MAX_ATTEMPTS = 10;
+    const INTERVAL_MS = 3000; // 3 segundos entre tentativas (total máx ≈ 30s)
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      await new Promise((r) => setTimeout(r, INTERVAL_MS));
+
+      try {
+        const check = await mpPayment.get({ id: String(payment.id) });
+        const checkedStatus = check.status ?? "in_process";
+
+        // Se obteve uma resposta definitiva, atualizar banco e retornar
+        if (checkedStatus !== "in_process" && checkedStatus !== "pending") {
+          const finalStatus = mapMpStatus(checkedStatus);
+
+          if (tx) {
+            await prisma.payment_transactions.update({
+              where: { id: tx.id },
+              data: {
+                status: finalStatus as any,
+                status_raw: checkedStatus,
+                paid_at: checkedStatus === "approved" ? new Date() : null,
+                updated_at: new Date(),
+              },
+            });
+
+            if (checkedStatus === "approved" && tx.appointment_id) {
+              await prisma.appointments.update({
+                where: { id: tx.appointment_id },
+                data: { status: "confirmed", updated_at: new Date() },
+              }).catch(() => {});
+            }
+          }
+
+          return {
+            transactionId: referenceId,
+            mpPaymentId: check.id,
+            status: checkedStatus,
+            statusDetail: check.status_detail,
+            paymentMethodId: check.payment_method_id,
+            paymentTypeId: check.payment_type_id,
+            installments: check.installments,
+            dateApproved: check.date_approved,
+          };
+        }
+      } catch {
+        // Falha na consulta — continua tentando
+      }
+    }
+
+    // Esgotou tentativas e ainda está in_process — retorna o que tem
+    console.warn(`[processPayment] Pagamento ${payment.id} permanece in_process após ${MAX_ATTEMPTS} tentativas`);
+  }
+
+  // Cartão — retorno padrão (aprovado direto ou timeout do polling)
   return {
     ...baseResponse,
     installments: payment.installments,

@@ -109,7 +109,7 @@ app.post("/process_payment", async (req, res) => {
                         description: body.description,
                         category_id: body.category_id || "others",
                         quantity: body.quantity || 1,
-                        unit_price: body.unit_price || Number(body.transaction_amount),
+                        unit_price: Number(body.unit_price) || Number(body.transaction_amount),
                     },
                 ],
             },
@@ -127,14 +127,43 @@ app.post("/process_payment", async (req, res) => {
 
         console.log("Pagamento criado:", result);
 
-        return res.status(201).json({
-            id: result.id,
-            status: result.status,
-            status_detail: result.status_detail,
-            payment_method_id: result.payment_method_id,
-            external_reference: externalReference,
-            card: { last_four_digits: result.card?.last_four_digits },
-        });
+        // Se o status já é definitivo, retorna direto
+        if (isFinalForYourFront(result.status ?? "")) {
+            return res.status(201).json({
+                id: result.id,
+                status: result.status,
+                status_detail: result.status_detail,
+                payment_method_id: result.payment_method_id,
+                external_reference: externalReference,
+                card: { last_four_digits: result.card?.last_four_digits },
+            });
+        }
+
+        // Status pendente (in_process) — aguardar webhook com status final
+        console.log(`Pagamento ${result.id} em análise (${result.status}), aguardando webhook...`);
+        try {
+            const final: any = await waitPaymentFinal(String(result.id), { timeoutMs: 120_000 });
+
+            return res.status(201).json({
+                id: final.id ?? result.id,
+                status: mapToFrontStatus(final.status ?? "rejected"),
+                status_detail: final.status_detail ?? result.status_detail,
+                payment_method_id: final.payment_method_id ?? result.payment_method_id,
+                external_reference: externalReference,
+                card: { last_four_digits: final.card?.last_four_digits ?? result.card?.last_four_digits },
+            });
+        } catch {
+            // Timeout — o webhook não chegou a tempo
+            console.warn(`Timeout aguardando status final do pagamento ${result.id}`);
+            return res.status(201).json({
+                id: result.id,
+                status: "rejected",
+                status_detail: "timeout_waiting_for_final_status",
+                payment_method_id: result.payment_method_id,
+                external_reference: externalReference,
+                card: { last_four_digits: result.card?.last_four_digits },
+            });
+        }
     } catch (error) {
         console.log(error);
         const { errorMessage, errorStatus } = validateError(error);
@@ -156,8 +185,31 @@ app.post("/webhooks/mercadopago", async (req, res) => {
     res.sendStatus(200);
 
     try {
-        const preapprovalId = req.body?.data?.id || req.body?.id;
-        if (!preapprovalId) return;
+        const notificationType = req.body?.type;
+        const dataId = req.body?.data?.id || req.body?.id;
+        if (!dataId) return;
+
+        /* ─── Notificação de PAGAMENTO ─── */
+        if (notificationType === "payment") {
+            try {
+                const paymentClient = new Payment(client);
+                const mpPay = await paymentClient.get({ id: String(dataId) });
+                const mpStatus = mpPay.status ?? "";
+
+                console.log(`[Webhook] Pagamento ${dataId} → status: ${mpStatus}`);
+
+                // Se status é final, resolver o waiter (destravar o /process_payment)
+                if (isFinalForYourFront(mpStatus)) {
+                    resolveWaiter(String(dataId), mpPay);
+                }
+            } catch (err: any) {
+                console.error("[Webhook] Erro ao consultar pagamento:", err.message);
+            }
+            return;
+        }
+
+        /* ─── Notificação de ASSINATURA (preapproval) ─── */
+        const preapprovalId = dataId;
 
         const { data: mpSub } = await axios.get(
             `https://api.mercadopago.com/preapproval/${preapprovalId}`,
