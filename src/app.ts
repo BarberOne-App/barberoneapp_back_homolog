@@ -81,7 +81,6 @@ app.post("/process_payment", async (req, res) => {
 
         const payment = new Payment(client);
 
-        // Gerar referência externa única para correlacionar com o payment_id do MP
         const externalReference = `pay_${Date.now()}_${crypto.randomUUID()}`;
 
         const paymentData: Record<string, any> = {
@@ -90,7 +89,7 @@ app.post("/process_payment", async (req, res) => {
             description: body.description,
             installments: Number(body.installments),
             payment_method_id: body.payment_method_id,
-            issuer_id: body.issuer_id,
+            issuer_id: body.issuer_id || undefined,
             external_reference: externalReference,
             ...(MP_NOTIFICATION_URL ? { notification_url: MP_NOTIFICATION_URL } : {}),
             payer: {
@@ -138,67 +137,6 @@ app.post("/process_payment", async (req, res) => {
     }
 });
 
-// app.post("/process_payment", async (req, res) => {
-//     const paymentApi = new Payment(client);
-
-//     console.log("Processando pagamento com dados:", req.body);
-//     try {
-//         const body = req.body;
-
-//         const paymentData = {
-//             transaction_amount: Number(body.transaction_amount),
-//             token: body.token,
-//             description: body.description,
-//             installments: Number(body.installments),
-//             payment_method_id: body.payment_method_id,
-//             issuer_id: body.issuer_id,
-//             payer: {
-//                 email: body.payer?.email,
-//                 identification: {
-//                     type: body.payer?.identification?.type,
-//                     number: body.payer?.identification?.number,
-//                 },
-//             },
-//         };
-
-//         const idempotencyKey = req.get("X-Idempotency-Key") || undefined;
-
-//         const created = await paymentApi.create({
-//             body: paymentData,
-//             requestOptions: idempotencyKey ? { idempotencyKey } : undefined,
-//         }) as any;
-
-//         console.log("Pagamento criado:", created);
-
-//         // Se já veio final, responde imediatamente
-//         if (isFinalForYourFront(created.status)) {
-//             return res.status(201).json({
-//                 id: created.id,
-//                 status: mapToFrontStatus(created.status),
-//                 mp_status: created.status,
-//                 status_detail: created.status_detail,
-//             });
-//         }
-//         const finalPayment = await waitPaymentFinal(String(created.id), { timeoutMs: 120_000 }) as any;
-
-//         console.log("Pagamento finalizado:", finalPayment);
-
-//         return res.status(201).json({
-//             id: finalPayment.id,
-//             status: mapToFrontStatus(finalPayment.status),
-//             mp_status: finalPayment.status,
-//             status_detail: finalPayment.status_detail,
-//         });
-//     } catch (error) {
-//         // if (error?.message === "PAYMENT_TIMEOUT") {
-//         //     return res.status(504).json({ error_message: "Pagamento ainda em processamento (timeout no servidor)." });
-//         // }
-
-//         console.log(error);
-//         const { errorMessage, errorStatus } = validateError(error);
-//         return res.status(errorStatus).json({ error_message: errorMessage });
-//     }
-// });
 
 // mapeia status do MP -> teu enum
 function mapMpStatusToLocal(mpStatus: string) {
@@ -266,30 +204,12 @@ app.post("/webhooks/mercadopago", async (req, res) => {
     }
 });
 
-// app.post("/mp/webhook", async (req, res) => {
-//     try {
-//         const paymentId = req.body?.data?.id || req.query?.["data.id"] || req.query?.id;
-//         if (!paymentId) return res.sendStatus(200);
-
-//         const paymentApi = new Payment(client);
-//         const p = await paymentApi.get({ id: String(paymentId) }) as any;
-
-//         if (isFinalForYourFront(p.status)) {
-//             resolveWaiter(String(paymentId), p);
-//         }
-
-//         return res.sendStatus(200);
-//     } catch (e) {
-//         return res.sendStatus(200);
-//     }
-// });
 
 app.post("/criar_pix", async (req, res) => {
     try {
         const clientPix = new MercadoPagoConfig({ accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN_TEST ?? "" });
         const payment = new Payment(clientPix);
 
-        // Gerar referência externa única para correlacionar com o payment_id do MP
         const externalReference = `pix_${Date.now()}_${crypto.randomUUID()}`;
 
         const body: Record<string, any> = {
@@ -338,16 +258,16 @@ app.get("/pixstatus/:id", async (req, res) => {
 });
 
 function validateError(error: any) {
-    let errorMessage = "Unknown error cause";
-    let errorStatus = 400;
+    console.error("Erro MP completo:", error);
 
-    if (error.cause) {
-        const sdkErrorMessage = error.cause[0].description;
-        errorMessage = sdkErrorMessage || errorMessage;
+    const errorMessage =
+        error?.cause?.[0]?.description ||
+        error?.message ||
+        "Erro ao processar pagamento";
 
-        const sdkErrorStatus = error.status;
-        errorStatus = sdkErrorStatus || errorStatus;
-    }
+    const errorStatus =
+        error?.status ||
+        500;
 
     return { errorMessage, errorStatus };
 }
