@@ -77,6 +77,7 @@ app.post("/process_payment", async (req, res) => {
 
     console.log("Processando pagamento com dados:", req.body);
     try {
+        
         const body = req.body;
 
         const payment = new Payment(client);
@@ -91,6 +92,7 @@ app.post("/process_payment", async (req, res) => {
             payment_method_id: body.payment_method_id,
             issuer_id: body.issuer_id || undefined,
             external_reference: externalReference,
+            statement_descriptor: "BarberShop",
             ...(MP_NOTIFICATION_URL ? { notification_url: MP_NOTIFICATION_URL } : {}),
             payer: {
                 email: body.payer?.email,
