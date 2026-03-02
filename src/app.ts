@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import crypto from "crypto";
 import dotenv from "dotenv";
 import authRoutes from "./routes/authRoute.js";
 import productsRouter from "./routes/productsRouter.js";
@@ -33,6 +34,7 @@ dotenv.config();
 const app = express();
 const prisma = new PrismaClient();
 const MP_TOKEN = process.env.MP_ACCESS_TOKEN;
+const MP_NOTIFICATION_URL = process.env.MERCADO_PAGO_NOTIFICATION_URL ?? "";
 
 
 app.use(cors({ origin: true }));
@@ -79,13 +81,18 @@ app.post("/process_payment", async (req, res) => {
 
         const payment = new Payment(client);
 
-        const paymentData = {
+        // Gerar referência externa única para correlacionar com o payment_id do MP
+        const externalReference = `pay_${Date.now()}_${crypto.randomUUID()}`;
+
+        const paymentData: Record<string, any> = {
             transaction_amount: Number(body.transaction_amount),
             token: body.token,
             description: body.description,
             installments: Number(body.installments),
             payment_method_id: body.payment_method_id,
             issuer_id: body.issuer_id,
+            external_reference: externalReference,
+            ...(MP_NOTIFICATION_URL ? { notification_url: MP_NOTIFICATION_URL } : {}),
             payer: {
                 email: body.payer?.email,
                 identification: {
@@ -121,6 +128,7 @@ app.post("/process_payment", async (req, res) => {
             status: result.status,
             status_detail: result.status_detail,
             payment_method_id: result.payment_method_id,
+            external_reference: externalReference,
             card: { last_four_digits: result.card?.last_four_digits },
         });
     } catch (error) {
@@ -281,10 +289,15 @@ app.post("/criar_pix", async (req, res) => {
         const clientPix = new MercadoPagoConfig({ accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN_PROD ?? "" });
         const payment = new Payment(clientPix);
 
-        const body = {
+        // Gerar referência externa única para correlacionar com o payment_id do MP
+        const externalReference = `pix_${Date.now()}_${crypto.randomUUID()}`;
+
+        const body: Record<string, any> = {
             transaction_amount: Number(req.body.transaction_amount),
             description: req.body.description,
             payment_method_id: req.body.payment_method_id,
+            external_reference: externalReference,
+            ...(MP_NOTIFICATION_URL ? { notification_url: MP_NOTIFICATION_URL } : {}),
             payer: {
                 email: req.body.payer?.email,
                 identification: {
@@ -302,6 +315,7 @@ app.post("/criar_pix", async (req, res) => {
 
         return res.status(201).json({
             id: result.id,
+            external_reference: externalReference,
             ticket_url: result.point_of_interaction?.transaction_data?.ticket_url,
             qr_code: result.point_of_interaction?.transaction_data?.qr_code,
             qr_code_base64: result.point_of_interaction?.transaction_data?.qr_code_base64,
