@@ -77,7 +77,7 @@ app.post("/process_payment", async (req, res) => {
 
     console.log("Processando pagamento com dados:", req.body);
     try {
-        
+
         const body = req.body;
 
         const payment = new Payment(client);
@@ -104,12 +104,12 @@ app.post("/process_payment", async (req, res) => {
             additional_info: {
                 items: [
                     {
-                        id: "SVC-001",
-                        title: "Corte degradê",
-                        description: "Corte + finalização",
-                        category_id: "services",
-                        quantity: 1,
-                        unit_price: 45.0,
+                        id: body.id,
+                        title: body.title,
+                        description: body.description,
+                        category_id: body.category_id || "others",
+                        quantity: body.quantity || 1,
+                        unit_price: body.unit_price || Number(body.transaction_amount),
                     },
                 ],
             },
