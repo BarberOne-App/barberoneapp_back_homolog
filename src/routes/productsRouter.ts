@@ -12,8 +12,11 @@ import {
 const router = Router();
 
 // todos precisam estar autenticados (barbershop vem do token)
-router.get("/products", requireAuth, asyncHandler(listProducts));
-router.get("/products/:id", requireAuth, asyncHandler(getProductById));
+// router.get("/products", requireAuth, asyncHandler(listProducts));
+// router.get("/products/:id", requireAuth, asyncHandler(getProductById));
+
+router.get("/products", asyncHandler(listProducts));
+router.get("/products/:id", asyncHandler(getProductById));
 
 // service já bloqueia se não for admin, mas pode deixar assim mesmo:
 router.post("/products", requireAuth, asyncHandler(createProduct));

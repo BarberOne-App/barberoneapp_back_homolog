@@ -155,13 +155,19 @@ app.post("/process_payment", async (req, res) => {
         } catch {
             // Timeout — o webhook não chegou a tempo
             console.warn(`Timeout aguardando status final do pagamento ${result.id}`);
+            // return res.status(201).json({
+            //     id: result.id,
+            //     status: "rejected",
+            //     status_detail: "timeout_waiting_for_final_status",
+            //     payment_method_id: result.payment_method_id,
+            //     external_reference: externalReference,
+            //     card: { last_four_digits: result.card?.last_four_digits },
+            // });
             return res.status(201).json({
                 id: result.id,
-                status: "rejected",
-                status_detail: "timeout_waiting_for_final_status",
-                payment_method_id: result.payment_method_id,
+                status: "pending",
+                status_detail: "waiting_for_final_status",
                 external_reference: externalReference,
-                card: { last_four_digits: result.card?.last_four_digits },
             });
         }
     } catch (error) {
@@ -170,7 +176,6 @@ app.post("/process_payment", async (req, res) => {
         return res.status(errorStatus).json({ error_message: errorMessage });
     }
 });
-
 
 // mapeia status do MP -> teu enum
 function mapMpStatusToLocal(mpStatus: string) {
