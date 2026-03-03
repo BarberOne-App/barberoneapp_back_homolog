@@ -12,8 +12,11 @@ import { requireAdmin, requireAuth } from "../middleware/authMiddleware.js";
 const route = Router();
 
 // list / details: qualquer usuário logado da barbearia
-route.get("/services", requireAuth, listServices);
-route.get("/services/:id", requireAuth, getServiceById);
+// route.get("/services", requireAuth, listServices);
+// route.get("/services/:id", requireAuth, getServiceById);
+
+route.get("/services", listServices);
+route.get("/services/:id", getServiceById);
 
 // create/update/delete: só admin
 route.post("/services", requireAuth, requireAdmin, createService);
