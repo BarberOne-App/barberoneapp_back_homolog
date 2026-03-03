@@ -46,6 +46,7 @@ export async function listProductsService(params: {
     const active =
         params.actorRole === "admin" ? params.query?.active : true;
 
+    console.log('params', params);
     return listProductsInBarbershop({
         barbershopId: params.barbershopId,
         active,
