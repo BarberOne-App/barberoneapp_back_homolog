@@ -232,9 +232,9 @@ app.post("/process_payment", async (req, res) => {
             // additional_info: 'Discount: 12.00',
             // auto_return: 'all',
             // binary_mode: true,
-            // external_reference: '1643827245',
+            external_reference: externalReference,
             // marketplace: 'marketplace',
-            // notification_url: 'https://notificationurl.com',
+            ...(MP_NOTIFICATION_URL ? { notification_url: MP_NOTIFICATION_URL } : {}),
             // operation_type: 'regular_payment',
             // payment_methods: {
             //     default_payment_method_id: 'master',
