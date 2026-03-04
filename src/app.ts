@@ -73,110 +73,6 @@ app.get("/", function (req, res) {
     res.status(200).render("app", { mercadoPagoPublicKey });
 });
 
-app.post("/process_payment", async (req, res) => {
-
-    console.log("Processando pagamento com dados:", req.body);
-    try {
-
-        const body = req.body;
-
-        const payment = new Payment(client);
-
-        const externalReference = `pay_${Date.now()}_${crypto.randomUUID()}`;
-
-        const paymentData: Record<string, any> = {
-            transaction_amount: Number(body.transaction_amount),
-            token: body.token,
-            description: body.description,
-            installments: Number(body.installments),
-            payment_method_id: body.payment_method_id,
-            issuer_id: body.issuer_id || undefined,
-            external_reference: externalReference,
-            statement_descriptor: "BarberShop",
-            ...(MP_NOTIFICATION_URL ? { notification_url: MP_NOTIFICATION_URL } : {}),
-            payer: {
-                email: body.payer?.email,
-                identification: {
-                    type: body.payer?.identification?.type,
-                    number: body.payer?.identification?.number,
-                },
-            },
-            additional_info: {
-                items: [
-                    {
-                        id: body.id,
-                        title: body.title,
-                        description: body.description,
-                        category_id: body.category_id || "others",
-                        quantity: body.quantity || 1,
-                        unit_price: Number(body.unit_price) || Number(body.transaction_amount),
-                    },
-                ],
-            },
-        };
-
-        const idempotencyKey = req.get("X-Idempotency-Key") || undefined;
-
-        const result = await payment.create({
-            body: paymentData,
-            requestOptions: idempotencyKey ? { idempotencyKey } : undefined,
-        });
-
-        console.log("IDEMPOTENCY:", idempotencyKey);
-        console.log("EXTERNAL_REFERENCE:", externalReference);
-
-        console.log("Pagamento criado:", result);
-
-        // Se o status já é definitivo, retorna direto
-        if (isFinalForYourFront(result.status ?? "")) {
-            return res.status(201).json({
-                id: result.id,
-                status: result.status,
-                status_detail: result.status_detail,
-                payment_method_id: result.payment_method_id,
-                external_reference: externalReference,
-                card: { last_four_digits: result.card?.last_four_digits },
-            });
-        }
-
-        // Status pendente (in_process) — aguardar webhook com status final
-        console.log(`Pagamento ${result.id} em análise (${result.status}), aguardando webhook...`);
-        try {
-            const final: any = await waitPaymentFinal(String(result.id), { timeoutMs: 120_000 });
-
-            return res.status(201).json({
-                id: final.id ?? result.id,
-                status: mapToFrontStatus(final.status ?? "rejected"),
-                status_detail: final.status_detail ?? result.status_detail,
-                payment_method_id: final.payment_method_id ?? result.payment_method_id,
-                external_reference: externalReference,
-                card: { last_four_digits: final.card?.last_four_digits ?? result.card?.last_four_digits },
-            });
-        } catch {
-            // Timeout — o webhook não chegou a tempo
-            console.warn(`Timeout aguardando status final do pagamento ${result.id}`);
-            // return res.status(201).json({
-            //     id: result.id,
-            //     status: "rejected",
-            //     status_detail: "timeout_waiting_for_final_status",
-            //     payment_method_id: result.payment_method_id,
-            //     external_reference: externalReference,
-            //     card: { last_four_digits: result.card?.last_four_digits },
-            // });
-            return res.status(201).json({
-                id: result.id,
-                status: "pending",
-                status_detail: "waiting_for_final_status",
-                external_reference: externalReference,
-            });
-        }
-    } catch (error) {
-        console.log(error);
-        const { errorMessage, errorStatus } = validateError(error);
-        return res.status(errorStatus).json({ error_message: errorMessage });
-    }
-});
-
 // app.post("/process_payment", async (req, res) => {
 
 //     console.log("Processando pagamento com dados:", req.body);
@@ -184,119 +80,223 @@ app.post("/process_payment", async (req, res) => {
 
 //         const body = req.body;
 
-//         const preference = new Preference(client)
+//         const payment = new Payment(client);
 
 //         const externalReference = `pay_${Date.now()}_${crypto.randomUUID()}`;
 
-//         const paymentData: any = {
-//             items: [
-//                 {
-//                     id: body.id || "item123",
-//                     title: body.title || "Dummy Title",
-//                     description: body.description || "Dummy description",
-//                     picture_url: body.picture_url || 'https://www.myapp.com/myimage.jpg',
-//                     category_id: body.category_id || 'car_electronics',
-//                     quantity: body.quantity || 1,
-//                     currency_id: 'BRL',
-//                     unit_price: body.unit_price || 10,
-//                 },
-//             ],
-//             // marketplace_fee: 0,
-//             // payer: {
-//             //     name: 'Test',
-//             //     surname: 'User',
-//             //     email: 'your_test_email@example.com',
-//             //     phone: {
-//             //         area_code: '11',
-//             //         number: '4444-4444',
-//             //     },
-//             //     identification: {
-//             //         type: 'CPF',
-//             //         number: '19119119100',
-//             //     },
-//             //     address: {
-//             //         zip_code: '06233200',
-//             //         street_name: 'Street',
-//             //         street_number: 123,
-//             //     },
-//             // },
-//             back_urls: {
-//                 success: 'https://localhost:5173/agendamentos',
-//                 failure: 'https://localhost:5173/home',
-//                 pending: 'https://localhost:5173/agendamentos',
-//             },
-//             // differential_pricing: {
-//             //     id: 1,
-//             // },
-//             // expires: false,
-//             // additional_info: 'Discount: 12.00',
-//             // auto_return: 'all',
-//             // binary_mode: true,
+//         const paymentData: Record<string, any> = {
+//             transaction_amount: Number(body.transaction_amount),
+//             token: body.token,
+//             description: body.description,
+//             installments: Number(body.installments),
+//             payment_method_id: body.payment_method_id,
+//             issuer_id: body.issuer_id || undefined,
 //             external_reference: externalReference,
-//             // marketplace: 'marketplace',
+//             statement_descriptor: "BarberShop",
 //             ...(MP_NOTIFICATION_URL ? { notification_url: MP_NOTIFICATION_URL } : {}),
-//             // operation_type: 'regular_payment',
-//             // payment_methods: {
-//             //     default_payment_method_id: 'master',
-//             //     excluded_payment_types: [
-//             //         {
-//             //             id: 'ticket',
-//             //         },
-//             //     ],
-//             //     excluded_payment_methods: [
-//             //         {
-//             //             id: '',
-//             //         },
-//             //     ],
-//             //     installments: 5,
-//             //     default_installments: 1,
-//             // },
-//             // shipments: {
-//             //     mode: 'custom',
-//             //     local_pickup: false,
-//             //     default_shipping_method: null,
-//             //     free_methods: [
-//             //         {
-//             //             id: 1,
-//             //         },
-//             //     ],
-//             //     cost: 10,
-//             //     free_shipping: false,
-//             //     dimensions: '10x10x20,500',
-//             //     receiver_address: {
-//             //         zip_code: '06000000',
-//             //         street_number: 123,
-//             //         street_name: 'Street',
-//             //         floor: '12',
-//             //         apartment: '120A',
-//             //     },
-//             // },
-//             // statement_descriptor: 'Test Store',
+//             payer: {
+//                 email: body.payer?.email,
+//                 identification: {
+//                     type: body.payer?.identification?.type,
+//                     number: body.payer?.identification?.number,
+//                 },
+//             },
+//             additional_info: {
+//                 items: [
+//                     {
+//                         id: body.id,
+//                         title: body.title,
+//                         description: body.description,
+//                         category_id: body.category_id || "others",
+//                         quantity: body.quantity || 1,
+//                         unit_price: Number(body.unit_price) || Number(body.transaction_amount),
+//                     },
+//                 ],
+//             },
 //         };
 
 //         const idempotencyKey = req.get("X-Idempotency-Key") || undefined;
 
-//         const result = await preference.create({ body: paymentData, requestOptions: idempotencyKey ? { idempotencyKey } : undefined });
+//         const result = await payment.create({
+//             body: paymentData,
+//             requestOptions: idempotencyKey ? { idempotencyKey } : undefined,
+//         });
 
 //         console.log("IDEMPOTENCY:", idempotencyKey);
 //         console.log("EXTERNAL_REFERENCE:", externalReference);
 
 //         console.log("Pagamento criado:", result);
-//         return res.status(201).json({
-//             status: result.auto_return,
-//             url_sucess: result.back_urls?.success,
-//             url_failure: result.back_urls?.failure,
-//             url_pending: result.back_urls?.pending,
-//             init_point: result.init_point,
-//             collector_id: result.collector_id,
-//             id: result.id
-//         })
+
+//         // Se o status já é definitivo, retorna direto
+//         if (isFinalForYourFront(result.status ?? "")) {
+//             return res.status(201).json({
+//                 id: result.id,
+//                 status: result.status,
+//                 status_detail: result.status_detail,
+//                 payment_method_id: result.payment_method_id,
+//                 external_reference: externalReference,
+//                 card: { last_four_digits: result.card?.last_four_digits },
+//             });
+//         }
+
+//         // Status pendente (in_process) — aguardar webhook com status final
+//         console.log(`Pagamento ${result.id} em análise (${result.status}), aguardando webhook...`);
+//         try {
+//             const final: any = await waitPaymentFinal(String(result.id), { timeoutMs: 120_000 });
+
+//             return res.status(201).json({
+//                 id: final.id ?? result.id,
+//                 status: mapToFrontStatus(final.status ?? "rejected"),
+//                 status_detail: final.status_detail ?? result.status_detail,
+//                 payment_method_id: final.payment_method_id ?? result.payment_method_id,
+//                 external_reference: externalReference,
+//                 card: { last_four_digits: final.card?.last_four_digits ?? result.card?.last_four_digits },
+//             });
+//         } catch {
+//             // Timeout — o webhook não chegou a tempo
+//             console.warn(`Timeout aguardando status final do pagamento ${result.id}`);
+//             // return res.status(201).json({
+//             //     id: result.id,
+//             //     status: "rejected",
+//             //     status_detail: "timeout_waiting_for_final_status",
+//             //     payment_method_id: result.payment_method_id,
+//             //     external_reference: externalReference,
+//             //     card: { last_four_digits: result.card?.last_four_digits },
+//             // });
+//             return res.status(201).json({
+//                 id: result.id,
+//                 status: "pending",
+//                 status_detail: "waiting_for_final_status",
+//                 external_reference: externalReference,
+//             });
+//         }
 //     } catch (error) {
 //         console.log(error);
 //         const { errorMessage, errorStatus } = validateError(error);
 //         return res.status(errorStatus).json({ error_message: errorMessage });
 //     }
 // });
+
+app.post("/process_payment", async (req, res) => {
+
+    console.log("Processando pagamento com dados:", req.body);
+    try {
+
+        const body = req.body;
+
+        const preference = new Preference(client)
+
+        const externalReference = `pay_${Date.now()}_${crypto.randomUUID()}`;
+
+        const paymentData: any = {
+            items: [
+                {
+                    id: body.id || "item123",
+                    title: body.title || "Dummy Title",
+                    description: body.description || "Dummy description",
+                    picture_url: body.picture_url || 'https://www.myapp.com/myimage.jpg',
+                    category_id: body.category_id || 'car_electronics',
+                    quantity: body.quantity || 1,
+                    currency_id: 'BRL',
+                    unit_price: body.unit_price || 10,
+                },
+            ],
+            // marketplace_fee: 0,
+            // payer: {
+            //     name: 'Test',
+            //     surname: 'User',
+            //     email: 'your_test_email@example.com',
+            //     phone: {
+            //         area_code: '11',
+            //         number: '4444-4444',
+            //     },
+            //     identification: {
+            //         type: 'CPF',
+            //         number: '19119119100',
+            //     },
+            //     address: {
+            //         zip_code: '06233200',
+            //         street_name: 'Street',
+            //         street_number: 123,
+            //     },
+            // },
+            back_urls: {
+                success: 'https://localhost:5173/agendamentos',
+                failure: 'https://localhost:5173/home',
+                pending: 'https://localhost:5173/agendamentos',
+            },
+            // differential_pricing: {
+            //     id: 1,
+            // },
+            // expires: false,
+            // additional_info: 'Discount: 12.00',
+            // auto_return: 'all',
+            // binary_mode: true,
+            external_reference: externalReference,
+            // marketplace: 'marketplace',
+            ...(MP_NOTIFICATION_URL ? { notification_url: MP_NOTIFICATION_URL } : {}),
+            // operation_type: 'regular_payment',
+            // payment_methods: {
+            //     default_payment_method_id: 'master',
+            //     excluded_payment_types: [
+            //         {
+            //             id: 'ticket',
+            //         },
+            //     ],
+            //     excluded_payment_methods: [
+            //         {
+            //             id: '',
+            //         },
+            //     ],
+            //     installments: 5,
+            //     default_installments: 1,
+            // },
+            // shipments: {
+            //     mode: 'custom',
+            //     local_pickup: false,
+            //     default_shipping_method: null,
+            //     free_methods: [
+            //         {
+            //             id: 1,
+            //         },
+            //     ],
+            //     cost: 10,
+            //     free_shipping: false,
+            //     dimensions: '10x10x20,500',
+            //     receiver_address: {
+            //         zip_code: '06000000',
+            //         street_number: 123,
+            //         street_name: 'Street',
+            //         floor: '12',
+            //         apartment: '120A',
+            //     },
+            // },
+            // statement_descriptor: 'Test Store',
+        };
+
+        const idempotencyKey = req.get("X-Idempotency-Key") || undefined;
+
+        const result = await preference.create({ body: paymentData, requestOptions: idempotencyKey ? { idempotencyKey } : undefined });
+
+        console.log("IDEMPOTENCY:", idempotencyKey);
+        console.log("EXTERNAL_REFERENCE:", externalReference);
+
+        console.log("Pagamento criado:", result);
+        return res.status(201).json({
+            status: result.auto_return,
+            url_sucess: result.back_urls?.success,
+            url_failure: result.back_urls?.failure,
+            url_pending: result.back_urls?.pending,
+            init_point: result.init_point,
+            collector_id: result.collector_id,
+            id: result.id
+        })
+    } catch (error) {
+        console.log(error);
+        const { errorMessage, errorStatus } = validateError(error);
+        return res.status(errorStatus).json({ error_message: errorMessage });
+    }
+});
 
 // mapeia status do MP -> teu enum
 function mapMpStatusToLocal(mpStatus: string) {
