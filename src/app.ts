@@ -203,7 +203,7 @@ app.post("/process_payment", async (req, res) => {
                 category_id: it.category_id,
                 quantity: it.quantity,
                 currency_id: it.currency_id || "BRL",
-                unit_price: it.unit_price,
+                unit_price: 2,
             });
         }
         const paymentData: any = {
