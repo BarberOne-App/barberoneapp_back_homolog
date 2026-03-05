@@ -221,6 +221,8 @@ app.post("/process_payment", async (req, res) => {
 
         const result = await preference.create({ body: paymentData, requestOptions: idempotencyKey ? { idempotencyKey } : undefined });
 
+        console.log("Preferência criada:", result);
+
         return res.status(201).json({
             status: result.auto_return,
             url_sucess: result.back_urls?.success,
