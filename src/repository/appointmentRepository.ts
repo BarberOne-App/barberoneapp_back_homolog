@@ -47,7 +47,7 @@ export async function listAppointmentsInBarbershop(params: {
   barberId?: string;
   clientId?: string;
   status?: string;
-  dateFrom?: string; // "YYYY-MM-DD"
+  dateFrom?: string;
   dateTo?: string;
   page: number;
   limit: number;
