@@ -208,89 +208,13 @@ app.post("/process_payment", async (req, res) => {
         }
         const paymentData: any = {
             items,
-            // items: [
-            //     {
-            //         id: body.id || "item123",
-            //         title: body.title || "Dummy Title",
-            //         description: body.description || "Dummy description",
-            //         picture_url: body.picture_url || 'https://www.myapp.com/myimage.jpg',
-            //         category_id: body.category_id || 'car_electronics',
-            //         quantity: body.quantity || 1,
-            //         currency_id: 'BRL',
-            //         unit_price: body.unit_price || 10,
-            //     },
-            // ],
-            // marketplace_fee: 0,
-            // payer: {
-            //     name: 'Test',
-            //     surname: 'User',
-            //     email: 'your_test_email@example.com',
-            //     phone: {
-            //         area_code: '11',
-            //         number: '4444-4444',
-            //     },
-            //     identification: {
-            //         type: 'CPF',
-            //         number: '19119119100',
-            //     },
-            //     address: {
-            //         zip_code: '06233200',
-            //         street_name: 'Street',
-            //         street_number: 123,
-            //     },
-            // },
             back_urls: {
-                success: 'https://localhost:5173/agendamentos',
-                failure: 'https://localhost:5173/home',
-                pending: 'https://localhost:5173/agendamentos',
+                success: 'http://localhost:5173/agendamentos',
+                failure: 'http://localhost:5173/home',
+                pending: 'http://localhost:5173/agendamentos',
             },
-            // differential_pricing: {
-            //     id: 1,
-            // },
-            // expires: false,
-            // additional_info: 'Discount: 12.00',
-            // auto_return: 'all',
-            // binary_mode: true,
             external_reference: externalReference,
-            // marketplace: 'marketplace',
             ...(MP_NOTIFICATION_URL ? { notification_url: MP_NOTIFICATION_URL } : {}),
-            // operation_type: 'regular_payment',
-            // payment_methods: {
-            //     default_payment_method_id: 'master',
-            //     excluded_payment_types: [
-            //         {
-            //             id: 'ticket',
-            //         },
-            //     ],
-            //     excluded_payment_methods: [
-            //         {
-            //             id: '',
-            //         },
-            //     ],
-            //     installments: 5,
-            //     default_installments: 1,
-            // },
-            // shipments: {
-            //     mode: 'custom',
-            //     local_pickup: false,
-            //     default_shipping_method: null,
-            //     free_methods: [
-            //         {
-            //             id: 1,
-            //         },
-            //     ],
-            //     cost: 10,
-            //     free_shipping: false,
-            //     dimensions: '10x10x20,500',
-            //     receiver_address: {
-            //         zip_code: '06000000',
-            //         street_number: 123,
-            //         street_name: 'Street',
-            //         floor: '12',
-            //         apartment: '120A',
-            //     },
-            // },
-            // statement_descriptor: 'Test Store',
         };
 
         const idempotencyKey = req.get("X-Idempotency-Key") || undefined;
