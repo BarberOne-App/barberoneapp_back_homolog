@@ -21,7 +21,7 @@ export const CreateAppointmentSchema = joi
         joi.object({
           id: joi.string().uuid().required(),
           name: joi.string().required(),
-          price: joi.number().min(0),
+          basePrice: joi.number().min(0),
           duration: joi.number().integer().min(1),
           quantity: joi.number().integer().min(1).optional(),
         })

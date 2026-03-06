@@ -128,7 +128,7 @@ export async function createAppointmentService(params: {
     date: string; // "YYYY-MM-DD"
     time: string; // "HH:MM"
     notes?: string | null;
-    services: { id: string; name: string; price: number; duration: number; quantity?: number }[];
+    services: { id: string; name: string; basePrice: number; duration: number; quantity?: number }[];
     products: { id: string; name: string; price: number; quantity?: number; discount?: number }[];
   };
 }) {
@@ -184,8 +184,8 @@ export async function createAppointmentService(params: {
     services: services.map((s) => ({
       serviceId: s.id,
       serviceName: s.name,
-      unitPrice: s.price,
-      durationMinutes: s.duration,
+      unitPrice: s.basePrice,
+      durationMinutes: 50,
       quantity: s.quantity ?? 1,
     })),
     products: (products ?? []).map((p) => ({
