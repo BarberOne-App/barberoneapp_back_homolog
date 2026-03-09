@@ -88,7 +88,7 @@ export async function listAppointmentsService(params: {
   }
 
   const page = params.query.page ?? 1;
-  const limit = params.query.limit ?? 20;
+  const limit = params.query.limit ?? 50;
 
   const { items, total } = await listAppointmentsInBarbershop({
     barbershopId: params.barbershopId,
