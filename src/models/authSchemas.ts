@@ -33,6 +33,16 @@ export const RegisterClientSchema = joi
   })
   .options({ abortEarly: false, stripUnknown: true });
 
+export const RegisterClientGoogleSchema = joi
+  .object({
+    slug: slug.optional(),
+    name: joi.string().trim().min(2).required(),
+    email: email.required(),
+    phone,
+    password: password.required(),
+  })
+  .options({ abortEarly: false, stripUnknown: true });
+
 export const RegisterBarbershopSchema = joi
   .object({
     barbershopName: joi.string().trim().min(2).required(),
