@@ -35,6 +35,8 @@ export async function createServiceService(barbershopId: string, data: {
   name: string;
   basePrice: number;
   durationMinutes: number;
+  promotionalPrice?: number;
+  covered_by_plan?: boolean;
   imageUrl?: string | null;
   active?: boolean;
 }) {
@@ -43,6 +45,8 @@ export async function createServiceService(barbershopId: string, data: {
     name: data.name,
     base_price: data.basePrice,
     duration_minutes: data.durationMinutes,
+    promotional_price: data.promotionalPrice ?? 0,
+    covered_by_plan: data.covered_by_plan ?? false,
     image_url: data.imageUrl ?? null,
     active: data.active ?? true,
   });
@@ -101,6 +105,8 @@ export async function updateServiceService(params: {
     name?: string;
     basePrice?: number;
     durationMinutes?: number;
+    promotionalPrice?: number;
+    covered_by_plan?: boolean;
     imageUrl?: string | null;
     active?: boolean;
   };
@@ -109,6 +115,8 @@ export async function updateServiceService(params: {
     ...(params.data.name != null ? { name: params.data.name } : {}),
     ...(params.data.basePrice != null ? { base_price: params.data.basePrice } : {}),
     ...(params.data.durationMinutes != null ? { duration_minutes: params.data.durationMinutes } : {}),
+    ...(params.data.promotionalPrice != null ? { promotional_price: params.data.promotionalPrice } : {}),
+    ...(params.data.covered_by_plan != null ? { covered_by_plan: params.data.covered_by_plan } : {}),
     ...(params.data.imageUrl !== undefined ? { image_url: params.data.imageUrl } : {}),
     ...(params.data.active != null ? { active: params.data.active } : {}),
   });

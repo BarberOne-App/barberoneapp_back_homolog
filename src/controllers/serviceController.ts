@@ -32,6 +32,8 @@ export async function createService(req: Request, res: Response) {
     durationMinutes: value.durationMinutes,
     imageUrl: value.imageUrl ?? null,
     active: value.active,
+    promotionalPrice: value.promotionalPrice ?? 0,
+    covered_by_plan: value.covered_by_plan ?? false,
   });
 
   return res.status(201).send(created);
@@ -92,6 +94,8 @@ export async function updateService(req: Request, res: Response) {
       name: b.value.name,
       basePrice: b.value.basePrice,
       durationMinutes: b.value.durationMinutes,
+      promotionalPrice: b.value.promotionalPrice,
+      covered_by_plan: b.value.covered_by_plan,
       imageUrl: b.value.imageUrl,
       active: b.value.active,
     },

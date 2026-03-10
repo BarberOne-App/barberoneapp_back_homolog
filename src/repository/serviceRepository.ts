@@ -8,6 +8,8 @@ export async function createService(data: {
   duration_minutes: number;
   image_url?: string | null;
   active?: boolean;
+  promotional_price?: number;
+  covered_by_plan?: boolean;
 }) {
   return prisma.services.create({
     data: {
@@ -15,6 +17,8 @@ export async function createService(data: {
       name: data.name,
       base_price: data.base_price,
       duration_minutes: data.duration_minutes,
+      promotional_price: data.promotional_price ?? 0,
+      covered_by_plan: data.covered_by_plan ?? false,
       image_url: data.image_url ?? null,
       active: data.active ?? true,
     },
@@ -43,7 +47,7 @@ export async function listServices(params: {
   if (params.q) {
     where.OR = [
       { name: { contains: params.q, mode: "insensitive" } },
-    //   { category: { contains: params.q, mode: "insensitive" } }, // se você usa category no service, remova se não existir
+      //   { category: { contains: params.q, mode: "insensitive" } }, // se você usa category no service, remova se não existir
     ];
   }
 
