@@ -5,6 +5,8 @@ export const CreateServiceSchema = joi.object({
   name: joi.string().trim().min(2).required(),
   basePrice: joi.number().precision(2).positive().required(),
   durationMinutes: joi.number().integer().min(1).required(),
+  promotionalPrice: joi.number().precision(2).positive().optional(),
+  covered_by_plan: joi.boolean().optional(),
   imageUrl: joi.string().uri().trim().allow("", null).optional(),
   active: joi.boolean().optional(),
 });
@@ -14,6 +16,8 @@ export const UpdateServiceSchema = joi
     name: joi.string().trim().min(2).optional(),
     basePrice: joi.number().precision(2).positive().optional(),
     durationMinutes: joi.number().integer().min(1).optional(),
+    promotionalPrice: joi.number().precision(2).positive().optional(),
+    covered_by_plan: joi.boolean().optional(),
     imageUrl: joi.string().uri().trim().allow("", null).optional(),
     active: joi.boolean().optional(),
   })

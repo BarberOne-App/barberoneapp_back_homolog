@@ -157,7 +157,6 @@ model services {
   image_url        String?
   active           Boolean @default(true)
 
-  // ✅ mock
   promotional_price Decimal? @db.Decimal(12, 2)
   covered_by_plan   Boolean  @default(false)
 
