@@ -63,7 +63,6 @@ export async function listServices(params: {
 }
 
 export async function updateService(barbershopId: string, id: string, data: any) {
-  // garante multi-tenant
   const existing = await findServiceById(barbershopId, id);
   if (!existing) return null;
 

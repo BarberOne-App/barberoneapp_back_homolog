@@ -41,6 +41,7 @@ export async function listServices(req: Request, res: Response) {
   const { error, value } = ListServicesQuerySchema.validate(req.query, { abortEarly: false });
   if (error) return res.status(422).send(joiErrors(error));
 
+  console.log("Query params:", req.query);
   // const barbershopId = req.user!.barbershopId;
   const barbershopId = '77faab94-26fd-48f0-aef7-8ddab4b35a94';
 
