@@ -41,8 +41,8 @@ export async function listServices(req: Request, res: Response) {
   const { error, value } = ListServicesQuerySchema.validate(req.query, { abortEarly: false });
   if (error) return res.status(422).send(joiErrors(error));
 
-  const barbershopId = req.user!.barbershopId;
-  // const barbershopId = '77faab94-26fd-48f0-aef7-8ddab4b35a94';
+  // const barbershopId = req.user!.barbershopId;
+  const barbershopId = '77faab94-26fd-48f0-aef7-8ddab4b35a94';
 
   const result = await listServicesService({
     barbershopId,
@@ -51,7 +51,7 @@ export async function listServices(req: Request, res: Response) {
     q: value.q,
     includeInactive: value.includeInactive,
     page: value.page,
-    limit: 20,
+    limit: value.limit,
   });
 
   return res.status(200).send(result);

@@ -38,7 +38,7 @@ export async function listServices(params: {
     barbershop_id: params.barbershopId,
   };
 
-  // if (!params.includeInactive) where.active = true;
+  if (!params.includeInactive) where.active = true;
 
   if (params.q) {
     where.OR = [
@@ -77,8 +77,7 @@ export async function softDeleteService(barbershopId: string, id: string) {
   const existing = await findServiceById(barbershopId, id);
   if (!existing) return null;
 
-  return prisma.services.update({
-    where: { id },
-    data: { active: false },
+  return prisma.services.delete({
+    where: { id }
   });
 }
