@@ -1,9 +1,21 @@
 import joi from "joi";
 
+const uuidWithOptionalDepPrefix = joi.string().custom((value, helpers) => {
+  const normalized = value.startsWith('dep_') ? value.slice(4) : value;
+
+  const { error } = joi.string().uuid().validate(normalized);
+
+  if (error) {
+    return helpers.error('string.guid');
+  }
+
+  return normalized;
+}, 'UUID com prefixo opcional dep_');
+
 export const CreateAppointmentSchema = joi
   .object({
     barberId: joi.string().uuid().required(),
-    clientId: joi.string().uuid().required(),
+    clientId: uuidWithOptionalDepPrefix.required(),
     date: joi
       .string()
       .pattern(/^\d{4}-\d{2}-\d{2}$/)
