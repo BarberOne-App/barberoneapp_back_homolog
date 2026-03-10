@@ -23,6 +23,8 @@ function serializeService(s: any) {
     name: s.name,
     basePrice: decimalToNumber(s.base_price),
     durationMinutes: s.duration_minutes,
+    promotionalPrice: decimalToNumber(s.promotional_price),
+    covered_by_plan: s.covered_by_plan,
     imageUrl: s.image_url,
     active: s.active,
     createdAt: s.created_at,
