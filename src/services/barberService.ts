@@ -18,6 +18,7 @@ function serializeBarber(b: any) {
     commissionPercent: b.commission_percent,
     userId: b.user_id,
     barbershopId: b.barbershop_id,
+    salarioFixo: b.salary,
     createdAt: b.created_at,
     updatedAt: b.updated_at,
     user: b.users
