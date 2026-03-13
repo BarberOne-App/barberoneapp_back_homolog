@@ -38,7 +38,6 @@ export async function registerBarbershop(req: Request, res: Response) {
 }
 
 export async function registerClient(req: Request, res: Response) {
-  console.log("Registering client with data:", req.body);
   const { error } = RegisterClientSchema.validate(req.body);
   if (error) return res.status(422).send(joiErrors(error));
 
@@ -47,7 +46,6 @@ export async function registerClient(req: Request, res: Response) {
 }
 
 export async function registerClientGoogle(req: Request, res: Response) {
-  console.log("Registering client with data:", req.body);
   const { error } = RegisterClientGoogleSchema.validate(req.body);
   if (error) return res.status(422).send(joiErrors(error));
 

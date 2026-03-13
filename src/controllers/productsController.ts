@@ -13,7 +13,6 @@ function joiErrors(error: any) {
 }
 
 export async function createProduct(req: Request, res: Response) {
-    console.log(req.body);
     const { error } = CreateProductSchema.validate(req.body);
     if (error) return res.status(422).send(joiErrors(error));
 

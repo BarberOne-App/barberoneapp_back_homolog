@@ -57,7 +57,6 @@ export async function getAppointmentById(req: Request, res: Response) {
 
 /* ───── CREATE ───── */
 export async function createAppointment(req: Request, res: Response) {
-  console.log("BODY DO APONTAMENO DE DEPENDENTE", req.body);
   const { error, value } = CreateAppointmentSchema.validate(req.body);
   if (error) return res.status(422).send(joiErrors(error));
 

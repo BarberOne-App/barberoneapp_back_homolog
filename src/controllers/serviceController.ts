@@ -19,7 +19,6 @@ function joiErrors(error: any) {
 }
 
 export async function createService(req: Request, res: Response) {
-  console.log(req.body);
   const { error, value } = CreateServiceSchema.validate(req.body, { abortEarly: false });
   if (error) return res.status(422).send(joiErrors(error));
 

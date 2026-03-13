@@ -62,6 +62,7 @@ export async function createUser(
     barbershopId: string;
     name: string;
     email: string;
+    cpf?: string | null;
     phone?: string | null;
     role: "admin" | "barber" | "client";
     isAdmin: boolean;
@@ -75,6 +76,7 @@ export async function createUser(
       name: data.name,
       email: data.email,
       phone: data.phone ?? null,
+      cpf: data.cpf ?? null,
       role: data.role,
       is_admin: data.isAdmin,
       password_hash: data.passwordHash,

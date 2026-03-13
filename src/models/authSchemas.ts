@@ -28,6 +28,7 @@ export const RegisterClientSchema = joi
     slug: slug.required(),
     name: joi.string().trim().min(2).required(),
     email: email.required(),
+    cpf: joi.string().trim().allow("", null).optional(),
     phone,
     password: password.required(),
   })
@@ -38,6 +39,7 @@ export const RegisterClientGoogleSchema = joi
     slug: slug.optional(),
     name: joi.string().trim().min(2).required(),
     email: email.required(),
+    cpf: joi.string().trim().allow("", null).optional(),
     phone,
     password: password.required(),
   })

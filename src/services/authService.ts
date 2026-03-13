@@ -137,6 +137,7 @@ export async function registerClientService(params: {
   slug: string;
   name: string;
   email: string;
+  cpf?: string;
   phone?: string;
   password: string;
 }) {
@@ -155,6 +156,7 @@ export async function registerClientService(params: {
     barbershopId: shop.id,
     name: params.name.trim(),
     email,
+    cpf: params.cpf ?? null,
     phone: params.phone ?? null,
     role: "client",
     isAdmin: false,

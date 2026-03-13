@@ -45,8 +45,7 @@ export async function listProductsService(params: {
     // se não for admin, força active=true (a não ser que você queira permitir ver inativos)
     const active =
         params.actorRole === "admin" ? params.query?.active : true;
-
-    console.log('params', params);
+        
     return listProductsInBarbershop({
         barbershopId: params.barbershopId,
         active,
