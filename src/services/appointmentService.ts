@@ -19,6 +19,7 @@ function decimalToNumber(v: any): number {
 }
 
 function serializeAppointment(a: any) {
+  console.log('SERIALIZANDO APPOINTMENT', a);
   return {
     id: a.id,
     barberId: a.barber_id,
