@@ -153,9 +153,9 @@ export async function createAppointmentService(params: {
   // 4. Validar horário de funcionamento
   const startHour = startAt.getUTCHours();
   const endHour = endAt.getUTCHours() + (endAt.getUTCMinutes() > 0 ? 1 : 0);
-  if (startHour < OPEN_HOUR || endHour > CLOSE_HOUR) {
-    throw badRequest(`Horário fora do funcionamento (${OPEN_HOUR}:00 – ${CLOSE_HOUR}:00)`);
-  }
+  // if (startHour < OPEN_HOUR || endHour > CLOSE_HOUR) {
+  //   throw badRequest(`Horário fora do funcionamento (${OPEN_HOUR}:00 – ${CLOSE_HOUR}:00)`);
+  // }
 
   // 5. Validar que não é data no passado
   if (startAt < new Date()) {
