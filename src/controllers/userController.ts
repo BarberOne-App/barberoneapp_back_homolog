@@ -21,7 +21,7 @@ function joiErrors(error: any) {
 }
 
 export async function listUsers(req: Request, res: Response) {
-  console.log(req.query);
+  console.log(req.user);
   const { error, value } = ListUsersQuerySchema.validate(req.query, { abortEarly: false });
   if (error) return res.status(422).send(joiErrors(error));
 
