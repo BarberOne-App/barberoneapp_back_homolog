@@ -17,6 +17,8 @@ function serialize(bd: any) {
     id: bd.id,
     barbershopId: bd.barbershop_id,
     date: typeof bd.date === "string" ? bd.date : (bd.date as Date).toISOString().slice(0, 10),
+    startTime: bd.start_time,
+    endTime: bd.end_time,
     reason: bd.reason,
     barberId: bd.barber_id,
     barber: bd.barbers
