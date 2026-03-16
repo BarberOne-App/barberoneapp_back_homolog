@@ -14,8 +14,8 @@ import {
 const router = Router();
 
 // Listar / buscar — admin ou receptionist (service valida)
-// router.get("/users", requireAuth, asyncHandler(listUsers));
-router.get("/users", asyncHandler(listUsers));
+router.get("/users", requireAuth, asyncHandler(listUsers));
+// router.get("/users", asyncHandler(listUsers));
 router.get("/users/check-email/:email", requireAuth, asyncHandler(checkEmail));
 router.get("/users/:id", requireAuth, asyncHandler(getUserById));
 
