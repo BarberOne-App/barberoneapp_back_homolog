@@ -340,7 +340,7 @@ app.get('/assinatura/:id', async (req, res) => {
         const response = await fetch(`https://api.mercadopago.com/preapproval/${id}`, {
             method: 'GET',
             headers: {
-                Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN_PROD}`,
+                Authorization: `Bearer ${process.env.MERCADO_PAGO_ACCESS_TOKEN_PROD}`,
                 'Content-Type': 'application/json',
             },
         });
