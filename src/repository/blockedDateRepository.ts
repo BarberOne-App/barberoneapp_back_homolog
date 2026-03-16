@@ -30,6 +30,26 @@ export async function listBlockedDatesInBarbershop(params: {
   });
 }
 
+export async function listBlockedDatesByDate(params: {
+  barbershopId: string;
+  date: Date;
+  barberId?: string | null;
+}) {
+  return prisma.blocked_dates.findMany({
+    where: {
+      barbershop_id: params.barbershopId,
+      date: params.date,
+      OR: [
+        { barber_id: null },
+        { barber_id: params.barberId ?? null },
+      ],
+    },
+    orderBy: {
+      created_at: "asc",
+    },
+  });
+}
+
 /* ───── FIND BY DATE ───── */
 export async function findBlockedDateByDate(
   barbershopId: string,
@@ -82,11 +102,35 @@ export async function findBlockedDateByIdInBarbershop(
 }
 
 /* ───── CREATE ───── */
+// export async function createBlockedDate(data: {
+//   barbershopId: string;
+//   date: Date;
+//   reason?: string | null;
+//   barberId?: string | null;
+//   createdBy: string;
+// }) {
+//   return prisma.blocked_dates.create({
+//     data: {
+//       barbershop_id: data.barbershopId,
+//       date: data.date,
+//       reason: data.reason ?? null,
+//       barber_id: data.barberId ?? null,
+//       created_by: data.createdBy,
+//     },
+//     include: {
+//       barbers: { select: { id: true, display_name: true } },
+//       users: { select: { id: true, name: true } },
+//     },
+//   });
+// }
+
 export async function createBlockedDate(data: {
   barbershopId: string;
   date: Date;
   reason?: string | null;
   barberId?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
   createdBy: string;
 }) {
   return prisma.blocked_dates.create({
@@ -95,6 +139,8 @@ export async function createBlockedDate(data: {
       date: data.date,
       reason: data.reason ?? null,
       barber_id: data.barberId ?? null,
+      start_time: data.startTime ?? null,
+      end_time: data.endTime ?? null,
       created_by: data.createdBy,
     },
     include: {

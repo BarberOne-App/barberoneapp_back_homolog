@@ -437,6 +437,8 @@ model blocked_dates {
   created_by    String   @db.Uuid
   created_at    DateTime @default(now()) @db.Timestamptz(6)
   updated_at    DateTime @default(now()) @db.Timestamptz(6)
+  start_time    String?
+  end_time      String?
 
   barbershops barbershops @relation(fields: [barbershop_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_blocked_dates_barbershop")
   barbers     barbers?    @relation(fields: [barber_id], references: [id], onUpdate: NoAction, map: "fk_blocked_dates_barber")
