@@ -333,6 +333,26 @@ app.post("/webhooks/mercadopago", async (req, res) => {
     }
 });
 
+app.get('/assinatura/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const response = await fetch(`https://api.mercadopago.com/preapproval/${id}`, {
+            method: 'GET',
+            headers: {
+                Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}`,
+                'Content-Type': 'application/json',
+            },
+        });
+
+        const data = await response.json();
+
+        return res.status(response.status).json(data);
+    } catch (error) {
+        console.error('Erro ao consultar assinatura:', error);
+        return res.status(500).json({ error: 'Erro ao consultar assinatura' });
+    }
+});
 
 app.post("/criar_pix", async (req, res) => {
     try {
