@@ -42,7 +42,7 @@ const MP_NOTIFICATION_URL = process.env.MERCADO_PAGO_NOTIFICATION_URL ?? "";
 
 
 app.use(cors({ origin: true }));
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
 
 app.get("/health", (_req, res) => res.send({ ok: true }));
 
@@ -71,7 +71,7 @@ app.set("views", path.join(__dirname, "views"));
 
 app.use(express.urlencoded({ extended: false }));
 app.use(express.static("./static"));
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
 
 app.get("/", function (req, res) {
     res.status(200).render("app", { mercadoPagoPublicKey });

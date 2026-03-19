@@ -8,21 +8,33 @@ import {
 
 export async function getSettingsService(barbershopId: string) {
     const row = await getSettingsByBarbershop(barbershopId);
-    return { pixKey: row?.pix_key ?? "" };
+    return {
+        pixKey: row?.pix_key ?? "",
+        termsDocumentUrl: row?.terms_document_url ?? "",
+        termsDocumentName: row?.terms_document_name ?? "",
+    };
 }
 
 export async function upsertSettingsService(params: {
     barbershopId: string;
-    actorRole: "admin" | "barber" | "client";
+    actorRole: "admin" | "barber" | "client" | "receptionist";
     pixKey?: string;
+    termsDocumentUrl?: string;
+    termsDocumentName?: string;
 }) {
     if (params.actorRole !== "admin") throw forbidden("Apenas admin pode alterar configurações");
 
     const row = await upsertSettingsByBarbershop(params.barbershopId, {
         pix_key: params.pixKey ?? "",
+        terms_document_url: params.termsDocumentUrl ?? null,
+        terms_document_name: params.termsDocumentName ?? null,
     });
 
-    return { pixKey: row.pix_key ?? "" };
+    return {
+        pixKey: row.pix_key ?? "",
+        termsDocumentUrl: row.terms_document_url ?? "",
+        termsDocumentName: row.terms_document_name ?? "",
+    };
 }
 
 export async function getHomeInfoService(barbershopId: string) {

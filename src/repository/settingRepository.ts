@@ -7,11 +7,27 @@ export function getSettingsByBarbershop(barbershopId: string) {
     });
 }
 
-export function upsertSettingsByBarbershop(barbershopId: string, data: { pix_key?: string | null }) {
+export function upsertSettingsByBarbershop(
+    barbershopId: string,
+    data: {
+        pix_key?: string | null;
+        terms_document_url?: string | null;
+        terms_document_name?: string | null;
+    }
+) {
     return prisma.barbershop_settings.upsert({
         where: { barbershop_id: barbershopId },
-        update: { pix_key: data.pix_key ?? null },
-        create: { barbershop_id: barbershopId, pix_key: data.pix_key ?? null },
+        update: {
+            pix_key: data.pix_key ?? null,
+            terms_document_url: data.terms_document_url ?? null,
+            terms_document_name: data.terms_document_name ?? null,
+        },
+        create: {
+            barbershop_id: barbershopId,
+            pix_key: data.pix_key ?? null,
+            terms_document_url: data.terms_document_url ?? null,
+            terms_document_name: data.terms_document_name ?? null,
+        },
     });
 }
 

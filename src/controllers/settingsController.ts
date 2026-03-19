@@ -14,8 +14,10 @@ export async function getSettings(req: Request, res: Response) {
 export async function upsertSettings(req: Request, res: Response) {
     const result = await upsertSettingsService({
         barbershopId: req.user!.barbershopId,
-        actorRole: req.user!.role,
+        actorRole: req.user!.role as "admin" | "barber" | "client" | "receptionist",
         pixKey: req.body?.pixKey,
+        termsDocumentUrl: req.body?.termsDocumentUrl,
+        termsDocumentName: req.body?.termsDocumentName,
     });
     return res.status(200).send(result);
 }
