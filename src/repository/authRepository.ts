@@ -78,6 +78,7 @@ export async function createUser(
     email: string;
     cpf?: string | null;
     phone?: string | null;
+    birthDate?: string | Date | null;
     role: "admin" | "barber" | "client";
     isAdmin: boolean;
     passwordHash: string;
@@ -91,6 +92,7 @@ export async function createUser(
       email: data.email,
       phone: data.phone ?? null,
       cpf: data.cpf ?? null,
+      birth_date: data.birthDate ? new Date(data.birthDate) : null,
       role: data.role,
       is_admin: data.isAdmin,
       password_hash: data.passwordHash,

@@ -30,6 +30,7 @@ export const RegisterClientSchema = joi
     email: email.required(),
     cpf: joi.string().trim().allow("", null).optional(),
     phone,
+    birthDate: joi.date().max('now').optional(),
     password: password.required(),
   })
   .options({ abortEarly: false, stripUnknown: true });
@@ -41,6 +42,7 @@ export const RegisterClientGoogleSchema = joi
     email: email.required(),
     cpf: joi.string().trim().allow("", null).optional(),
     phone,
+    birthDate: joi.date().max('now').optional(),
     password: password.required(),
   })
   .options({ abortEarly: false, stripUnknown: true });

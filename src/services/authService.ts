@@ -140,6 +140,7 @@ export async function registerClientService(params: {
   email: string;
   cpf?: string;
   phone?: string;
+  birthDate?: string | Date;
   password: string;
 }) {
   const slug = params.slug.trim();
@@ -162,6 +163,7 @@ export async function registerClientService(params: {
     email,
     cpf: params.cpf ?? null,
     phone: params.phone ?? null,
+    birthDate: params.birthDate ?? null,
     role: "client",
     isAdmin: false,
     passwordHash,
