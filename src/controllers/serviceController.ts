@@ -84,7 +84,7 @@ export async function updateService(req: Request, res: Response) {
   if (b.error) return res.status(422).send(joiErrors(b.error));
 
   const barbershopId = '6aeb6856-c163-4b33-9b8c-4ec043f88008';
-  // const barbershopId = '77faab94-26fd-48f0-aef7-8ddab4b35a94';
+  // const barbershopId = '6aeb6856-c163-4b33-9b8c-4ec043f88008';
 
   const updated = await updateServiceService({
     barbershopId,

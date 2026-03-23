@@ -38,7 +38,7 @@ export async function listProducts(req: Request, res: Response) {
 
     const result = await listProductsService({
         // barbershopId: req.user!.barbershopId,
-        barbershopId: '77faab94-26fd-48f0-aef7-8ddab4b35a94',
+        barbershopId: '6aeb6856-c163-4b33-9b8c-4ec043f88008',
         actorRole: "client",
         query: { active, category, q },
     });
@@ -50,7 +50,7 @@ export async function getProductById(req: Request, res: Response) {
     const { id } = req.params;
 
     const result = await getProductByIdService({
-        barbershopId: '77faab94-26fd-48f0-aef7-8ddab4b35a94',
+        barbershopId: '6aeb6856-c163-4b33-9b8c-4ec043f88008',
         // barbershopId: req.user!.barbershopId,
         actorRole: req.user!.role,
         productId: id,
@@ -67,7 +67,7 @@ export async function updateProduct(req: Request, res: Response) {
 
     const result = await updateProductService({
         // barbershopId: req.user!.barbershopId,
-        barbershopId: '77faab94-26fd-48f0-aef7-8ddab4b35a94',
+        barbershopId: '6aeb6856-c163-4b33-9b8c-4ec043f88008',
         actorRole: req.user!.role,
         productId: id,
         data: req.body,
@@ -81,7 +81,7 @@ export async function deleteProduct(req: Request, res: Response) {
 
     const result = await deleteProductService({
         // barbershopId: req.user!.barbershopId,
-        barbershopId: '77faab94-26fd-48f0-aef7-8ddab4b35a94',
+        barbershopId: '6aeb6856-c163-4b33-9b8c-4ec043f88008',
         actorRole: req.user!.role,
         productId: id,
     });
