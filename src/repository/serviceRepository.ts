@@ -6,6 +6,7 @@ export async function createService(data: {
   name: string;
   base_price: number;
   duration_minutes: number;
+  comission_percent?: number | null;
   image_url?: string | null;
   active?: boolean;
   promotional_price?: number;
@@ -17,6 +18,7 @@ export async function createService(data: {
       name: data.name,
       base_price: data.base_price,
       duration_minutes: data.duration_minutes,
+      comission_percent: data.comission_percent ?? null,
       promotional_price: data.promotional_price ?? 0,
       covered_by_plan: data.covered_by_plan ?? false,
       image_url: data.image_url ?? null,

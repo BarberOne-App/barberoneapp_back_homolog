@@ -37,6 +37,7 @@ export async function createServiceService(barbershopId: string, data: {
   name: string;
   basePrice: number;
   durationMinutes: number;
+  comissionPercent?: number | null;
   promotionalPrice?: number;
   covered_by_plan?: boolean;
   imageUrl?: string | null;
@@ -47,6 +48,7 @@ export async function createServiceService(barbershopId: string, data: {
     name: data.name,
     base_price: data.basePrice,
     duration_minutes: data.durationMinutes,
+    comission_percent: data.comissionPercent ?? null,
     promotional_price: data.promotionalPrice ?? 0,
     covered_by_plan: data.covered_by_plan ?? false,
     image_url: data.imageUrl ?? null,

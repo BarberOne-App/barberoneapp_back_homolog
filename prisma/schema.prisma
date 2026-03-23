@@ -157,6 +157,7 @@ model services {
   name             String
   base_price       Decimal @db.Decimal(12, 2)
   duration_minutes Int
+  comission_percent Int?
   image_url        String?
   active           Boolean @default(true)
 

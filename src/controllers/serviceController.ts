@@ -22,13 +22,14 @@ export async function createService(req: Request, res: Response) {
   const { error, value } = CreateServiceSchema.validate(req.body, { abortEarly: false });
   if (error) return res.status(422).send(joiErrors(error));
 
-  // const barbershopId = req.user!.barbershopId;
-  const barbershopId = '77faab94-26fd-48f0-aef7-8ddab4b35a94';
+  const barbershopId = req.user!.barbershopId;
+  // const barbershopId = '77faab94-26fd-48f0-aef7-8ddab4b35a94';
 
   const created = await createServiceService(barbershopId, {
     name: value.name,
     basePrice: value.basePrice,
     durationMinutes: value.durationMinutes,
+    comissionPercent: value.commissionPercent ?? null,
     imageUrl: value.imageUrl ?? null,
     active: value.active,
     promotionalPrice: value.promotionalPrice ?? 0,

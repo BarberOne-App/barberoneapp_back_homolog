@@ -37,7 +37,7 @@ dotenv.config();
 
 const app = express();
 const prisma = new PrismaClient();
-const MP_TOKEN = process.env.MP_ACCESS_TOKEN;
+const MP_TOKEN = process.env.MP_ACCESS_TOKEN ?? "";
 const MP_NOTIFICATION_URL = process.env.MERCADO_PAGO_NOTIFICATION_URL ?? "";
 
 
@@ -47,17 +47,17 @@ app.use(express.json({ limit: "10mb" }));
 app.get("/health", (_req, res) => res.send({ ok: true }));
 
 
-const mercadoPagoPublicKey = process.env.MERCADO_PAGO_PUBLIC_KEY_PROD;
-if (!mercadoPagoPublicKey) {
-    console.log("Error: public key not defined");
-    process.exit(1);
-}
+const mercadoPagoPublicKey = process.env.MERCADO_PAGO_PUBLIC_KEY_PROD ?? "";
+// if (!mercadoPagoPublicKey) {
+//     console.log("Error: public key not defined");
+//     process.exit(1);
+// }
 
-const mercadoPagoAccessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN_PROD;
-if (!mercadoPagoAccessToken) {
-    console.log("Error: access token not defined");
-    process.exit(1);
-}
+const mercadoPagoAccessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN_PROD ?? "";
+// if (!mercadoPagoAccessToken) {
+//     console.log("Error: access token not defined");
+//     process.exit(1);
+// }
 
 const client = new MercadoPagoConfig({ accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN_PROD ?? "" });
 
@@ -340,7 +340,7 @@ app.get('/assinatura/:id', async (req, res) => {
         const response = await fetch(`https://api.mercadopago.com/preapproval/${id}`, {
             method: 'GET',
             headers: {
-                Authorization: `Bearer ${process.env.MERCADO_PAGO_ACCESS_TOKEN_PROD}`,
+                Authorization: `Bearer ${process.env.MERCADO_PAGO_ACCESS_TOKEN_PROD ?? ""}`,
                 'Content-Type': 'application/json',
             },
         });
