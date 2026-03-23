@@ -43,8 +43,8 @@ export async function listServices(req: Request, res: Response) {
   const { error, value } = ListServicesQuerySchema.validate(req.query, { abortEarly: false });
   if (error) return res.status(422).send(joiErrors(error));
 
-  // const barbershopId = req.user!.barbershopId;
-  const barbershopId = '77faab94-26fd-48f0-aef7-8ddab4b35a94';
+  const barbershopId = req.user!.barbershopId;
+  // const barbershopId = '77faab94-26fd-48f0-aef7-8ddab4b35a94';
 
   const result = await listServicesService({
     barbershopId,
@@ -64,7 +64,7 @@ export async function getServiceById(req: Request, res: Response) {
   if (error) return res.status(422).send(joiErrors(error));
 
   // const barbershopId = req.user!.barbershopId;
-  const barbershopId = '77faab94-26fd-48f0-aef7-8ddab4b35a94';
+  const barbershopId = req.user!.barbershopId;
 
   const service = await getServiceByIdService({
     barbershopId,
@@ -83,8 +83,8 @@ export async function updateService(req: Request, res: Response) {
   const b = UpdateServiceSchema.validate(req.body, { abortEarly: false });
   if (b.error) return res.status(422).send(joiErrors(b.error));
 
-  // const barbershopId = req.user!.barbershopId;
-  const barbershopId = '77faab94-26fd-48f0-aef7-8ddab4b35a94';
+  const barbershopId = req.user!.barbershopId;
+  // const barbershopId = '77faab94-26fd-48f0-aef7-8ddab4b35a94';
 
   const updated = await updateServiceService({
     barbershopId,
@@ -93,6 +93,7 @@ export async function updateService(req: Request, res: Response) {
       name: b.value.name,
       basePrice: b.value.basePrice,
       durationMinutes: b.value.durationMinutes,
+      comissionPercent: b.value.commissionPercent ?? null,
       promotionalPrice: b.value.promotionalPrice,
       covered_by_plan: b.value.covered_by_plan,
       imageUrl: b.value.imageUrl,
@@ -109,7 +110,7 @@ export async function deleteService(req: Request, res: Response) {
   if (error) return res.status(422).send(joiErrors(error));
 
   // const barbershopId = req.user!.barbershopId;
-  const barbershopId = '77faab94-26fd-48f0-aef7-8ddab4b35a94';
+  const barbershopId = req.user!.barbershopId;
 
   const deleted = await deleteServiceService(barbershopId, req.params.id);
   if (!deleted) return res.status(404).send(["Serviço não encontrado"]);
