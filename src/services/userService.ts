@@ -38,7 +38,7 @@ export async function listUsersService(params: {
   actorRole: string;
   query: { role?: string; q?: string; page?: number; limit?: number };
 }) {
-  if (params.actorRole !== "admin" && params.actorRole !== "receptionist") {
+  if (params.actorRole !== "admin" && params.actorRole !== "receptionist" && params.actorRole !== "barber") {
     throw forbidden("Sem permissão para listar usuários");
   }
 
