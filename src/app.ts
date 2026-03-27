@@ -30,7 +30,7 @@ import { fileURLToPath } from "url";
 import { MercadoPagoConfig, Payment, Preference } from "mercadopago";
 import { PrismaClient } from "@prisma/client";
 import axios from "axios";
-
+import Stripe from "stripe";
 
 
 dotenv.config();
@@ -241,6 +241,94 @@ app.post("/process_payment", async (req, res) => {
         console.log(error);
         const { errorMessage, errorStatus } = validateError(error);
         return res.status(errorStatus).json({ error_message: errorMessage });
+    }
+});
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+    apiVersion: '2026-02-25.clover',
+});
+
+app.post('/payment-intents', async (req, res) => {
+    try {
+        const {
+            amount,
+            currency = 'brl',
+            customerEmail,
+            metadata = {},
+        } = req.body;
+
+        const numericAmount = Number(amount);
+
+        if (!numericAmount || numericAmount <= 0) {
+            return res.status(400).json({ message: 'Valor inválido.' });
+        }
+
+        const paymentIntent = await stripe.paymentIntents.create({
+            amount: Math.round(numericAmount * 100), // Stripe usa menor unidade da moeda
+            currency,
+            payment_method_types: ['card'], // cartão inline, sem depender de redirect-based methods
+            receipt_email: customerEmail || undefined,
+            metadata: {
+                ...metadata,
+            },
+        });
+
+        return res.status(200).json({
+            clientSecret: paymentIntent.client_secret,
+            paymentIntentId: paymentIntent.id,
+        });
+    } catch (error) {
+        if (error instanceof Error) {
+            console.error('Erro ao criar PaymentIntent Stripe:', error.message);
+            return res.status(500).json({
+                message: error.message || 'Erro ao criar pagamento na Stripe.',
+            });
+        }
+
+        console.error('Erro desconhecido:', error);
+        return res.status(500).json({
+            message: 'Erro ao criar pagamento na Stripe.',
+        });
+    }
+});
+
+app.post('/subscriptions', async (req, res) => {
+    try {
+        const { customerId, email, stripePriceId, userId, planId } = req.body;
+
+        let finalCustomerId = customerId;
+
+        if (!finalCustomerId) {
+            const customer = await stripe.customers.create({ email });
+            finalCustomerId = customer.id;
+        }
+
+        const subscription = await stripe.subscriptions.create({
+            customer: finalCustomerId,
+            items: [{ price: stripePriceId }],
+            payment_behavior: 'default_incomplete',
+            payment_settings: {
+                save_default_payment_method: 'on_subscription',
+            },
+            expand: ['latest_invoice.payment_intent'],
+            metadata: {
+                userId: String(userId || ''),
+                planId: String(planId || ''),
+            },
+        });
+
+        res.json({
+            subscriptionId: subscription.id,
+            customerId: finalCustomerId,
+            clientSecret: (subscription.latest_invoice as any)?.payment_intent?.client_secret || '',
+        });
+    } catch (error) {
+        if (error instanceof Error) {
+            console.error(error.message);
+            return res.status(500).json({ message: error.message });
+        }
+        console.error('Erro desconhecido:', error);
+        return res.status(500).json({ message: 'Erro ao criar subscription.' });
     }
 });
 
