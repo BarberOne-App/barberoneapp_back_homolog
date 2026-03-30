@@ -119,6 +119,7 @@ model payment_transactions {
 
   mp_payment_id    String?
   mp_preference_id String?
+  stripe_invoice_id String?
   barbershops      barbershops    @relation(fields: [barbershop_id], references: [id], onUpdate: NoAction, map: "fk_payments_barbershop")
   appointments     appointments?  @relation(fields: [appointment_id], references: [id], onUpdate: NoAction)
   subscriptions    subscriptions? @relation(fields: [subscription_id], references: [id], onUpdate: NoAction)

@@ -56,10 +56,10 @@ export async function getPaymentById(req: Request, res: Response) {
 }
 
 export async function createPayment(req: Request, res: Response) {
-  // const { error, value } = CreatePaymentSchema.validate(req.body);
-  // if (error) return res.status(422).send(joiErrors(error));
+  const { error, value } = CreatePaymentSchema.validate(req.body);
+  if (error) return res.status(422).send(joiErrors(error));
 
-  const { value } = req.body;
+  // const { value } = req.body;
 
   const result = await createPaymentService({
     barbershopId: req.user!.barbershopId,

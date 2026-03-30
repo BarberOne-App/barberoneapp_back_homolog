@@ -21,6 +21,7 @@ import webhookRouter from "./routes/webhookRouter.js";
 import dependentRouter from "./routes/dependentRouter.js";
 import savedCardRouter from "./routes/savedCardRouter.js";
 import employeeValeRouter from "./routes/employeeValeRouter.js";
+import stripeWebhookRoutes from "./routes/stripeWebhookRoutes.js";
 import employeePaymentRouter from "./routes/employeePaymentRouter.js";
 import { waitPaymentFinal, isFinalForYourFront, mapToFrontStatus, resolveWaiter } from "./middleware/waiters.js";
 import open from "open";
@@ -292,6 +293,7 @@ app.post('/payment-intents', async (req, res) => {
     }
 });
 
+
 app.post('/subscriptions', async (req, res) => {
     try {
         const { customerId, email, stripePriceId, userId, planId } = req.body;
@@ -516,6 +518,7 @@ app.use(appointmentRouter);
 app.use(blockedDateRouter);
 app.use(subscriptionPlanRouter);
 app.use(subscriptionRouter);
+app.use("/stripe", stripeWebhookRoutes);
 app.use(paymentRouter);
 app.use(paymentMethodRouter);
 app.use(galleryRouter);
