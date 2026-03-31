@@ -255,6 +255,7 @@ app.post('/payment-intents', async (req, res) => {
             amount,
             currency = 'brl',
             customerEmail,
+            paymentMethodTypes,
             metadata = {},
         } = req.body;
 
@@ -264,10 +265,21 @@ app.post('/payment-intents', async (req, res) => {
             return res.status(400).json({ message: 'Valor inválido.' });
         }
 
+        const allowedPaymentMethods = ['card', 'pix'];
+        const normalizedRequestedMethods = Array.isArray(paymentMethodTypes)
+            ? paymentMethodTypes
+                .map((m: any) => String(m).toLowerCase().trim())
+                .filter((m: string) => allowedPaymentMethods.includes(m))
+            : [];
+
+        const finalPaymentMethodTypes = normalizedRequestedMethods.length
+            ? Array.from(new Set(normalizedRequestedMethods))
+            : ['card', 'pix'];
+
         const paymentIntent = await stripe.paymentIntents.create({
             amount: Math.round(numericAmount * 100), // Stripe usa menor unidade da moeda
             currency,
-            payment_method_types: ['card'], // cartão inline, sem depender de redirect-based methods
+            payment_method_types: finalPaymentMethodTypes,
             receipt_email: customerEmail || undefined,
             metadata: {
                 ...metadata,
