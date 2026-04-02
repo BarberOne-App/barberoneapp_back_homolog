@@ -36,6 +36,7 @@ export async function listAppointments(req: Request, res: Response) {
       dateTo: value.dateTo,
       page: value.page,
       limit: value.limit,
+      allAppointments: value.allAppointments,  // ✅ NOVO: passar o parâmetro
     },
   });
 
