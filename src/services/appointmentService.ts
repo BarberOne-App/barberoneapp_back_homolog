@@ -8,6 +8,7 @@ import {
   updateAppointmentInBarbershop,
 } from "../repository/appointmentRepository.js";
 import { findBarberByIdInBarbershop } from "../repository/barberRepository.js";
+import { findActiveSubscriptionByUser } from "../repository/subscriptionRepository.js";
 
 /* ─────────────────── helpers ─────────────────── */
 
@@ -187,6 +188,19 @@ export async function createAppointmentService(params: {
   // 5. Validar que não é data no passado
   if (startAt < new Date()) {
     throw badRequest("Não é possível agendar no passado");
+  }
+
+  // 5.1 Enforçar vínculo mensal de assinante ao barbeiro (regra de negócio)
+  const activeSubscription = await findActiveSubscriptionByUser(params.barbershopId, clientId);
+  if (activeSubscription?.monthly_barber_id && activeSubscription?.monthly_barber_set_at) {
+    const lockDate = new Date(activeSubscription.monthly_barber_set_at);
+    const isSameMonthAsAppointment =
+      lockDate.getUTCFullYear() === startAt.getUTCFullYear() &&
+      lockDate.getUTCMonth() === startAt.getUTCMonth();
+
+    if (isSameMonthAsAppointment && activeSubscription.monthly_barber_id !== barberId) {
+      throw badRequest("Assinatura vinculada a outro barbeiro neste mês");
+    }
   }
 
   // 6. Verificar conflitos de horário com o barbeiro
