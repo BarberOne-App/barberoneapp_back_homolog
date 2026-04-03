@@ -11,7 +11,11 @@ function joiErrors(error: any) {
 
 /* ───── LIST ───── */
 export async function listEmployeePayments(req: Request, res: Response) {
-  const result = await listEmployeePaymentsService(req.user!.barbershopId);
+  const result = await listEmployeePaymentsService({
+    barbershopId: req.user!.barbershopId,
+    actorRole: req.user!.role,
+    actorId: req.user!.id,
+  });
   return res.status(200).send(result);
 }
 

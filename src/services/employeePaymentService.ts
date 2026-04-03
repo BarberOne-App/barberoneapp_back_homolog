@@ -2,6 +2,7 @@ import {
   createEmployeePayment,
   listEmployeePayments,
 } from "../repository/employeePaymentRepository.js";
+import { forbidden } from "../errors/index.js";
 
 /* ─────────────── helpers ─────────────── */
 function serialize(payment: any) {
@@ -24,8 +25,17 @@ function serialize(payment: any) {
 }
 
 /* ───────── LIST ───────── */
-export async function listEmployeePaymentsService(barbershopId: string) {
-  const items = await listEmployeePayments(barbershopId);
+export async function listEmployeePaymentsService(params: {
+  barbershopId: string;
+  actorRole: string;
+  actorId: string;
+}) {
+  if (params.actorRole !== "admin" && params.actorRole !== "barber") {
+    throw forbidden("Sem permissão para listar pagamentos de funcionários");
+  }
+
+  const employeeId = params.actorRole === "barber" ? params.actorId : undefined;
+  const items = await listEmployeePayments(params.barbershopId, employeeId);
   return items.map(serialize);
 }
 

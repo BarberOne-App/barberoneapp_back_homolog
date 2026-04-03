@@ -1,9 +1,12 @@
 import prisma from "../database/database.js";
 
 /* ───── LIST ───── */
-export async function listEmployeePayments(barbershopId: string) {
+export async function listEmployeePayments(barbershopId: string, employeeId?: string) {
+  const where: any = { barbershop_id: barbershopId };
+  if (employeeId) where.employee_id = employeeId;
+
   return prisma.employee_payments.findMany({
-    where: { barbershop_id: barbershopId },
+    where,
     orderBy: { created_at: "desc" },
     include: {
       employee: { select: { id: true, name: true } },

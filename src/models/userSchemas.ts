@@ -16,6 +16,7 @@ const permissionsObject = joi.object({
   managePayments: joi.boolean().optional(),
   managePayroll: joi.boolean().optional(),
   manageAgendamentos: joi.boolean().optional(),
+  manageOffScheduleAppointments: joi.boolean().optional(),
   manageBlockedDates: joi.boolean().optional(),
   manageBenefits: joi.boolean().optional(),
   manageSettings: joi.boolean().optional(),

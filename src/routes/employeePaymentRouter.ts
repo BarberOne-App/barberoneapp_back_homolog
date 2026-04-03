@@ -8,7 +8,7 @@ import {
 
 const router = Router();
 
-router.get("/employeePayments", requireAuth, requireAdmin, asyncHandler(listEmployeePayments));
+router.get("/employeePayments", requireAuth, asyncHandler(listEmployeePayments));
 router.post("/employeePayments", requireAuth, requireAdmin, asyncHandler(createEmployeePayment));
 
 export default router;
