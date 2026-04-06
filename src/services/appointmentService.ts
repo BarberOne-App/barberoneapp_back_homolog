@@ -250,6 +250,8 @@ export async function createAppointmentService(params: {
 /* ────────────────────────── UPDATE ────────────────────────── */
 export async function updateAppointmentService(params: {
   barbershopId: string;
+  actorRole: string;
+  actorIsAdmin?: boolean;
   appointmentId: string;
   data: {
     status?: string;
@@ -257,6 +259,13 @@ export async function updateAppointmentService(params: {
     barberId?: string;
   };
 }) {
+  const isAdmin = params.actorRole === "admin" || !!params.actorIsAdmin;
+  const isReceptionist = params.actorRole === "receptionist";
+
+  if (!isAdmin && !isReceptionist) {
+    throw forbidden("Apenas admin ou recepcionista pode atualizar agendamentos");
+  }
+
   const updateData: any = {};
 
   if (params.data.status !== undefined) updateData.status = params.data.status;

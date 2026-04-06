@@ -79,6 +79,8 @@ export async function updateAppointment(req: Request, res: Response) {
 
   const result = await updateAppointmentService({
     barbershopId: req.user!.barbershopId,
+    actorRole: req.user!.role,
+    actorIsAdmin: req.user!.isAdmin,
     appointmentId: req.params.id,
     data: b.value,
   });

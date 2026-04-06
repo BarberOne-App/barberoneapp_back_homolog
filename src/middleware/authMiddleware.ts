@@ -65,6 +65,20 @@ export function requireAdmin(req: Request, _res: Response, next: NextFunction) {
   next();
 }
 
+export function requireAdminOrReceptionist(req: Request, _res: Response, next: NextFunction) {
+  if (!req.user) return next(unauthorized("Não autenticado"));
+
+  const role = String(req.user.role || "");
+  const isAdmin = role === "admin" || req.user.isAdmin;
+  const isReceptionist = role === "receptionist";
+
+  if (!isAdmin && !isReceptionist) {
+    return next(forbidden("Apenas admin ou recepcionista"));
+  }
+
+  next();
+}
+
 /**
  * Middleware que tenta autenticar via JWT, mas **não bloqueia** se não houver token.
  * Usado nas rotas de pagamento enquanto o frontend não integra o login real.
