@@ -183,12 +183,16 @@ export async function updatePaymentService(params: {
     status?: string;
     method?: string;
     paidAt?: Date;
+    noShow?: boolean;
   };
 }) {
   const updateData: any = {};
   if (params.data.status !== undefined) updateData.status = params.data.status;
   if (params.data.method !== undefined) updateData.method = params.data.method;
   if (params.data.paidAt !== undefined) updateData.paid_at = params.data.paidAt;
+  if (params.data.noShow !== undefined) {
+    updateData.status_raw = params.data.noShow ? "no_show" : null;
+  }
 
   // Se marcado como "paid" e não tem paidAt, setar agora
   if (params.data.status === "paid" && !params.data.paidAt) {

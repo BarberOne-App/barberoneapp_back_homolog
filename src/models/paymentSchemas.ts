@@ -32,6 +32,7 @@ export const UpdatePaymentSchema = joi
       .valid("pix", "debito", "credito", "dinheiro", "local", "subscription")
       .optional(),
     paidAt: joi.date().iso().optional(),
+    noShow: joi.boolean().optional(),
   })
   .min(1)
   .options({ abortEarly: false, stripUnknown: true });
