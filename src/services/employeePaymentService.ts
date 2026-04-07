@@ -30,7 +30,7 @@ export async function listEmployeePaymentsService(params: {
   actorRole: string;
   actorId: string;
 }) {
-  if (params.actorRole !== "admin" && params.actorRole !== "barber") {
+  if (params.actorRole !== "admin" && params.actorRole !== "barber" && params.actorRole !== "receptionist") {
     throw forbidden("Sem permissão para listar pagamentos de funcionários");
   }
 
