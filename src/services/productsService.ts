@@ -8,6 +8,33 @@ import {
     updateProductInBarbershop,
 } from "../repository/productsRepository.js";
 
+function decimalToNumber(value: any) {
+    if (value == null) return value;
+    if (typeof value === "number") return value;
+    if (typeof value === "string") return Number(value);
+    if (typeof value?.toNumber === "function") return value.toNumber();
+    return Number(value);
+}
+
+function serializeProduct(product: any) {
+    return {
+        id: product.id,
+        name: product.name,
+        description: product.description,
+        category: product.category,
+        price: decimalToNumber(product.price),
+        subscriberDiscount: product.subscriberDiscount ?? product.subscriber_discount ?? 0,
+        subscriber_discount: product.subscriber_discount ?? product.subscriberDiscount ?? 0,
+        imageUrl: product.imageUrl ?? product.image_url ?? null,
+        image_url: product.image_url ?? product.imageUrl ?? null,
+        stock: product.stock,
+        active: product.active,
+        createdAt: product.created_at ?? product.createdAt,
+        updatedAt: product.updated_at ?? product.updatedAt,
+        barbershopId: product.barbershop_id ?? product.barbershopId,
+    };
+}
+
 export async function createProductService(params: {
     barbershopId: string;
     actorRole: "admin" | "barber" | "client";
@@ -24,7 +51,7 @@ export async function createProductService(params: {
 }) {
     if (params.actorRole !== "admin") throw forbidden("Apenas admin pode criar produto");
 
-    return createProduct({
+    const created = await createProduct({
         barbershopId: params.barbershopId,
         name: params.data.name.trim(),
         description: params.data.description ?? null,
@@ -35,6 +62,8 @@ export async function createProductService(params: {
         stock: params.data.stock ?? 0,
         active: params.data.active ?? true,
     });
+
+    return serializeProduct(created);
 }
 
 export async function importProductsService(params: {
@@ -76,7 +105,7 @@ export async function importProductsService(params: {
                 },
             });
 
-            created.push(product);
+            created.push(serializeProduct(product));
         } catch (error: any) {
             errors.push({
                 row: rowIndex,
@@ -103,12 +132,14 @@ export async function listProductsService(params: {
     const active =
         params.actorRole === "admin" ? params.query?.active : true;
         
-    return listProductsInBarbershop({
+    const products = await listProductsInBarbershop({
         barbershopId: params.barbershopId,
         active,
         category: params.query?.category,
         q: params.query?.q,
     });
+
+    return products.map(serializeProduct);
 }
 
 export async function getProductByIdService(params: {
@@ -122,7 +153,7 @@ export async function getProductByIdService(params: {
     // se não for admin, não deixa pegar inativo
     if (params.actorRole !== "admin" && !product.active) throw notFound("Produto não encontrado");
 
-    return product;
+    return serializeProduct(product);
 }
 
 export async function updateProductService(params: {
@@ -156,7 +187,8 @@ export async function updateProductService(params: {
     if (params.data.stock !== undefined) data.stock = params.data.stock;
     if (params.data.active !== undefined) data.active = params.data.active;
 
-    return updateProductInBarbershop(params.barbershopId, params.productId, data);
+    const updated = await updateProductInBarbershop(params.barbershopId, params.productId, data);
+    return serializeProduct(updated);
 }
 
 export async function deleteProductService(params: {
