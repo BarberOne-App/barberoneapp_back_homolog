@@ -31,6 +31,7 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
       is_admin: true,
       name: true,
       email: true,
+      permissions: true,
     },
   });
 
@@ -46,6 +47,7 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
     isAdmin: user.is_admin,
     name: user.name,
     email: user.email ?? "",
+    permissions: (user.permissions as any) || {},
   };
 
   next();
@@ -79,6 +81,22 @@ export function requireAdminOrReceptionist(req: Request, _res: Response, next: N
   next();
 }
 
+export function requirePermission(permission: string) {
+  return (req: Request, _res: Response, next: NextFunction) => {
+    if (!req.user) return next(unauthorized("Não autenticado"));
+    
+    const isAdmin = req.user.role === "admin" || req.user.isAdmin;
+    if (isAdmin) return next(); // admin tem todas as permissões
+    
+    const permissions = req.user.permissions || {};
+    if (!(permissions as any)[permission]) {
+      return next(forbidden(`Sem permissão: ${permission}`));
+    }
+    
+    next();
+  };
+}
+
 /**
  * Middleware que tenta autenticar via JWT, mas **não bloqueia** se não houver token.
  * Usado nas rotas de pagamento enquanto o frontend não integra o login real.
@@ -99,6 +117,7 @@ export async function optionalAuth(req: Request, _res: Response, next: NextFunct
         is_admin: true,
         name: true,
         email: true,
+        permissions: true,
       },
     });
 
@@ -110,6 +129,7 @@ export async function optionalAuth(req: Request, _res: Response, next: NextFunct
         isAdmin: user.is_admin,
         name: user.name,
         email: user.email ?? "",
+        permissions: (user.permissions as any) || {},
       };
     }
   } catch {

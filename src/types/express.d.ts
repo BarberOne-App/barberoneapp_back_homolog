@@ -30,6 +30,7 @@ declare global {
       isAdmin: boolean;
       name: string;
       email: string;
+      permissions?: Record<string, boolean>;
     }
     interface Request {
       user?: User;
