@@ -81,6 +81,7 @@ export async function updateAppointment(req: Request, res: Response) {
     barbershopId: req.user!.barbershopId,
     actorRole: req.user!.role,
     actorIsAdmin: req.user!.isAdmin,
+    actorId: req.user!.id,
     appointmentId: req.params.id,
     data: b.value,
   });

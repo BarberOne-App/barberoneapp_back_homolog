@@ -7,7 +7,7 @@ import {
   listAppointmentsInBarbershop,
   updateAppointmentInBarbershop,
 } from "../repository/appointmentRepository.js";
-import { findBarberByIdInBarbershop } from "../repository/barberRepository.js";
+import { findBarberByIdInBarbershop, findBarberByUserIdInBarbershop } from "../repository/barberRepository.js";
 import { findActiveSubscriptionByUser } from "../repository/subscriptionRepository.js";
 
 /* ─────────────────── helpers ─────────────────── */
@@ -252,6 +252,7 @@ export async function updateAppointmentService(params: {
   barbershopId: string;
   actorRole: string;
   actorIsAdmin?: boolean;
+  actorId: string;
   appointmentId: string;
   data: {
     status?: string;
@@ -261,9 +262,16 @@ export async function updateAppointmentService(params: {
 }) {
   const isAdmin = params.actorRole === "admin" || !!params.actorIsAdmin;
   const isReceptionist = params.actorRole === "receptionist";
+  const actorBarber = await findBarberByUserIdInBarbershop(params.barbershopId, params.actorId);
 
-  if (!isAdmin && !isReceptionist) {
-    throw forbidden("Apenas admin ou recepcionista pode atualizar agendamentos");
+  const existingAppointment = await findAppointmentByIdInBarbershop(params.barbershopId, params.appointmentId);
+  if (!existingAppointment) throw notFound("Agendamento não encontrado");
+
+  const isOwnBarberAppointment =
+    !!actorBarber && String(existingAppointment.barber_id) === String(actorBarber.id);
+
+  if (!isAdmin && !isReceptionist && !isOwnBarberAppointment) {
+    throw forbidden("Apenas admin, recepcionista ou o barbeiro do agendamento pode atualizar");
   }
 
   const updateData: any = {};

@@ -94,6 +94,10 @@ export async function findAppointmentByIdInBarbershop(barbershopId: string, appo
   });
 }
 
+export async function getAppointmentByIdInBarbershop(barbershopId: string, appointmentId: string) {
+  return findAppointmentByIdInBarbershop(barbershopId, appointmentId);
+}
+
 /* ── CREATE (transação: appointment + services + products) ── */
 export async function createAppointmentTx(data: {
   barbershopId: string;

@@ -71,6 +71,13 @@ export async function findBarberByIdInBarbershop(barbershopId: string, barberId:
   });
 }
 
+export async function findBarberByUserIdInBarbershop(barbershopId: string, userId: string) {
+  return prisma.barbers.findFirst({
+    where: { user_id: userId, barbershop_id: barbershopId },
+    select: barberSelect,
+  });
+}
+
 /* ── CREATE (sem user vinculado) ── */
 export async function createBarberInBarbershop(data: {
   barbershopId: string;
