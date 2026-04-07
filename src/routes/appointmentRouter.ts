@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { asyncHandler } from "../middleware/asyncHandler.js";
-import { requireAdminOrReceptionist, requireAuth } from "../middleware/authMiddleware.js";
+import { requireAuth } from "../middleware/authMiddleware.js";
 import {
   createAppointment,
   deleteAppointment,
@@ -22,8 +22,8 @@ router.get("/appointments/:id", requireAuth, asyncHandler(getAppointmentById));
 // Criar agendamento — qualquer usuário logado (client cria para si, admin/recepcionista para qualquer)
 router.post("/appointments", requireAuth, asyncHandler(createAppointment));
 
-// Atualizar agendamento (status, notes, barbeiro) — admin/recepcionista
-router.patch("/appointments/:id", requireAuth, requireAdminOrReceptionist, asyncHandler(updateAppointment));
+// Atualizar agendamento (status, notes, barbeiro) — validado no service por permissão/dono
+router.patch("/appointments/:id", requireAuth, asyncHandler(updateAppointment));
 
 // Cancelar agendamento (soft) — admin ou o próprio cliente (verificação futura no service)
 router.delete("/appointments/:id", requireAuth, asyncHandler(deleteAppointment));
