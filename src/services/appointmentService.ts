@@ -8,6 +8,7 @@ import {
   updateAppointmentInBarbershop,
 } from "../repository/appointmentRepository.js";
 import { findBarberByIdInBarbershop, findBarberByUserIdInBarbershop } from "../repository/barberRepository.js";
+import { getHomeInfoByBarbershop } from "../repository/settingRepository.js";
 import { findActiveSubscriptionByUser } from "../repository/subscriptionRepository.js";
 
 /* ─────────────────── helpers ─────────────────── */
@@ -64,6 +65,97 @@ function serializeAppointment(a: any) {
 const OPEN_HOUR = 9; // 09:00
 const CLOSE_HOUR = 20; // 20:00
 const SLOT_STEP = 30; // intervalo base de 30 min
+
+function normalizeText(value: string) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function parseTimeToMinutes(raw: string) {
+  const value = normalizeText(raw).replace(/\s+/g, "");
+  const match = value.match(/^(\d{1,2})(?::?(\d{2}))?h?$/);
+  if (!match) return null;
+
+  const hour = Number(match[1]);
+  const minute = match[2] ? Number(match[2]) : 0;
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return null;
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+
+  return hour * 60 + minute;
+}
+
+function extractTimeRangeFromLine(line: string) {
+  const normalized = normalizeText(line);
+  const timeRegex = /(\d{1,2}(?::\d{2})?\s*h?)/g;
+  const times = [...normalized.matchAll(timeRegex)].map((m) => m[1]).filter(Boolean);
+  if (times.length < 2) return null;
+
+  const start = parseTimeToMinutes(times[0]);
+  const end = parseTimeToMinutes(times[1]);
+  if (start == null || end == null || end <= start) return null;
+
+  return { start, end };
+}
+
+function dayTokenToWeekday(token: string): number | null {
+  const t = normalizeText(token);
+  if (t.startsWith("dom")) return 0;
+  if (t.startsWith("seg")) return 1;
+  if (t.startsWith("ter")) return 2;
+  if (t.startsWith("qua")) return 3;
+  if (t.startsWith("qui")) return 4;
+  if (t.startsWith("sex")) return 5;
+  if (t.startsWith("sab")) return 6;
+  return null;
+}
+
+function lineAppliesToWeekday(line: string, weekday: number) {
+  const normalized = normalizeText(line);
+  const dayRegex = /(domingo|dom|segunda|seg|terca|ter|quarta|qua|quinta|qui|sexta|sex|sabado|sab)/g;
+  const tokens = [...normalized.matchAll(dayRegex)].map((m) => m[1]);
+  const days: number[] = [];
+  for (const token of tokens) {
+    const day = dayTokenToWeekday(token);
+    if (day !== null) days.push(day);
+  }
+
+  if (days.length === 0) return true;
+
+  if (days.length >= 2 && /(\sa\s|ate)/.test(normalized)) {
+    const start = days[0]!;
+    const end = days[1]!;
+    if (start <= end) return weekday >= start && weekday <= end;
+    return weekday >= start || weekday <= end;
+  }
+
+  return days.includes(weekday);
+}
+
+async function getOpeningWindowFromHomeInfo(barbershopId: string, date: string) {
+  const row = await getHomeInfoByBarbershop(barbershopId);
+  const target = new Date(`${date}T12:00:00`);
+  const weekday = target.getUTCDay();
+
+  const lines = [row?.schedule_line1, row?.schedule_line2, row?.schedule_line3].filter(Boolean) as string[];
+
+  for (const line of lines) {
+    if (!lineAppliesToWeekday(line, weekday)) continue;
+
+    const normalized = normalizeText(line);
+    if (normalized.includes("fechado") || normalized.includes("closed")) {
+      return null;
+    }
+
+    const range = extractTimeRangeFromLine(line);
+    if (range) {
+      return range;
+    }
+  }
+
+  return { start: OPEN_HOUR * 60, end: CLOSE_HOUR * 60 };
+}
 
 /* ─────────────────────────── LIST ─────────────────────────── */
 export async function listAppointmentsService(params: {
@@ -331,9 +423,12 @@ export async function getAvailableSlotsService(params: {
     };
   });
 
-  // 4. Gerar todos os slots possíveis (a cada SLOT_STEP min) dentro do horário de funcionamento
-  const openMin = OPEN_HOUR * 60; // ex: 540
-  const closeMin = CLOSE_HOUR * 60; // ex: 1200
+  // 4. Gerar slots com base no horário de funcionamento configurado no home-info
+  const openingWindow = await getOpeningWindowFromHomeInfo(params.barbershopId, params.date);
+  if (!openingWindow) return [];
+
+  const openMin = openingWindow.start;
+  const closeMin = openingWindow.end;
   const slots: string[] = [];
 
   for (let slotStart = openMin; slotStart + params.duration <= closeMin; slotStart += SLOT_STEP) {
