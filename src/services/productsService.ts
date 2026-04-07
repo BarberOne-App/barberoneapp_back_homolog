@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
-import { forbidden, notFound } from "../errors/index.js";
+import { conflict, forbidden, notFound } from "../errors/index.js";
 import {
+    countAppointmentProductUsages,
     createProduct,
     deleteProductById,
     findProductByIdInBarbershop,
@@ -200,6 +201,11 @@ export async function deleteProductService(params: {
 
     const existing = await findProductByIdInBarbershop(params.barbershopId, params.productId);
     if (!existing) throw notFound("Produto não encontrado");
+
+    const usages = await countAppointmentProductUsages(params.productId);
+    if (usages > 0) {
+        throw conflict("Não é possível excluir este produto, pois ele já foi usado em agendamentos.");
+    }
 
     await deleteProductById(params.productId);
     return { ok: true };

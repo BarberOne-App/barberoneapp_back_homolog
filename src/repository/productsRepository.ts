@@ -88,3 +88,10 @@ export async function deleteProductById(productId: string, tx?: Prisma.Transacti
         where: { id: productId },
     });
 }
+
+export async function countAppointmentProductUsages(productId: string, tx?: Prisma.TransactionClient) {
+    const db = dbClient(tx);
+    return db.appointment_products.count({
+        where: { product_id: productId },
+    });
+}
