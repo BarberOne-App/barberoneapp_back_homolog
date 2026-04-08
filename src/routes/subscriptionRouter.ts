@@ -19,7 +19,7 @@ router.get("/subscriptions", requireAuth, asyncHandler(listSubscriptions));
 router.get("/subscriptions/:id", requireAuth, asyncHandler(getSubscriptionById));
 
 // Criar — admin / recepcionista
-router.post("/subscriptions", requireAuth, asyncHandler(createSubscription));
+router.post("/subscription", requireAuth, asyncHandler(createSubscription));
 
 // Atualizar (status, barbeiro mensal, etc.) — admin
 router.patch("/subscriptions/:id", requireAuth, requireAdmin, asyncHandler(updateSubscription));
