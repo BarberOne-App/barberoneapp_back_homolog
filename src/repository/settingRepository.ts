@@ -13,6 +13,7 @@ export function upsertSettingsByBarbershop(
         pix_key?: string | null;
         terms_document_url?: string | null;
         terms_document_name?: string | null;
+        hidden_booking_payment_methods?: string[] | null;
     }
 ) {
     return prisma.barbershop_settings.upsert({
@@ -21,12 +22,14 @@ export function upsertSettingsByBarbershop(
             pix_key: data.pix_key ?? null,
             terms_document_url: data.terms_document_url ?? null,
             terms_document_name: data.terms_document_name ?? null,
+            hidden_booking_payment_methods: data.hidden_booking_payment_methods ?? [],
         },
         create: {
             barbershop_id: barbershopId,
             pix_key: data.pix_key ?? null,
             terms_document_url: data.terms_document_url ?? null,
             terms_document_name: data.terms_document_name ?? null,
+            hidden_booking_payment_methods: data.hidden_booking_payment_methods ?? [],
         },
     });
 }

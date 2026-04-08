@@ -8,10 +8,15 @@ import {
 
 export async function getSettingsService(barbershopId: string) {
     const row = await getSettingsByBarbershop(barbershopId);
+    const hiddenBookingPaymentMethods = Array.isArray((row as any)?.hidden_booking_payment_methods)
+        ? (row as any).hidden_booking_payment_methods
+        : [];
+
     return {
         pixKey: row?.pix_key ?? "",
         termsDocumentUrl: row?.terms_document_url ?? "",
         termsDocumentName: row?.terms_document_name ?? "",
+        hiddenBookingPaymentMethods,
     };
 }
 
@@ -21,19 +26,30 @@ export async function upsertSettingsService(params: {
     pixKey?: string;
     termsDocumentUrl?: string;
     termsDocumentName?: string;
+    hiddenBookingPaymentMethods?: string[];
 }) {
     if (params.actorRole !== "admin") throw forbidden("Apenas admin pode alterar configurações");
+
+    const hiddenBookingPaymentMethods = Array.isArray(params.hiddenBookingPaymentMethods)
+        ? params.hiddenBookingPaymentMethods
+            .map((value) => String(value || "").trim().toLowerCase())
+            .filter((value) => value === "online" || value === "local")
+        : [];
 
     const row = await upsertSettingsByBarbershop(params.barbershopId, {
         pix_key: params.pixKey ?? "",
         terms_document_url: params.termsDocumentUrl ?? null,
         terms_document_name: params.termsDocumentName ?? null,
+        hidden_booking_payment_methods: hiddenBookingPaymentMethods,
     });
 
     return {
         pixKey: row.pix_key ?? "",
         termsDocumentUrl: row.terms_document_url ?? "",
         termsDocumentName: row.terms_document_name ?? "",
+        hiddenBookingPaymentMethods: Array.isArray((row as any)?.hidden_booking_payment_methods)
+            ? (row as any).hidden_booking_payment_methods
+            : [],
     };
 }
 

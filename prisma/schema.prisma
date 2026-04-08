@@ -401,6 +401,7 @@ model barbershop_settings {
   pix_key       String?
   terms_document_url  String?
   terms_document_name String?
+  hidden_booking_payment_methods String[] @default([])
 
   created_at DateTime @default(now()) @db.Timestamptz(6)
   updated_at DateTime @default(now()) @db.Timestamptz(6)

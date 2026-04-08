@@ -18,6 +18,7 @@ export async function upsertSettings(req: Request, res: Response) {
         pixKey: req.body?.pixKey,
         termsDocumentUrl: req.body?.termsDocumentUrl,
         termsDocumentName: req.body?.termsDocumentName,
+        hiddenBookingPaymentMethods: req.body?.hiddenBookingPaymentMethods,
     });
     return res.status(200).send(result);
 }
