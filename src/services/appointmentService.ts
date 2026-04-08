@@ -20,6 +20,28 @@ function decimalToNumber(v: any): number {
   return Number(v);
 }
 
+const SAO_PAULO_TIME_ZONE = "America/Sao_Paulo";
+
+function getSaoPauloTimeParts(date: Date | string) {
+  const value = date instanceof Date ? date : new Date(date);
+  const formatter = new Intl.DateTimeFormat("en-GB", {
+    timeZone: SAO_PAULO_TIME_ZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+
+  const [hourStr, minuteStr] = formatter.format(value).split(":");
+  return {
+    hour: Number(hourStr),
+    minute: Number(minuteStr),
+  };
+}
+
+function buildSaoPauloDateTime(date: string, time: string) {
+  return new Date(`${date}T${time}:00-03:00`);
+}
+
 function serializeAppointment(a: any) {
   return {
     id: a.id,
@@ -290,8 +312,11 @@ export async function createAppointmentService(params: {
   const totalDuration = services.reduce((sum, s) => sum + s.duration * (s.quantity ?? 1), 0);
   if (totalDuration <= 0) throw badRequest("Duração total dos serviços deve ser > 0");
 
-  // 3. Montar datas de início e fim
-  const startAt = new Date(`${date}T${time}:00Z`);
+  // 3. Montar datas de início e fim considerando o horário de São Paulo
+  const startAt = buildSaoPauloDateTime(date, time);
+  if (Number.isNaN(startAt.getTime())) {
+    throw badRequest("Data ou horário inválidos");
+  }
   const endAt = new Date(startAt.getTime() + 50 * 60_000);
 
   // 4. Validar horário de funcionamento
@@ -444,11 +469,11 @@ export async function getAvailableSlotsService(params: {
 
   // 3. Converter para intervalos ocupados [{start, end}] em minutos desde meia-noite UTC
   const busy = appointments.map((a) => {
-    const s = new Date(a.start_at);
-    const e = new Date(a.end_at);
+    const s = getSaoPauloTimeParts(a.start_at);
+    const e = getSaoPauloTimeParts(a.end_at);
     return {
-      start: s.getUTCHours() * 60 + s.getUTCMinutes(),
-      end: e.getUTCHours() * 60 + e.getUTCMinutes(),
+      start: s.hour * 60 + s.minute,
+      end: e.hour * 60 + e.minute,
     };
   });
 
