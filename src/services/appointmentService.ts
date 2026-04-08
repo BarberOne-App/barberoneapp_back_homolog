@@ -86,6 +86,30 @@ function parseTimeToMinutes(raw: string) {
   return hour * 60 + minute;
 }
 
+function getSaoPauloNow() {
+  const now = new Date();
+
+  const dateFormatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+
+  const timeFormatter = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "America/Sao_Paulo",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+
+  const todayStr = dateFormatter.format(now);
+  const [hourStr, minuteStr] = timeFormatter.format(now).split(":");
+  const nowMinutes = Number(hourStr) * 60 + Number(minuteStr);
+
+  return { todayStr, nowMinutes };
+}
+
 function extractTimeRangeFromLine(line: string) {
   const normalized = normalizeText(line);
   const timeRegex = /(\d{1,2}(?::\d{2})?\s*h?)/g;
@@ -277,8 +301,13 @@ export async function createAppointmentService(params: {
   //   throw badRequest(`Horário fora do funcionamento (${OPEN_HOUR}:00 – ${CLOSE_HOUR}:00)`);
   // }
 
-  // 5. Validar que não é data no passado
-  if (startAt < new Date()) {
+  // 5. Validar que não é data/horário no passado (horário local da barbearia)
+  const startMinutes = parseTimeToMinutes(time);
+  const { todayStr, nowMinutes } = getSaoPauloNow();
+  const isPastDate = date < todayStr;
+  const isPastTimeToday = date === todayStr && startMinutes != null && startMinutes <= nowMinutes;
+
+  if (isPastDate || isPastTimeToday) {
     throw badRequest("Não é possível agendar no passado");
   }
 
@@ -444,14 +473,12 @@ export async function getAvailableSlotsService(params: {
     }
   }
 
-  // 6. Se a data é hoje, remover horários que já passaram
-  const now = new Date();
-  const todayStr = now.toISOString().slice(0, 10);
+  // 6. Se a data é hoje, remover horários que já passaram (São Paulo)
+  const { todayStr, nowMinutes } = getSaoPauloNow();
   if (params.date === todayStr) {
-    const nowMin = now.getUTCHours() * 60 + now.getUTCMinutes();
     return slots.filter((s) => {
       const [h, m] = s.split(":").map(Number);
-      return h * 60 + m > nowMin;
+      return h * 60 + m > nowMinutes;
     });
   }
 
