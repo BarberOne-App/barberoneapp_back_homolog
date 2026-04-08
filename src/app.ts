@@ -307,7 +307,7 @@ app.post('/payment-intents', async (req, res) => {
 });
 
 
-app.post('/subscriptions', async (req, res) => {
+app.post('/stripe/subscriptions', async (req, res) => {
     try {
         const { customerId, email, stripePriceId, userId, planId } = req.body;
 
