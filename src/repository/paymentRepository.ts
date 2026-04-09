@@ -87,26 +87,36 @@ export async function createPaymentInBarbershop(data: {
   statusRaw?: string;
   paidAt?: Date;
 }) {
-  // Para agendamentos (appointment_id), use UPSERT para evitar duplicatas
-  // Para assinaturas (subscription_id), sempre cria novo registro
+  // Para agendamentos, atualiza o registro existente quando houver.
+  // Isso evita depender de alias de constraint no tipo gerado do Prisma Client.
   if (data.appointmentId) {
-    return prisma.payment_transactions.upsert({
+    const existing = await prisma.payment_transactions.findFirst({
       where: {
-        uk_payments_appointment_barbershop: {
-          appointment_id: data.appointmentId,
-          barbershop_id: data.barbershopId,
+        barbershop_id: data.barbershopId,
+        appointment_id: data.appointmentId,
+      },
+      orderBy: { created_at: "desc" },
+      select: { id: true },
+    });
+
+    if (existing) {
+      return prisma.payment_transactions.update({
+        where: { id: existing.id },
+        data: {
+          user_id: data.userId ?? null,
+          amount: data.amount,
+          method: (data.method as any) ?? "local",
+          status: (data.status as any) ?? "pending",
+          status_raw: data.statusRaw ?? null,
+          paid_at: data.paidAt ?? null,
+          updated_at: new Date(),
         },
-      },
-      update: {
-        user_id: data.userId ?? null,
-        amount: data.amount,
-        method: (data.method as any) ?? "local",
-        status: (data.status as any) ?? "pending",
-        status_raw: data.statusRaw ?? null,
-        paid_at: data.paidAt ?? null,
-        updated_at: new Date(),
-      },
-      create: {
+        include: PAYMENT_INCLUDE,
+      });
+    }
+
+    return prisma.payment_transactions.create({
+      data: {
         barbershop_id: data.barbershopId,
         user_id: data.userId ?? null,
         appointment_id: data.appointmentId,
