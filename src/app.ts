@@ -32,6 +32,7 @@ import { MercadoPagoConfig, Payment, Preference } from "mercadopago";
 import { PrismaClient } from "@prisma/client";
 import axios from "axios";
 import Stripe from "stripe";
+import { optionalAuth } from "./middleware/authMiddleware.js";
 
 
 dotenv.config();
@@ -642,6 +643,251 @@ app.get('/stripe/subscriptions/by-email', async (req, res) => {
             error: 'Erro ao buscar subscriptions na Stripe.',
             //   details: error.message,
         });
+    }
+});
+
+app.get('/stripe/subscriptions', optionalAuth, async (req, res) => {
+    console.log('STRIPE SECRET KEY:', process.env.STRIPE_SECRET_KEY);
+
+    try {
+        const email = String(req.query.email || '').trim();
+        const listAll = String(req.query.all || '').toLowerCase() === 'true';
+
+        if (listAll && !(req.user?.role === 'admin' || req.user?.isAdmin)) {
+            return res.status(403).json({ error: 'Apenas administradores podem listar todas as assinaturas.' });
+        }
+
+        const collectAllCustomers = async () => {
+            const customers: Stripe.Customer[] = [];
+            let startingAfter: string | undefined;
+
+            do {
+                const page = await stripe.customers.list({
+                    limit: 100,
+                    ...(startingAfter ? { starting_after: startingAfter } : {}),
+                });
+
+                customers.push(...page.data);
+                startingAfter = page.has_more ? page.data[page.data.length - 1]?.id : undefined;
+            } while (startingAfter);
+
+            return customers;
+        };
+
+        const customers = listAll
+            ? await collectAllCustomers()
+            : email
+                ? (await stripe.customers.list({
+                    email,
+                    limit: 100,
+                })).data
+                : req.user?.email
+                    ? (await stripe.customers.list({
+                        email: String(req.user.email).trim(),
+                        limit: 100,
+                    })).data
+                    : [];
+
+        if (!customers.length) {
+            return res.json({
+                found: false,
+                total: 0,
+                items: [],
+                subscriptions: [],
+            });
+        }
+
+        const rawSubscriptions: Array<any> = [];
+
+        for (const customer of customers) {
+            const subs = await stripe.subscriptions.list({
+                customer: customer.id,
+                status: 'all',
+                limit: 100,
+            });
+
+            const activeSubscriptions = subs.data.filter((sub) => {
+                const status = String(sub.status || '').toLowerCase();
+                return ['active', 'trialing', 'past_due', 'unpaid'].includes(status);
+            });
+
+            const chosenSubscription = activeSubscriptions
+                .sort((a, b) => (b.created || 0) - (a.created || 0))[0];
+
+            if (!chosenSubscription) continue;
+
+            const subscriptionAny = chosenSubscription as any;
+            const firstItem = chosenSubscription.items?.data?.[0] || null;
+            const productId = firstItem?.price?.product || null;
+            const priceId = firstItem?.price?.id || null;
+
+            rawSubscriptions.push({
+                customerId: customer.id,
+                customerEmail: customer.email,
+                customerName: customer.name,
+                subscriptionId: chosenSubscription.id,
+                status: chosenSubscription.cancel_at_period_end ? 'cancel_pending' : 'active',
+                created: chosenSubscription.created,
+                currentPeriodStart: subscriptionAny.current_period_start ?? null,
+                currentPeriodEnd: subscriptionAny.current_period_end ?? null,
+                cancelAtPeriodEnd: chosenSubscription.cancel_at_period_end,
+                priceId,
+                productId,
+                items: (chosenSubscription.items?.data || []).map((item) => ({
+                    subscriptionItemId: item.id,
+                    priceId: item.price?.id || null,
+                    productId: item.price?.product || null,
+                    quantity: item.quantity ?? null,
+                    interval: item.price?.recurring?.interval || null,
+                    intervalCount: item.price?.recurring?.interval_count || null,
+                })),
+            });
+        }
+
+        const subscriptions = rawSubscriptions.sort((a, b) => b.created - a.created);
+
+        const uniqueEmails = Array.from(
+            new Set(
+                subscriptions
+                    .map((s) => String(s.customerEmail || '').trim().toLowerCase())
+                    .filter(Boolean),
+            ),
+        );
+
+        const localUsers = uniqueEmails.length
+            ? await prisma.users.findMany({
+                where: { email: { in: uniqueEmails } },
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    cpf: true,
+                },
+            })
+            : [];
+
+        const localUserByEmail = new Map(
+            localUsers.map((user) => [String(user.email || '').trim().toLowerCase(), user]),
+        );
+
+        const productIds = subscriptions
+            .map((s) => s.productId)
+            .filter((id): id is string => Boolean(id));
+
+        let planByMpId = new Map<string, any>();
+
+        if (productIds.length > 0) {
+            const plans = await prisma.subscription_plans.findMany({
+                where: {
+                    mp_preapproval_plan_id: {
+                        in: productIds,
+                    },
+                },
+                include: {
+                    subscription_plan_features: {
+                        orderBy: { sort_order: 'asc' },
+                    },
+                },
+            });
+
+            planByMpId = new Map(
+                plans
+                    .filter((p) => p.mp_preapproval_plan_id)
+                    .map((p) => [String(p.mp_preapproval_plan_id), p])
+            );
+        }
+
+        const subscriptionsWithPlan = subscriptions.map((sub) => {
+            const matchedPlan = sub.productId
+                ? planByMpId.get(String(sub.productId))
+                : null;
+            const matchedUser = localUserByEmail.get(String(sub.customerEmail || '').trim().toLowerCase());
+
+            return {
+                ...sub,
+                userId: matchedUser?.id ?? sub.customerId,
+                userCpf: matchedUser?.cpf ?? '',
+                user: {
+                    id: matchedUser?.id ?? sub.customerId,
+                    name: matchedUser?.name ?? sub.customerName ?? sub.customerEmail ?? 'N/A',
+                    email: matchedUser?.email ?? sub.customerEmail ?? '',
+                },
+                planName: matchedPlan?.name ?? null,
+                planPrice: matchedPlan?.price ?? null,
+                paymentMethod: 'stripe',
+                createdAt: new Date(sub.created * 1000).toISOString(),
+                startDate: new Date(sub.created * 1000).toISOString(),
+                nextBillingDate: sub.currentPeriodEnd
+                    ? new Date(sub.currentPeriodEnd * 1000).toISOString()
+                    : null,
+                currentCycle: {
+                    periodStart: sub.currentPeriodStart
+                        ? new Date(sub.currentPeriodStart * 1000).toISOString()
+                        : null,
+                    periodEnd: sub.currentPeriodEnd
+                        ? new Date(sub.currentPeriodEnd * 1000).toISOString()
+                        : null,
+                },
+                plan: matchedPlan
+                    ? {
+                          id: matchedPlan.id,
+                          name: matchedPlan.name,
+                          price: Number(matchedPlan.price),
+                          mpPreapprovalPlanId: matchedPlan.mp_preapproval_plan_id,
+                          features: (matchedPlan.subscription_plan_features ?? []).map((f: any) => f.feature),
+                      }
+                    : null,
+            };
+        });
+
+        if (listAll) {
+            return res.json({
+                found: subscriptionsWithPlan.length > 0,
+                total: subscriptionsWithPlan.length,
+                items: subscriptionsWithPlan,
+                subscriptions: subscriptionsWithPlan,
+            });
+        }
+
+        return res.json({
+            found: subscriptionsWithPlan.length > 0,
+            total: subscriptionsWithPlan.length,
+            items: subscriptionsWithPlan,
+            subscriptions: subscriptionsWithPlan,
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            error: 'Erro ao buscar subscriptions na Stripe.',
+        });
+    }
+});
+
+app.patch('/stripe/subscriptions/:id/cancel', optionalAuth, async (req, res) => {
+    try {
+        if (!(req.user?.role === 'admin' || req.user?.isAdmin)) {
+            return res.status(403).json({ error: 'Apenas administradores podem cancelar assinaturas.' });
+        }
+
+        const { id } = req.params;
+
+        if (!id) {
+            return res.status(400).json({ error: 'ID da assinatura é obrigatório.' });
+        }
+
+        const subscription = await stripe.subscriptions.update(id, {
+            cancel_at_period_end: true,
+        });
+
+        return res.json({
+            id: subscription.id,
+            status: subscription.status,
+            cancelAtPeriodEnd: subscription.cancel_at_period_end,
+            currentPeriodEnd: subscription.items?.data?.[0]?.current_period_end ?? null,
+        });
+    } catch (error) {
+        console.error('Erro ao cancelar assinatura Stripe:', error);
+        return res.status(500).json({ error: 'Erro ao cancelar assinatura Stripe.' });
     }
 });
 
