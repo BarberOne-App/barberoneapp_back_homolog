@@ -75,7 +75,7 @@ export async function findPaymentByIdInBarbershop(
   });
 }
 
-/* ───── CREATE ───── */
+/* ───── CREATE or UPDATE (UPSERT for appointments) ───── */
 export async function createPaymentInBarbershop(data: {
   barbershopId: string;
   userId?: string;
@@ -87,11 +87,46 @@ export async function createPaymentInBarbershop(data: {
   statusRaw?: string;
   paidAt?: Date;
 }) {
+  // Para agendamentos (appointment_id), use UPSERT para evitar duplicatas
+  // Para assinaturas (subscription_id), sempre cria novo registro
+  if (data.appointmentId) {
+    return prisma.payment_transactions.upsert({
+      where: {
+        uk_payments_appointment_barbershop: {
+          appointment_id: data.appointmentId,
+          barbershop_id: data.barbershopId,
+        },
+      },
+      update: {
+        user_id: data.userId ?? null,
+        amount: data.amount,
+        method: (data.method as any) ?? "local",
+        status: (data.status as any) ?? "pending",
+        status_raw: data.statusRaw ?? null,
+        paid_at: data.paidAt ?? null,
+        updated_at: new Date(),
+      },
+      create: {
+        barbershop_id: data.barbershopId,
+        user_id: data.userId ?? null,
+        appointment_id: data.appointmentId,
+        subscription_id: null,
+        amount: data.amount,
+        method: (data.method as any) ?? "local",
+        status: (data.status as any) ?? "pending",
+        status_raw: data.statusRaw ?? null,
+        paid_at: data.paidAt ?? null,
+      },
+      include: PAYMENT_INCLUDE,
+    });
+  }
+
+  // Para assinaturas, sempre cria novo registro (pode ter múltiplos)
   return prisma.payment_transactions.create({
     data: {
       barbershop_id: data.barbershopId,
       user_id: data.userId ?? null,
-      appointment_id: data.appointmentId ?? null,
+      appointment_id: null,
       subscription_id: data.subscriptionId ?? null,
       amount: data.amount,
       method: (data.method as any) ?? "local",

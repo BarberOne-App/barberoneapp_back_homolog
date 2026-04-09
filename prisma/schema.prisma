@@ -126,6 +126,7 @@ model payment_transactions {
   subscriptions    subscriptions? @relation(fields: [subscription_id], references: [id], onUpdate: NoAction)
   users            users?         @relation(fields: [user_id], references: [id], onUpdate: NoAction)
 
+  @@unique([appointment_id, barbershop_id], map: "uk_payments_appointment_barbershop")
   @@index([appointment_id], map: "idx_payments_appointment")
   @@index([subscription_id], map: "idx_payments_subscription")
   @@index([user_id], map: "idx_payments_user")
