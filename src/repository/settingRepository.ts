@@ -48,6 +48,10 @@ export function upsertHomeInfoByBarbershop(
     return prisma.barbershop_home_info.upsert({
         where: { barbershop_id: barbershopId },
         update: {
+            hero_title: data.hero_title ?? null,
+            hero_subtitle: data.hero_subtitle ?? null,
+            hero_image: data.hero_image ?? null,
+            hero_images: data.hero_images ?? [],
             about_title: data.about_title ?? null,
             about_text1: data.about_text1 ?? null,
             about_text2: data.about_text2 ?? null,
@@ -63,6 +67,10 @@ export function upsertHomeInfoByBarbershop(
         },
         create: {
             barbershop_id: barbershopId,
+            hero_title: data.hero_title ?? null,
+            hero_subtitle: data.hero_subtitle ?? null,
+            hero_image: data.hero_image ?? null,
+            hero_images: data.hero_images ?? [],
             about_title: data.about_title ?? null,
             about_text1: data.about_text1 ?? null,
             about_text2: data.about_text2 ?? null,

@@ -20,6 +20,18 @@ function normalizeHiddenBookingPaymentMethods(value: unknown) {
     return Array.from(new Set(normalized));
 }
 
+function normalizeHeroImages(value: unknown): string[] {
+    if (!Array.isArray(value)) return [];
+
+    return Array.from(
+        new Set(
+            value
+                .map((item) => String(item || "").trim())
+                .filter((item) => item.length > 0),
+        ),
+    );
+}
+
 export async function getSettingsService(barbershopId: string) {
     const row = await getSettingsByBarbershop(barbershopId);
     const hiddenBookingPaymentMethods = normalizeHiddenBookingPaymentMethods(
@@ -68,8 +80,20 @@ export async function upsertSettingsService(params: {
 export async function getHomeInfoService(barbershopId: string) {
     const row = await getHomeInfoByBarbershop(barbershopId);
 
+    if (row) {
+        const heroImages = normalizeHeroImages((row as any)?.hero_images);
+        return {
+            ...row,
+            hero_images: heroImages,
+        };
+    }
+
     // se ainda não existir, você pode devolver defaults aqui
-    return row ?? {
+    return {
+        hero_title: "",
+        hero_subtitle: "",
+        hero_image: "",
+        hero_images: [],
         about_title: "Barbearia Rodrigues",
         about_text1: "A Barbearia Rodrigues é referência em cortes masculinos há mais de 10 anos.",
         about_text2: "Combinamos técnicas tradicionais com tendências modernas para garantir o melhor atendimento.",
@@ -92,8 +116,19 @@ export async function upsertHomeInfoService(params: {
 }) {
     if (params.actorRole !== "admin") throw forbidden("Apenas admin pode alterar home-info");
 
+    const heroImages = normalizeHeroImages(params.data?.hero_images);
+    const heroImage = String(params.data?.hero_image || "").trim();
+
+    const normalizedData = {
+        ...params.data,
+        hero_title: params.data?.hero_title ?? null,
+        hero_subtitle: params.data?.hero_subtitle ?? null,
+        hero_image: heroImage || heroImages[0] || null,
+        hero_images: heroImages,
+    };
+
     return upsertHomeInfoByBarbershop(params.barbershopId, {
         barbershop_id: params.barbershopId,
-        ...params.data,
+        ...normalizedData,
     });
 }

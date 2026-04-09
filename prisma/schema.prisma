@@ -430,6 +430,11 @@ model barbershop_home_info {
   id            String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   barbershop_id String @unique @db.Uuid
 
+  hero_title      String?
+  hero_subtitle   String?
+  hero_image      String?
+  hero_images     String[] @default([])
+
   about_title      String?
   about_text1      String?
   about_text2      String?
