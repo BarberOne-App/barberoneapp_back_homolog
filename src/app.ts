@@ -718,6 +718,14 @@ app.get('/stripe/subscriptions', optionalAuth, async (req, res) => {
 
             const subscriptionAny = chosenSubscription as any;
             const firstItem = chosenSubscription.items?.data?.[0] || null;
+            const periodStart =
+                subscriptionAny.current_period_start ??
+                firstItem?.current_period_start ??
+                null;
+            const periodEnd =
+                subscriptionAny.current_period_end ??
+                firstItem?.current_period_end ??
+                null;
             const productId = firstItem?.price?.product || null;
             const priceId = firstItem?.price?.id || null;
 
@@ -728,8 +736,8 @@ app.get('/stripe/subscriptions', optionalAuth, async (req, res) => {
                 subscriptionId: chosenSubscription.id,
                 status: chosenSubscription.cancel_at_period_end ? 'cancel_pending' : 'active',
                 created: chosenSubscription.created,
-                currentPeriodStart: subscriptionAny.current_period_start ?? null,
-                currentPeriodEnd: subscriptionAny.current_period_end ?? null,
+                currentPeriodStart: periodStart,
+                currentPeriodEnd: periodEnd,
                 cancelAtPeriodEnd: chosenSubscription.cancel_at_period_end,
                 priceId,
                 productId,
