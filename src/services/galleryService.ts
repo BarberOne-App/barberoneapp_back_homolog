@@ -3,6 +3,7 @@ import {
   createGalleryImage,
   deleteGalleryImage,
   listGalleryImagesInBarbershop,
+  updateGalleryImage,
 } from "../repository/galleryRepository.js";
 
 /* ── helpers ── */
@@ -48,4 +49,30 @@ export async function deleteGalleryImageService(params: {
   const deleted = await deleteGalleryImage(params.barbershopId, params.imageId);
   if (!deleted) throw notFound("Imagem não encontrada");
   return { message: "Imagem removida com sucesso" };
+}
+
+/* ───── UPDATE ───── */
+export async function updateGalleryImageService(params: {
+  barbershopId: string;
+  imageId: string;
+  data: {
+    url?: string;
+    alt?: string | null;
+    sortOrder?: number;
+  };
+}) {
+  const updated = await updateGalleryImage(
+    params.barbershopId,
+    params.imageId,
+    params.data
+  );
+  if (!updated) throw notFound("Imagem não encontrada");
+  return {
+    id: updated.id,
+    barbershopId: updated.barbershop_id,
+    url: updated.url,
+    alt: updated.alt,
+    sortOrder: updated.sort_order,
+    createdAt: updated.created_at,
+  };
 }

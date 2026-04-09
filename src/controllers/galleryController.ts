@@ -7,6 +7,7 @@ import {
   createGalleryImageService,
   deleteGalleryImageService,
   listGalleryService,
+  updateGalleryImageService,
 } from "../services/galleryService.js";
 
 function joiErrors(error: any) {
@@ -33,6 +34,23 @@ export async function createGalleryImage(req: Request, res: Response) {
   });
 
   return res.status(201).send(result);
+}
+
+/* ───── UPDATE ───── */
+export async function updateGalleryImage(req: Request, res: Response) {
+  const { error: paramError } = GalleryImageIdParamSchema.validate(req.params);
+  if (paramError) return res.status(422).send(joiErrors(paramError));
+
+  const { error: bodyError, value } = CreateGalleryImageSchema.validate(req.body);
+  if (bodyError) return res.status(422).send(joiErrors(bodyError));
+
+  const result = await updateGalleryImageService({
+    barbershopId: req.user!.barbershopId,
+    imageId: req.params.id,
+    data: value,
+  });
+
+  return res.status(200).send(result);
 }
 
 /* ───── DELETE ───── */

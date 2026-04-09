@@ -32,6 +32,31 @@ export async function createGalleryImage(data: {
   });
 }
 
+/* ───── UPDATE ───── */
+export async function updateGalleryImage(
+  barbershopId: string,
+  id: string,
+  data: {
+    url?: string;
+    alt?: string | null;
+    sortOrder?: number;
+  }
+) {
+  const existing = await prisma.gallery_images.findFirst({
+    where: { id, barbershop_id: barbershopId },
+  });
+  if (!existing) return null;
+
+  return prisma.gallery_images.update({
+    where: { id },
+    data: {
+      ...(data.url && { url: data.url }),
+      ...(data.alt !== undefined && { alt: data.alt }),
+      ...(data.sortOrder !== undefined && { sort_order: data.sortOrder }),
+    },
+  });
+}
+
 /* ───── DELETE ───── */
 export async function deleteGalleryImage(barbershopId: string, id: string) {
   const existing = await prisma.gallery_images.findFirst({
