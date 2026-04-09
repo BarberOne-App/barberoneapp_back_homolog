@@ -510,6 +510,7 @@ app.get("/pixstatus/:id", async (req, res) => {
 });
 
 app.get('/stripe/subscriptions/by-email', async (req, res) => {
+    console.log('STRIPE SECRET KEY:', process.env.STRIPE_SECRET_KEY);
     try {
         const { email } = req.query;
 
