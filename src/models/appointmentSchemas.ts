@@ -24,6 +24,8 @@ export const CreateAppointmentSchema = joi
           name: joi.string().required(),
           basePrice: joi.number().min(0),
           duration: joi.number().integer().min(1),
+          durationMinutes: joi.number().integer().min(1),
+          duration_minutes: joi.number().integer().min(1),
           quantity: joi.number().integer().min(1).optional(),
         })
       )

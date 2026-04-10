@@ -20,6 +20,12 @@ function decimalToNumber(v: any): number {
   return Number(v);
 }
 
+function getServiceDurationMinutes(service: any): number {
+  const raw = service?.duration ?? service?.durationMinutes ?? service?.duration_minutes;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 30;
+}
+
 const SAO_PAULO_TIME_ZONE = "America/Sao_Paulo";
 
 function getSaoPauloTimeParts(date: Date | string) {
@@ -298,7 +304,15 @@ export async function createAppointmentService(params: {
     date: string; // "YYYY-MM-DD"
     time: string; // "HH:MM"
     notes?: string | null;
-    services: { id: string; name: string; basePrice: number; duration: number; quantity?: number }[];
+    services: {
+      id: string;
+      name: string;
+      basePrice: number;
+      duration?: number;
+      durationMinutes?: number;
+      duration_minutes?: number;
+      quantity?: number;
+    }[];
     products: { id: string; name: string; price: number; quantity?: number; discount?: number }[];
   };
 }) {
@@ -309,15 +323,20 @@ export async function createAppointmentService(params: {
   if (!barber) throw notFound("Barbeiro não encontrado");
 
   // 2. Calcular duração total dos serviços
-  const totalDuration = services.reduce((sum, s) => sum + s.duration * (s.quantity ?? 1), 0);
-  if (totalDuration <= 0) throw badRequest("Duração total dos serviços deve ser > 0");
+  const totalDuration = services.reduce(
+    (sum, s) => sum + getServiceDurationMinutes(s) * (s.quantity ?? 1),
+    0
+  );
+  if (!Number.isFinite(totalDuration) || totalDuration <= 0) {
+    throw badRequest("Duração total dos serviços deve ser > 0");
+  }
 
   // 3. Montar datas de início e fim considerando o horário de São Paulo
   const startAt = buildSaoPauloDateTime(date, time);
   if (Number.isNaN(startAt.getTime())) {
     throw badRequest("Data ou horário inválidos");
   }
-  const endAt = new Date(startAt.getTime() + 50 * 60_000);
+  const endAt = new Date(startAt.getTime() + totalDuration * 60_000);
 
   // 4. Validar horário de funcionamento
   const startHour = startAt.getUTCHours();
@@ -378,7 +397,7 @@ export async function createAppointmentService(params: {
       serviceId: s.id,
       serviceName: s.name,
       unitPrice: s.basePrice,
-      durationMinutes: 50,
+      durationMinutes: getServiceDurationMinutes(s),
       quantity: s.quantity ?? 1,
     })),
     products: (products ?? []).map((p) => ({
