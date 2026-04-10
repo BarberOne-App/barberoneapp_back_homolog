@@ -708,7 +708,7 @@ app.get('/stripe/subscriptions', optionalAuth, async (req, res) => {
 
             const activeSubscriptions = subs.data.filter((sub) => {
                 const status = String(sub.status || '').toLowerCase();
-                return ['active', 'trialing', 'past_due', 'unpaid'].includes(status);
+                return ['active', 'trialing'].includes(status);
             });
 
             const chosenSubscription = activeSubscriptions

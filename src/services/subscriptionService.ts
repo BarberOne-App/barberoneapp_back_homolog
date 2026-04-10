@@ -1,12 +1,12 @@
 import { badRequest, conflict, forbidden, notFound } from "../errors/index.js";
 import {
+  applyOverdueStates,
   cancelSubscriptionInBarbershop,
   createSubscriptionTx,
   findActiveSubscriptionByUser,
   findOverdueSubscriptions,
   findSubscriptionByIdInBarbershop,
   listSubscriptionsInBarbershop,
-  markSubscriptionsOverdue,
   renewSubscriptionTx,
   updateSubscriptionInBarbershop,
 } from "../repository/subscriptionRepository.js";
@@ -76,6 +76,20 @@ function serialize(sub: any) {
     createdAt: sub.created_at,
     updatedAt: sub.updated_at,
   };
+}
+
+function toStartOfDay(date: Date): Date {
+  const normalized = new Date(date);
+  normalized.setHours(0, 0, 0, 0);
+  return normalized;
+}
+
+function getOverdueDays(nextBillingAt: Date, now: Date): number {
+  const startToday = toStartOfDay(now).getTime();
+  const startBillingDate = toStartOfDay(nextBillingAt).getTime();
+  const msDiff = startToday - startBillingDate;
+  const days = Math.floor(msDiff / (24 * 60 * 60 * 1000));
+  return days > 0 ? days : 0;
 }
 
 /* ─────────── LIST ─────────── */
@@ -255,12 +269,38 @@ export async function checkOverdueService(params: {
     return { processed: 0, message: "Nenhuma assinatura vencida encontrada" };
   }
 
-  const ids = overdueList.map((s) => s.id);
-  await markSubscriptionsOverdue(ids);
+  const now = new Date();
+  const updates = overdueList
+    .map((sub) => {
+      const nextBillingAt = sub.next_billing_at;
+      if (!nextBillingAt) return null;
+
+      const daysOverdue = getOverdueDays(nextBillingAt, now);
+      if (daysOverdue <= 0) return null;
+
+      return {
+        id: sub.id,
+        daysOverdue,
+        status: daysOverdue >= 5 ? ("cancelled" as const) : ("paused" as const),
+      };
+    })
+    .filter((item): item is { id: string; daysOverdue: number; status: "paused" | "cancelled" } => Boolean(item));
+
+  if (updates.length === 0) {
+    return { processed: 0, message: "Nenhuma assinatura vencida encontrada" };
+  }
+
+  await applyOverdueStates(updates);
+
+  const cancelledCount = updates.filter((u) => u.status === "cancelled").length;
+  const pausedCount = updates.filter((u) => u.status === "paused").length;
+  const ids = updates.map((u) => u.id);
 
   return {
     processed: ids.length,
-    message: `${ids.length} assinatura(s) marcada(s) como vencida(s)`,
+    paused: pausedCount,
+    cancelled: cancelledCount,
+    message: `${pausedCount} assinatura(s) pendente(s)/inativa(s) e ${cancelledCount} cancelada(s)`,
     subscriptionIds: ids,
   };
 }

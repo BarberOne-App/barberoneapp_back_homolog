@@ -133,6 +133,9 @@ export async function createBarberProfile(
 /** Busca user por ID com dados completos (usado no GET /auth/me) */
 export async function findUserById(userId: string, tx?: Prisma.TransactionClient) {
   const db = dbClient(tx);
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+
   return db.users.findUnique({
     where: { id: userId },
     select: {
@@ -161,7 +164,13 @@ export async function findUserById(userId: string, tx?: Prisma.TransactionClient
         },
       },
       subscriptions: {
-        where: { status: "active" },
+        where: {
+          status: "active",
+          OR: [
+            { next_billing_at: null },
+            { next_billing_at: { gte: startOfToday } },
+          ],
+        },
         select: {
           id: true,
           plan_id: true,

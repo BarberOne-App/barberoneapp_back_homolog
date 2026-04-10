@@ -82,7 +82,45 @@ export async function softDeleteService(barbershopId: string, id: string) {
   const existing = await findServiceById(barbershopId, id);
   if (!existing) return null;
 
-  return prisma.services.delete({
-    where: { id }
+  const now = new Date();
+  const appointmentsUsageCount = await prisma.appointment_services.count({
+    where: {
+      service_id: id,
+      appointments: {
+        barbershop_id: barbershopId,
+        status: {
+          in: ["scheduled", "confirmed"],
+        },
+        start_at: {
+          gt: now,
+        },
+      },
+    },
   });
+
+  if (appointmentsUsageCount > 0) {
+    const deactivated = await prisma.services.update({
+      where: { id },
+      data: {
+        active: false,
+        updated_at: new Date(),
+      },
+    });
+
+    return {
+      service: deactivated,
+      deletedHard: false,
+      appointmentsUsageCount,
+    };
+  }
+
+  const deleted = await prisma.services.delete({
+    where: { id },
+  });
+
+  return {
+    service: deleted,
+    deletedHard: true,
+    appointmentsUsageCount: 0,
+  };
 }

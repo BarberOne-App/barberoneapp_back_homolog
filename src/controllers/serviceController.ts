@@ -132,5 +132,10 @@ export async function deleteService(req: Request, res: Response) {
   const deleted = await deleteServiceService(barbershopId, req.params.id);
   if (!deleted) return res.status(404).send(["Serviço não encontrado"]);
 
-  return res.status(200).send({ ok: true });
+  return res.status(200).send({
+    ok: true,
+    deletedHard: deleted.deletedHard,
+    reason: deleted.reason,
+    appointmentsUsageCount: deleted.appointmentsUsageCount,
+  });
 }

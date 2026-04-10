@@ -60,11 +60,18 @@ export async function findActiveSubscriptionByUser(
   barbershopId: string,
   userId: string
 ) {
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+
   return prisma.subscriptions.findFirst({
     where: {
       barbershop_id: barbershopId,
       user_id: userId,
       status: "active",
+      OR: [
+        { next_billing_at: null },
+        { next_billing_at: { gte: startOfToday } },
+      ],
     },
     include: SUB_INCLUDE,
   });
@@ -222,22 +229,30 @@ export async function findOverdueSubscriptions(barbershopId: string) {
   return prisma.subscriptions.findMany({
     where: {
       barbershop_id: barbershopId,
-      status: "active",
+      status: { in: ["active", "paused"] },
       next_billing_at: { lt: now },
     },
     include: SUB_INCLUDE,
   });
 }
 
-/* ───── BULK UPDATE OVERDUE ───── */
-export async function markSubscriptionsOverdue(ids: string[]) {
-  if (ids.length === 0) return;
-  await prisma.subscriptions.updateMany({
-    where: { id: { in: ids } },
-    data: {
-      status: "paused",
-      days_overdue: { increment: 1 },
-      updated_at: new Date(),
-    },
-  });
+/* ───── APPLY OVERDUE STATES ───── */
+export async function applyOverdueStates(
+  updates: Array<{ id: string; status: "paused" | "cancelled"; daysOverdue: number }>
+) {
+  if (updates.length === 0) return;
+
+  await prisma.$transaction(
+    updates.map((update) =>
+      prisma.subscriptions.update({
+        where: { id: update.id },
+        data: {
+          status: update.status,
+          days_overdue: update.daysOverdue,
+          ended_at: update.status === "cancelled" ? new Date() : null,
+          updated_at: new Date(),
+        },
+      })
+    )
+  );
 }

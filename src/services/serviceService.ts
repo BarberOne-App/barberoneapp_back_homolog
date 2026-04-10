@@ -190,7 +190,15 @@ export async function updateServiceService(params: {
 }
 
 export async function deleteServiceService(barbershopId: string, id: string) {
-  const deleted = await softDeleteService(barbershopId, id);
-  if (!deleted) return null;
-  return serializeService(deleted);
+  const result = await softDeleteService(barbershopId, id);
+  if (!result) return null;
+
+  return {
+    service: serializeService(result.service),
+    deletedHard: result.deletedHard,
+    reason: result.deletedHard
+      ? "Serviço excluído permanentemente"
+      : "Serviço já usado em agendamentos, então foi apenas desativado",
+    appointmentsUsageCount: result.appointmentsUsageCount,
+  };
 }
