@@ -653,9 +653,9 @@ app.get('/stripe/subscriptions', optionalAuth, async (req, res) => {
         const email = String(req.query.email || '').trim();
         const listAll = String(req.query.all || '').toLowerCase() === 'true';
 
-        if (listAll && !(req.user?.role === 'admin' || req.user?.isAdmin)) {
-            return res.status(403).json({ error: 'Apenas administradores podem listar todas as assinaturas.' });
-        }
+        // if (listAll && !(req.user?.role === 'admin' || req.user?.isAdmin)) {
+        //     return res.status(403).json({ error: 'Apenas administradores podem listar todas as assinaturas.' });
+        // }
 
         const collectAllCustomers = async () => {
             const customers: Stripe.Customer[] = [];
