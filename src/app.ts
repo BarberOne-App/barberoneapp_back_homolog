@@ -459,7 +459,6 @@ app.get('/assinatura/:id', async (req, res) => {
 });
 
 app.post("/criar_pix", async (req, res) => {
-    console.log("Criando pagamento PIX com dados:", process.env.MERCADO_PAGO_ACCESS_TOKEN_PROD);
     try {
         const clientPix = new MercadoPagoConfig({ accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN_PROD ?? "" });
         const payment = new Payment(clientPix);
