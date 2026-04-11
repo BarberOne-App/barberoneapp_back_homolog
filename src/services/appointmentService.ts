@@ -4,6 +4,7 @@ import {
   createAppointmentTx,
   findAppointmentByIdInBarbershop,
   getBarberAppointmentsForDate,
+  getClientAppointmentsForDate,
   listAppointmentsInBarbershop,
   updateAppointmentInBarbershop,
 } from "../repository/appointmentRepository.js";
@@ -381,6 +382,26 @@ export async function createAppointmentService(params: {
 
   if (hasConflict) {
     throw badRequest("Conflito de horário — barbeiro já possui agendamento neste período");
+  }
+
+  // 6.1 Verificar conflitos de horário para o mesmo cliente/dependente (mesmo período)
+  const existingForClient = await getClientAppointmentsForDate({
+    barbershopId: params.barbershopId,
+    clientId,
+    dependentId: dependentId ?? null,
+    date,
+  });
+
+  const hasClientConflict = existingForClient.some((appt) => {
+    const existStart = new Date(appt.start_at).getTime();
+    const existEnd = new Date(appt.end_at).getTime();
+    const newStart = startAt.getTime();
+    const newEnd = endAt.getTime();
+    return newStart < existEnd && newEnd > existStart;
+  });
+
+  if (hasClientConflict) {
+    throw badRequest("Conflito de horário — cliente/dependente já possui agendamento neste período");
   }
 
 

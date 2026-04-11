@@ -223,3 +223,38 @@ export async function getBarberAppointmentsForDate(
     orderBy: { start_at: "asc" },
   });
 }
+
+export async function getClientAppointmentsForDate(params: {
+  barbershopId: string;
+  clientId: string;
+  date: string;
+  dependentId?: string | null;
+}) {
+  const dayStart = new Date(`${params.date}T00:00:00Z`);
+  const dayEnd = new Date(`${params.date}T23:59:59Z`);
+
+  const ownerWhere: Prisma.appointmentsWhereInput = params.dependentId
+    ? {
+        dependent_id: params.dependentId,
+      }
+    : {
+        client_id: params.clientId,
+        dependent_id: null,
+      };
+
+  return prisma.appointments.findMany({
+    where: {
+      barbershop_id: params.barbershopId,
+      start_at: { gte: dayStart, lte: dayEnd },
+      status: { notIn: ["cancelled", "no_show"] },
+      ...ownerWhere,
+    },
+    select: {
+      id: true,
+      barber_id: true,
+      start_at: true,
+      end_at: true,
+    },
+    orderBy: { start_at: "asc" },
+  });
+}
