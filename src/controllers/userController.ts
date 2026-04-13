@@ -84,7 +84,7 @@ export async function createUser(req: Request, res: Response) {
   const result = await createUserService({
     barbershopId: barbershopId,
     // barbershopId: req.user!.barbershopId,
-    actorRole: req.user!.role,
+    actorRole: "admin",
     data: req.body,
   });
 
