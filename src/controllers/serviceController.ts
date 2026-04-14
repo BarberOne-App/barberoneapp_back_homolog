@@ -24,8 +24,7 @@ export async function createService(req: Request, res: Response) {
   const { error, value } = CreateServiceSchema.validate(req.body, { abortEarly: false });
   if (error) return res.status(422).send(joiErrors(error));
 
-  // const barbershopId = req.user!.barbershopId;
-  const barbershopId = '6aeb6856-c163-4b33-9b8c-4ec043f88008';
+  const barbershopId = "29f85580-2fb7-497d-b331-67bcc4da25e1";
 
   const created = await createServiceService(barbershopId, {
     name: value.name,
@@ -45,7 +44,7 @@ export async function importServices(req: Request, res: Response) {
   const { error, value } = ImportServicesSchema.validate(req.body, { abortEarly: false });
   if (error) return res.status(422).send(joiErrors(error));
 
-  const barbershopId = '6aeb6856-c163-4b33-9b8c-4ec043f88008';
+  const barbershopId = "29f85580-2fb7-497d-b331-67bcc4da25e1";
 
   const created = await importServicesService({
     barbershopId,
@@ -60,13 +59,11 @@ export async function listServices(req: Request, res: Response) {
   const { error, value } = ListServicesQuerySchema.validate(req.query, { abortEarly: false });
   if (error) return res.status(422).send(joiErrors(error));
 
-  // const barbershopId = req.user!.barbershopId;
-  const barbershopId = '6aeb6856-c163-4b33-9b8c-4ec043f88008';
+  const barbershopId = "29f85580-2fb7-497d-b331-67bcc4da25e1";
 
   const result = await listServicesService({
     barbershopId,
-    // isAdmin: req.user!.isAdmin || req.user!.role === "admin",
-    isAdmin: true,
+    isAdmin: req.user!.isAdmin || req.user!.role === "admin",
     q: value.q,
     includeInactive: value.includeInactive,
     page: value.page,
@@ -80,8 +77,7 @@ export async function getServiceById(req: Request, res: Response) {
   const { error } = ServiceIdParamSchema.validate(req.params);
   if (error) return res.status(422).send(joiErrors(error));
 
-  // const barbershopId = req.user!.barbershopId;
-  const barbershopId = '6aeb6856-c163-4b33-9b8c-4ec043f88008';
+  const barbershopId = "29f85580-2fb7-497d-b331-67bcc4da25e1";
 
   const service = await getServiceByIdService({
     barbershopId,
@@ -100,8 +96,7 @@ export async function updateService(req: Request, res: Response) {
   const b = UpdateServiceSchema.validate(req.body, { abortEarly: false });
   if (b.error) return res.status(422).send(joiErrors(b.error));
 
-  const barbershopId = '6aeb6856-c163-4b33-9b8c-4ec043f88008';
-  // const barbershopId = '6aeb6856-c163-4b33-9b8c-4ec043f88008';
+  const barbershopId = "29f85580-2fb7-497d-b331-67bcc4da25e1";
 
   const updated = await updateServiceService({
     barbershopId,
@@ -126,8 +121,7 @@ export async function deleteService(req: Request, res: Response) {
   const { error } = ServiceIdParamSchema.validate(req.params);
   if (error) return res.status(422).send(joiErrors(error));
 
-  // const barbershopId = req.user!.barbershopId;
-  const barbershopId = '6aeb6856-c163-4b33-9b8c-4ec043f88008';
+  const barbershopId = "29f85580-2fb7-497d-b331-67bcc4da25e1";
 
   const deleted = await deleteServiceService(barbershopId, req.params.id);
   if (!deleted) return res.status(404).send(["Serviço não encontrado"]);
