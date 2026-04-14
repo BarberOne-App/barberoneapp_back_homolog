@@ -63,7 +63,7 @@ export async function listServices(req: Request, res: Response) {
 
   const result = await listServicesService({
     barbershopId,
-    isAdmin: req.user!.isAdmin || req.user!.role === "admin",
+    isAdmin: true,
     q: value.q,
     includeInactive: value.includeInactive,
     page: value.page,
@@ -82,7 +82,7 @@ export async function getServiceById(req: Request, res: Response) {
   const service = await getServiceByIdService({
     barbershopId,
     id: req.params.id,
-    isAdmin: req.user!.isAdmin || req.user!.role === "admin",
+    isAdmin: true,
   });
 
   if (!service) return res.status(404).send(["Serviço não encontrado"]);
