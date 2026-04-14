@@ -22,18 +22,16 @@ function joiErrors(error: any) {
   return error.details?.map((d: any) => d.message) ?? ["Dados inválidos"];
 }
 
-function getAuthenticatedBarbershopId(req: Request) {
-  return req.user!.barbershopId;
-}
-
 export async function listUsers(req: Request, res: Response) {
-  const { error, value } = ListUsersQuerySchema.validate(req.query, {
-    abortEarly: false,
-  });
+  console.log(req.user);
+  const { error, value } = ListUsersQuerySchema.validate(req.query, { abortEarly: false });
   if (error) return res.status(422).send(joiErrors(error));
 
+  const barbershopId = '29f85580-2fb7-497d-b331-67bcc4da25e1';
+
   const result = await listUsersService({
-    barbershopId: getAuthenticatedBarbershopId(req),
+    // barbershopId: req.user!.barbershopId,
+    barbershopId: barbershopId,
     actorRole: req.user!.role,
     query: {
       role: value.role,
@@ -50,8 +48,11 @@ export async function getUserById(req: Request, res: Response) {
   const { error } = UserIdParamSchema.validate(req.params);
   if (error) return res.status(422).send(joiErrors(error));
 
+  const barbershopId = '29f85580-2fb7-497d-b331-67bcc4da25e1';
+
   const result = await getUserByIdService({
-    barbershopId: getAuthenticatedBarbershopId(req),
+    // barbershopId: req.user!.barbershopId,
+    barbershopId: barbershopId,
     userId: req.params.id,
   });
 
@@ -62,8 +63,11 @@ export async function checkEmail(req: Request, res: Response) {
   const email = req.params.email;
   if (!email) return res.status(400).send(["Email obrigatório"]);
 
+  const barbershopId = '29f85580-2fb7-497d-b331-67bcc4da25e1';
+
   const result = await checkEmailService({
-    barbershopId: getAuthenticatedBarbershopId(req),
+    barbershopId: barbershopId,
+    // barbershopId: req.user!.barbershopId,
     email,
   });
 
@@ -74,8 +78,11 @@ export async function createUser(req: Request, res: Response) {
   const { error } = CreateUserSchema.validate(req.body);
   if (error) return res.status(422).send(joiErrors(error));
 
+  const barbershopId = '29f85580-2fb7-497d-b331-67bcc4da25e1';
+
   const result = await createUserService({
-    barbershopId: getAuthenticatedBarbershopId(req),
+    barbershopId: barbershopId,
+    // barbershopId: req.user!.barbershopId,
     actorRole: req.user!.role,
     data: req.body,
   });
@@ -84,13 +91,13 @@ export async function createUser(req: Request, res: Response) {
 }
 
 export async function importUsers(req: Request, res: Response) {
-  const { error, value } = ImportUsersSchema.validate(req.body, {
-    abortEarly: false,
-  });
+  const { error, value } = ImportUsersSchema.validate(req.body, { abortEarly: false });
   if (error) return res.status(422).send(joiErrors(error));
 
+  const barbershopId = '29f85580-2fb7-497d-b331-67bcc4da25e1';
+
   const result = await importUsersService({
-    barbershopId: getAuthenticatedBarbershopId(req),
+    barbershopId,
     actorRole: req.user!.role,
     data: {
       defaultPassword: value.defaultPassword,
@@ -109,8 +116,11 @@ export async function updateUser(req: Request, res: Response) {
   const b = UpdateUserSchema.validate(req.body, { abortEarly: false });
   if (b.error) return res.status(422).send(joiErrors(b.error));
 
+  const barbershopId = '29f85580-2fb7-497d-b331-67bcc4da25e1';
+
   const result = await updateUserService({
-    barbershopId: getAuthenticatedBarbershopId(req),
+    barbershopId: barbershopId,
+    // barbershopId: req.user!.barbershopId,
     actorRole: req.user!.role,
     actorId: req.user!.id,
     userId: req.params.id,
@@ -127,8 +137,11 @@ export async function updatePermissions(req: Request, res: Response) {
   const b = UpdatePermissionsSchema.validate(req.body, { abortEarly: false });
   if (b.error) return res.status(422).send(joiErrors(b.error));
 
+  const barbershopId = '29f85580-2fb7-497d-b331-67bcc4da25e1';
+
   const result = await updatePermissionsService({
-    barbershopId: getAuthenticatedBarbershopId(req),
+    barbershopId: barbershopId,
+    // barbershopId: req.user!.barbershopId,
     actorRole: req.user!.role,
     userId: req.params.id,
     permissions: b.value.permissions,
@@ -141,8 +154,11 @@ export async function deleteUser(req: Request, res: Response) {
   const { error } = UserIdParamSchema.validate(req.params);
   if (error) return res.status(422).send(joiErrors(error));
 
+  const barbershopId = '29f85580-2fb7-497d-b331-67bcc4da25e1';
+
   const result = await deleteUserService({
-    barbershopId: getAuthenticatedBarbershopId(req),
+    barbershopId: barbershopId,
+    // barbershopId: req.user!.barbershopId,
     actorRole: req.user!.role,
     actorId: req.user!.id,
     userId: req.params.id,
