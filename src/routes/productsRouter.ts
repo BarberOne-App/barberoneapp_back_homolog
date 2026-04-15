@@ -17,15 +17,24 @@ const router = Router();
 // router.get("/products", requireAuth, asyncHandler(listProducts));
 // router.get("/products/:id", requireAuth, asyncHandler(getProductById));
 
-router.get("/products", asyncHandler(listProducts));
-router.get("/products/:id", asyncHandler(getProductById));
+router.get("/products", requireAuth, asyncHandler(listProducts));
+router.get("/products/:id", requireAuth, asyncHandler(getProductById));
 
 // service já bloqueia se não for admin, mas pode deixar assim mesmo:
 router.post("/products", requireAuth, asyncHandler(createProduct));
-router.post("/products/import", requireAuth, requireAdmin, asyncHandler(importProducts));
+router.post(
+  "/products/import",
+  requireAuth,
+  requireAdmin,
+  asyncHandler(importProducts)
+);
 router.patch("/products/:id", requireAuth, asyncHandler(updateProduct));
 router.put("/products/:id", requireAuth, asyncHandler(updateProduct));
-router.patch("/products/:id/reactivate", requireAuth, asyncHandler(reactivateProduct));
+router.patch(
+  "/products/:id/reactivate",
+  requireAuth,
+  asyncHandler(reactivateProduct)
+);
 router.delete("/products/:id", requireAuth, asyncHandler(deleteProduct));
 
 export default router;

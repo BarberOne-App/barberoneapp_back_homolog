@@ -70,7 +70,7 @@ export async function listProducts(req: Request, res: Response) {
 
   const result = await listProductsService({
     barbershopId: "29f85580-2fb7-497d-b331-67bcc4da25e1",
-    actorRole: "client",
+    actorRole: req.user!.role,
     query: { active, category, q },
   });
 
