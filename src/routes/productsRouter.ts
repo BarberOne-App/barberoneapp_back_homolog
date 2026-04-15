@@ -2,12 +2,13 @@ import { Router } from "express";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { requireAdmin, requireAuth } from "../middleware/authMiddleware.js";
 import {
-    createProduct,
-    deleteProduct,
-    getProductById,
-    importProducts,
-    listProducts,
-    updateProduct,
+  createProduct,
+  deleteProduct,
+  getProductById,
+  importProducts,
+  listProducts,
+  reactivateProduct,
+  updateProduct,
 } from "../controllers/productsController.js";
 
 const router = Router();
@@ -24,7 +25,7 @@ router.post("/products", requireAuth, asyncHandler(createProduct));
 router.post("/products/import", requireAuth, requireAdmin, asyncHandler(importProducts));
 router.patch("/products/:id", requireAuth, asyncHandler(updateProduct));
 router.put("/products/:id", requireAuth, asyncHandler(updateProduct));
+router.patch("/products/:id/reactivate", requireAuth, asyncHandler(reactivateProduct));
 router.delete("/products/:id", requireAuth, asyncHandler(deleteProduct));
 
 export default router;
-
