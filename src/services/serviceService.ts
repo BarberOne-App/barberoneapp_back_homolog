@@ -1,10 +1,9 @@
-// src/services/serviceService.ts
-import { Prisma } from "@prisma/client";
 import { forbidden } from "../errors/index.js";
 import {
   createService,
   findServiceById,
   listServices,
+  reactivateService,
   softDeleteService,
   updateService,
 } from "../repository/serviceRepository.js";
@@ -13,7 +12,6 @@ function decimalToNumber(v: any) {
   if (v == null) return v;
   if (typeof v === "number") return v;
   if (typeof v === "string") return Number(v);
-  // Prisma.Decimal
   if (typeof v?.toNumber === "function") return v.toNumber();
   return Number(v);
 }
@@ -37,16 +35,19 @@ function serializeService(s: any) {
   };
 }
 
-export async function createServiceService(barbershopId: string, data: {
-  name: string;
-  basePrice: number;
-  durationMinutes: number;
-  comissionPercent?: number | null;
-  promotionalPrice?: number;
-  covered_by_plan?: boolean;
-  imageUrl?: string | null;
-  active?: boolean;
-}) {
+export async function createServiceService(
+  barbershopId: string,
+  data: {
+    name: string;
+    basePrice: number;
+    durationMinutes: number;
+    comissionPercent?: number | null;
+    promotionalPrice?: number;
+    covered_by_plan?: boolean;
+    imageUrl?: string | null;
+    active?: boolean;
+  }
+) {
   const created = await createService({
     barbershopId,
     name: data.name,
@@ -127,7 +128,6 @@ export async function listServicesService(params: {
   const page = params.page ?? 1;
   const limit = params.limit ?? 20;
 
-  // se não for admin, nunca lista inativos
   const includeInactive = params.isAdmin ? !!params.includeInactive : false;
 
   const { items, total } = await listServices({
@@ -154,7 +154,6 @@ export async function getServiceByIdService(params: {
   const s = await findServiceById(params.barbershopId, params.id);
   if (!s) return null;
 
-  // não-admin não vê inativo
   if (!params.isAdmin && !s.active) return null;
 
   return serializeService(s);
@@ -176,12 +175,24 @@ export async function updateServiceService(params: {
 }) {
   const updated = await updateService(params.barbershopId, params.id, {
     ...(params.data.name != null ? { name: params.data.name } : {}),
-    ...(params.data.basePrice != null ? { base_price: params.data.basePrice } : {}),
-    ...(params.data.durationMinutes != null ? { duration_minutes: params.data.durationMinutes } : {}),
-    ...(params.data.comissionPercent != null ? { comission_percent: params.data.comissionPercent } : {}),
-    ...(params.data.promotionalPrice != null ? { promotional_price: params.data.promotionalPrice } : {}),
-    ...(params.data.covered_by_plan != null ? { covered_by_plan: params.data.covered_by_plan } : {}),
-    ...(params.data.imageUrl !== undefined ? { image_url: params.data.imageUrl } : {}),
+    ...(params.data.basePrice != null
+      ? { base_price: params.data.basePrice }
+      : {}),
+    ...(params.data.durationMinutes != null
+      ? { duration_minutes: params.data.durationMinutes }
+      : {}),
+    ...(params.data.comissionPercent != null
+      ? { comission_percent: params.data.comissionPercent }
+      : {}),
+    ...(params.data.promotionalPrice != null
+      ? { promotional_price: params.data.promotionalPrice }
+      : {}),
+    ...(params.data.covered_by_plan != null
+      ? { covered_by_plan: params.data.covered_by_plan }
+      : {}),
+    ...(params.data.imageUrl !== undefined
+      ? { image_url: params.data.imageUrl }
+      : {}),
     ...(params.data.active != null ? { active: params.data.active } : {}),
   });
 
@@ -195,10 +206,20 @@ export async function deleteServiceService(barbershopId: string, id: string) {
 
   return {
     service: serializeService(result.service),
-    deletedHard: result.deletedHard,
-    reason: result.deletedHard
-      ? "Serviço excluído permanentemente"
-      : "Serviço já usado em agendamentos, então foi apenas desativado",
-    appointmentsUsageCount: result.appointmentsUsageCount,
+    deletedHard: false,
+    reason: "Serviço desativado com sucesso",
+  };
+}
+
+export async function reactivateServiceService(
+  barbershopId: string,
+  id: string
+) {
+  const reactivated = await reactivateService(barbershopId, id);
+  if (!reactivated) return null;
+
+  return {
+    service: serializeService(reactivated),
+    reason: "Serviço reativado com sucesso",
   };
 }

@@ -49,7 +49,6 @@ export async function listServices(params: {
   if (params.q) {
     where.OR = [
       { name: { contains: params.q, mode: "insensitive" } },
-      //   { category: { contains: params.q, mode: "insensitive" } }, // se você usa category no service, remova se não existir
     ];
   }
 
@@ -68,13 +67,20 @@ export async function listServices(params: {
   return { items, total };
 }
 
-export async function updateService(barbershopId: string, id: string, data: any) {
+export async function updateService(
+  barbershopId: string,
+  id: string,
+  data: any
+) {
   const existing = await findServiceById(barbershopId, id);
   if (!existing) return null;
 
   return prisma.services.update({
     where: { id },
-    data,
+    data: {
+      ...data,
+      updated_at: new Date(),
+    },
   });
 }
 
@@ -82,45 +88,31 @@ export async function softDeleteService(barbershopId: string, id: string) {
   const existing = await findServiceById(barbershopId, id);
   if (!existing) return null;
 
-  const now = new Date();
-  const appointmentsUsageCount = await prisma.appointment_services.count({
-    where: {
-      service_id: id,
-      appointments: {
-        barbershop_id: barbershopId,
-        status: {
-          in: ["scheduled", "confirmed"],
-        },
-        start_at: {
-          gt: now,
-        },
-      },
+  const deactivated = await prisma.services.update({
+    where: { id },
+    data: {
+      active: false,
+      updated_at: new Date(),
     },
   });
 
-  if (appointmentsUsageCount > 0) {
-    const deactivated = await prisma.services.update({
-      where: { id },
-      data: {
-        active: false,
-        updated_at: new Date(),
-      },
-    });
+  return {
+    service: deactivated,
+    deletedHard: false,
+  };
+}
 
-    return {
-      service: deactivated,
-      deletedHard: false,
-      appointmentsUsageCount,
-    };
-  }
+export async function reactivateService(barbershopId: string, id: string) {
+  const existing = await findServiceById(barbershopId, id);
+  if (!existing) return null;
 
-  const deleted = await prisma.services.delete({
+  const reactivated = await prisma.services.update({
     where: { id },
+    data: {
+      active: true,
+      updated_at: new Date(),
+    },
   });
 
-  return {
-    service: deleted,
-    deletedHard: true,
-    appointmentsUsageCount: 0,
-  };
+  return reactivated;
 }
