@@ -13,7 +13,11 @@ import {
 const router = Router();
 
 // Consulta de slots disponíveis — qualquer usuário logado (usado na tela de agendamento)
-router.get("/appointments/available-slots", requireAuth, asyncHandler(getAvailableSlots));
+router.get(
+  "/appointments/available-slots",
+  requireAuth,
+  asyncHandler(getAvailableSlots)
+);
 
 // Listar / detalhar agendamentos — qualquer usuário logado (filtro por role no service)
 router.get("/appointments", requireAuth, asyncHandler(listAppointments));

@@ -210,6 +210,20 @@ async function getOpeningWindowFromHomeInfo(barbershopId: string, date: string) 
   return { start: OPEN_HOUR * 60, end: CLOSE_HOUR * 60 };
 }
 
+function isCompletedStatus(status: string | undefined | null) {
+  const normalized = normalizeText(String(status ?? ""));
+  return [
+    "completed",
+    "complete",
+    "finalizado",
+    "finalizada",
+    "concluido",
+    "concluida",
+    "finished",
+    "done",
+  ].includes(normalized);
+}
+
 /* ─────────────────────────── LIST ─────────────────────────── */
 export async function listAppointmentsService(params: {
   barbershopId: string;
@@ -223,12 +237,10 @@ export async function listAppointmentsService(params: {
     dateTo?: string;
     page?: number;
     limit?: number;
-    allAppointments?: boolean | string;  // ✅ Pode ser boolean ou string
+    allAppointments?: boolean | string;
   };
 }) {
-  // 🔴 Se allAppointments=true, retornar TODOS os agendamentos sem filtro de cliente
-  // (usado pelo frontend para validar horários disponíveis)
-  const shouldReturnAll = String(params.query.allAppointments).toLowerCase() === 'true';
+  const shouldReturnAll = String(params.query.allAppointments).toLowerCase() === "true";
   if (shouldReturnAll) {
     const page = params.query.page ?? 1;
     const limit = params.query.limit ?? 100;
@@ -236,7 +248,7 @@ export async function listAppointmentsService(params: {
     const { items, total } = await listAppointmentsInBarbershop({
       barbershopId: params.barbershopId,
       barberId: params.query.barberId,
-      clientId: undefined,  // ✅ Sem filtro de cliente
+      clientId: undefined,
       status: params.query.status,
       dateFrom: params.query.dateFrom,
       dateTo: params.query.dateTo,
@@ -252,14 +264,12 @@ export async function listAppointmentsService(params: {
     };
   }
 
-  // Clientes só veem seus próprios agendamentos (comportamento padrão)
   let clientId = params.query.clientId;
   if (params.actorRole === "client") {
     clientId = params.actorId;
   }
 
-  // Barbeiro sem permissão admin vê apenas seus agendamentos
-  let barberId = params.query.barberId;
+  const barberId = params.query.barberId;
   if (params.actorRole === "barber") {
   }
 
@@ -302,8 +312,8 @@ export async function createAppointmentService(params: {
     barberId: string;
     clientId: string;
     dependentId?: string | null;
-    date: string; // "YYYY-MM-DD"
-    time: string; // "HH:MM"
+    date: string;
+    time: string;
     notes?: string | null;
     services: {
       id: string;
@@ -319,11 +329,9 @@ export async function createAppointmentService(params: {
 }) {
   const { barberId, clientId, dependentId, date, time, services, products } = params.data;
 
-  // 1. Validar que o barbeiro existe na barbearia
   const barber = await findBarberByIdInBarbershop(params.barbershopId, barberId);
   if (!barber) throw notFound("Barbeiro não encontrado");
 
-  // 2. Calcular duração total dos serviços
   const totalDuration = services.reduce(
     (sum, s) => sum + getServiceDurationMinutes(s) * (s.quantity ?? 1),
     0
@@ -332,21 +340,18 @@ export async function createAppointmentService(params: {
     throw badRequest("Duração total dos serviços deve ser > 0");
   }
 
-  // 3. Montar datas de início e fim considerando o horário de São Paulo
   const startAt = buildSaoPauloDateTime(date, time);
   if (Number.isNaN(startAt.getTime())) {
     throw badRequest("Data ou horário inválidos");
   }
   const endAt = new Date(startAt.getTime() + totalDuration * 60_000);
 
-  // 4. Validar horário de funcionamento
   const startHour = startAt.getUTCHours();
   const endHour = endAt.getUTCHours() + (endAt.getUTCMinutes() > 0 ? 1 : 0);
   // if (startHour < OPEN_HOUR || endHour > CLOSE_HOUR) {
   //   throw badRequest(`Horário fora do funcionamento (${OPEN_HOUR}:00 – ${CLOSE_HOUR}:00)`);
   // }
 
-  // 5. Validar que não é data/horário no passado (horário local da barbearia)
   const startMinutes = parseTimeToMinutes(time);
   const { todayStr, nowMinutes } = getSaoPauloNow();
   const isPastDate = date < todayStr;
@@ -356,7 +361,6 @@ export async function createAppointmentService(params: {
     throw badRequest("Não é possível agendar no passado");
   }
 
-  // 5.1 Enforçar vínculo mensal de assinante ao barbeiro (regra de negócio)
   const activeSubscription = await findActiveSubscriptionByUser(params.barbershopId, clientId);
   if (activeSubscription?.monthly_barber_id && activeSubscription?.monthly_barber_set_at) {
     const lockDate = new Date(activeSubscription.monthly_barber_set_at);
@@ -369,14 +373,12 @@ export async function createAppointmentService(params: {
     }
   }
 
-  // 6. Verificar conflitos de horário com o barbeiro
   const existing = await getBarberAppointmentsForDate(params.barbershopId, barberId, date);
   const hasConflict = existing.some((appt) => {
     const existStart = new Date(appt.start_at).getTime();
     const existEnd = new Date(appt.end_at).getTime();
     const newStart = startAt.getTime();
     const newEnd = endAt.getTime();
-    // conflito se os intervalos se sobrepõem
     return newStart < existEnd && newEnd > existStart;
   });
 
@@ -384,7 +386,6 @@ export async function createAppointmentService(params: {
     throw badRequest("Conflito de horário — barbeiro já possui agendamento neste período");
   }
 
-  // 6.1 Verificar conflitos de horário para o mesmo cliente/dependente (mesmo período)
   const existingForClient = await getClientAppointmentsForDate({
     barbershopId: params.barbershopId,
     clientId,
@@ -404,8 +405,6 @@ export async function createAppointmentService(params: {
     throw badRequest("Conflito de horário — cliente/dependente já possui agendamento neste período");
   }
 
-
-  // 7. Criar agendamento em transação (appointment + services + products + estoque)
   const created = await createAppointmentTx({
     barbershopId: params.barbershopId,
     barberId,
@@ -462,10 +461,28 @@ export async function updateAppointmentService(params: {
 
   const updateData: any = {};
 
-  if (params.data.status !== undefined) updateData.status = params.data.status;
+  if (params.data.status !== undefined) {
+    const currentStatusIsCompleted = isCompletedStatus(existingAppointment.status);
+    const nextStatusIsCompleted = isCompletedStatus(params.data.status);
+
+    if (!currentStatusIsCompleted && nextStatusIsCompleted) {
+      const appointmentStartAt = new Date(existingAppointment.start_at);
+      if (Number.isNaN(appointmentStartAt.getTime())) {
+        throw badRequest("Data do agendamento inválida para finalização");
+      }
+
+      const now = new Date();
+      if (now.getTime() < appointmentStartAt.getTime()) {
+        throw badRequest("Não é permitido finalizar antes da data e horário do agendamento");
+      }
+    }
+
+    updateData.status = params.data.status;
+  }
+
   if (params.data.notes !== undefined) updateData.notes = params.data.notes;
+
   if (params.data.barberId !== undefined) {
-    // Validar barbeiro
     const barber = await findBarberByIdInBarbershop(params.barbershopId, params.data.barberId);
     if (!barber) throw notFound("Barbeiro não encontrado");
     updateData.barber_id = params.data.barberId;
@@ -493,21 +510,18 @@ export async function cancelAppointmentService(params: {
 export async function getAvailableSlotsService(params: {
   barbershopId: string;
   barberId: string;
-  date: string; // "YYYY-MM-DD"
-  duration: number; // minutos do serviço
+  date: string;
+  duration: number;
 }) {
-  // 1. Validar barbeiro
   const barber = await findBarberByIdInBarbershop(params.barbershopId, params.barberId);
   if (!barber) throw notFound("Barbeiro não encontrado");
 
-  // 2. Buscar agendamentos existentes do barbeiro no dia
   const appointments = await getBarberAppointmentsForDate(
     params.barbershopId,
     params.barberId,
     params.date
   );
 
-  // 3. Converter para intervalos ocupados [{start, end}] em minutos desde meia-noite UTC
   const busy = appointments.map((a) => {
     const s = getSaoPauloTimeParts(a.start_at);
     const e = getSaoPauloTimeParts(a.end_at);
@@ -517,7 +531,6 @@ export async function getAvailableSlotsService(params: {
     };
   });
 
-  // 4. Gerar slots com base no horário de funcionamento configurado no home-info
   const openingWindow = await getOpeningWindowFromHomeInfo(params.barbershopId, params.date);
   if (!openingWindow) return [];
 
@@ -528,7 +541,6 @@ export async function getAvailableSlotsService(params: {
   for (let slotStart = openMin; slotStart + params.duration <= closeMin; slotStart += SLOT_STEP) {
     const slotEnd = slotStart + params.duration;
 
-    // 5. Verificar se o slot colide com algum agendamento existente
     const collision = busy.some((b) => slotStart < b.end && slotEnd > b.start);
 
     if (!collision) {
@@ -538,7 +550,6 @@ export async function getAvailableSlotsService(params: {
     }
   }
 
-  // 6. Se a data é hoje, remover horários que já passaram (São Paulo)
   const { todayStr, nowMinutes } = getSaoPauloNow();
   if (params.date === todayStr) {
     return slots.filter((s) => {
