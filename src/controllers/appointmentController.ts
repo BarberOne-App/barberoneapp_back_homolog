@@ -78,7 +78,16 @@ export async function createAppointment(req: Request, res: Response) {
 
   const result = await createAppointmentService({
     barbershopId: req.user!.barbershopId,
-    data: value,
+    data: {
+      barberId: value.barberId,
+      clientId: value.clientId,
+      dependentId: value.dependentId ?? null,
+      date: value.date,
+      time: value.time,
+      notes: value.notes ?? null,
+      services: value.services ?? [],
+      products: value.products ?? [],
+    },
   });
 
   return res.status(201).send(result);
@@ -108,7 +117,11 @@ export async function updateAppointment(req: Request, res: Response) {
     actorIsAdmin: req.user!.isAdmin,
     actorId: req.user!.id,
     appointmentId: req.params.id,
-    data: bodyValidation.value,
+    data: {
+      status: bodyValidation.value.status,
+      notes: bodyValidation.value.notes,
+      barberId: bodyValidation.value.barberId,
+    },
   });
 
   return res.status(200).send(result);

@@ -336,6 +336,7 @@ export async function createAppointmentService(params: {
     (sum, s) => sum + getServiceDurationMinutes(s) * (s.quantity ?? 1),
     0
   );
+
   if (!Number.isFinite(totalDuration) || totalDuration <= 0) {
     throw badRequest("Duração total dos serviços deve ser > 0");
   }
@@ -344,10 +345,12 @@ export async function createAppointmentService(params: {
   if (Number.isNaN(startAt.getTime())) {
     throw badRequest("Data ou horário inválidos");
   }
+
   const endAt = new Date(startAt.getTime() + totalDuration * 60_000);
 
   const startHour = startAt.getUTCHours();
   const endHour = endAt.getUTCHours() + (endAt.getUTCMinutes() > 0 ? 1 : 0);
+
   // if (startHour < OPEN_HOUR || endHour > CLOSE_HOUR) {
   //   throw badRequest(`Horário fora do funcionamento (${OPEN_HOUR}:00 – ${CLOSE_HOUR}:00)`);
   // }
@@ -379,6 +382,7 @@ export async function createAppointmentService(params: {
     const existEnd = new Date(appt.end_at).getTime();
     const newStart = startAt.getTime();
     const newEnd = endAt.getTime();
+
     return newStart < existEnd && newEnd > existStart;
   });
 
@@ -393,16 +397,8 @@ export async function createAppointmentService(params: {
     date,
   });
 
-  const hasClientConflict = existingForClient.some((appt) => {
-    const existStart = new Date(appt.start_at).getTime();
-    const existEnd = new Date(appt.end_at).getTime();
-    const newStart = startAt.getTime();
-    const newEnd = endAt.getTime();
-    return newStart < existEnd && newEnd > existStart;
-  });
-
-  if (hasClientConflict) {
-    throw badRequest("Conflito de horário — cliente/dependente já possui agendamento neste período");
+  if (existingForClient.length > 0) {
+    throw badRequest("Cliente/dependente já possui agendamento neste dia");
   }
 
   const created = await createAppointmentTx({
