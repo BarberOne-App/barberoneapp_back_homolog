@@ -21,7 +21,7 @@ router.get("/users/check-email/:email", requireAuth, asyncHandler(checkEmail));
 router.get("/users/:id", requireAuth, asyncHandler(getUserById));
 
 // Criar — admin only
-router.post("/users", asyncHandler(createUser));
+router.post("/users",requireAuth, requireAdmin, asyncHandler(createUser));
 router.post("/users/import", requireAuth, requireAdmin, asyncHandler(importUsers));
 
 // Editar — admin edita qualquer, user edita a si mesmo (service valida)

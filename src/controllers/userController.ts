@@ -75,7 +75,6 @@ export async function checkEmail(req: Request, res: Response) {
 }
 
 export async function createUser(req: Request, res: Response) {
-  console.log(req.body);
   const { error } = CreateUserSchema.validate(req.body);
   if (error) return res.status(422).send(joiErrors(error));
 
@@ -84,7 +83,7 @@ export async function createUser(req: Request, res: Response) {
   const result = await createUserService({
     barbershopId: barbershopId,
     // barbershopId: req.user!.barbershopId,
-    actorRole: "admin",
+    actorRole: req.user!.role,
     data: req.body,
   });
 
