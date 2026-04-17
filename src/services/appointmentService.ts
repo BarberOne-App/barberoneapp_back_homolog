@@ -28,6 +28,7 @@ function getServiceDurationMinutes(service: any): number {
 }
 
 const SAO_PAULO_TIME_ZONE = "America/Sao_Paulo";
+const THIRTY_DAYS_IN_MS = 30 * 24 * 60 * 60 * 1000;
 
 function getSaoPauloTimeParts(date: Date | string) {
   const value = date instanceof Date ? date : new Date(date);
@@ -224,6 +225,56 @@ function isCompletedStatus(status: string | undefined | null) {
   ].includes(normalized);
 }
 
+function toValidDate(value: any): Date | null {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function getSubscriptionRenewalDate(subscription: any): Date | null {
+  const candidates = [
+    subscription?.renewed_at,
+    subscription?.renewal_date,
+    subscription?.last_renewed_at,
+    subscription?.last_payment_at,
+    subscription?.paid_at,
+    subscription?.current_period_start,
+    subscription?.current_period_started_at,
+    subscription?.billing_cycle_start,
+    subscription?.updated_at,
+  ];
+
+  for (const candidate of candidates) {
+    const parsed = toValidDate(candidate);
+    if (parsed) return parsed;
+  }
+
+  return null;
+}
+
+function canChangeMonthlyBarber(subscription: any, appointmentStartAt: Date) {
+  const currentMonthlyBarberId = subscription?.monthly_barber_id;
+  const lockDate = toValidDate(subscription?.monthly_barber_set_at);
+
+  if (!currentMonthlyBarberId || !lockDate) {
+    return { allowed: true, reason: null as string | null };
+  }
+
+  if (appointmentStartAt.getTime() - lockDate.getTime() >= THIRTY_DAYS_IN_MS) {
+    return { allowed: true, reason: null as string | null };
+  }
+
+  const renewalDate = getSubscriptionRenewalDate(subscription);
+  if (renewalDate && renewalDate.getTime() > lockDate.getTime()) {
+    return { allowed: true, reason: null as string | null };
+  }
+
+  return {
+    allowed: false,
+    reason: "Só é possível trocar de barbeiro após 30 dias da vinculação ou após a renovação do plano",
+  };
+}
+
 /* ─────────────────────────── LIST ─────────────────────────── */
 export async function listAppointmentsService(params: {
   barbershopId: string;
@@ -270,8 +321,6 @@ export async function listAppointmentsService(params: {
   }
 
   const barberId = params.query.barberId;
-  if (params.actorRole === "barber") {
-  }
 
   const page = params.query.page ?? 1;
   const limit = params.query.limit ?? 100;
@@ -348,9 +397,9 @@ export async function createAppointmentService(params: {
 
   const endAt = new Date(startAt.getTime() + totalDuration * 60_000);
 
-  const startHour = startAt.getUTCHours();
-  const endHour = endAt.getUTCHours() + (endAt.getUTCMinutes() > 0 ? 1 : 0);
-
+  // Mantido para futura regra de horário de funcionamento
+  // const startHour = startAt.getUTCHours();
+  // const endHour = endAt.getUTCHours() + (endAt.getUTCMinutes() > 0 ? 1 : 0);
   // if (startHour < OPEN_HOUR || endHour > CLOSE_HOUR) {
   //   throw badRequest(`Horário fora do funcionamento (${OPEN_HOUR}:00 – ${CLOSE_HOUR}:00)`);
   // }
@@ -365,14 +414,15 @@ export async function createAppointmentService(params: {
   }
 
   const activeSubscription = await findActiveSubscriptionByUser(params.barbershopId, clientId);
-  if (activeSubscription?.monthly_barber_id && activeSubscription?.monthly_barber_set_at) {
-    const lockDate = new Date(activeSubscription.monthly_barber_set_at);
-    const isSameMonthAsAppointment =
-      lockDate.getUTCFullYear() === startAt.getUTCFullYear() &&
-      lockDate.getUTCMonth() === startAt.getUTCMonth();
 
-    if (isSameMonthAsAppointment && activeSubscription.monthly_barber_id !== barberId) {
-      throw badRequest("Assinatura vinculada a outro barbeiro neste mês");
+  if (
+    activeSubscription?.monthly_barber_id &&
+    activeSubscription.monthly_barber_id !== barberId
+  ) {
+    const barberChangeValidation = canChangeMonthlyBarber(activeSubscription, startAt);
+
+    if (!barberChangeValidation.allowed) {
+      throw badRequest(barberChangeValidation.reason!);
     }
   }
 
@@ -445,7 +495,10 @@ export async function updateAppointmentService(params: {
   const isReceptionist = params.actorRole === "receptionist";
   const actorBarber = await findBarberByUserIdInBarbershop(params.barbershopId, params.actorId);
 
-  const existingAppointment = await findAppointmentByIdInBarbershop(params.barbershopId, params.appointmentId);
+  const existingAppointment = await findAppointmentByIdInBarbershop(
+    params.barbershopId,
+    params.appointmentId
+  );
   if (!existingAppointment) throw notFound("Agendamento não encontrado");
 
   const isOwnBarberAppointment =
@@ -476,15 +529,45 @@ export async function updateAppointmentService(params: {
     updateData.status = params.data.status;
   }
 
-  if (params.data.notes !== undefined) updateData.notes = params.data.notes;
+  if (params.data.notes !== undefined) {
+    updateData.notes = params.data.notes;
+  }
 
   if (params.data.barberId !== undefined) {
     const barber = await findBarberByIdInBarbershop(params.barbershopId, params.data.barberId);
     if (!barber) throw notFound("Barbeiro não encontrado");
+
+    const appointmentClientId = existingAppointment.client_id;
+    if (appointmentClientId && params.data.barberId !== existingAppointment.barber_id) {
+      const activeSubscription = await findActiveSubscriptionByUser(
+        params.barbershopId,
+        appointmentClientId
+      );
+
+      if (
+        activeSubscription?.monthly_barber_id &&
+        activeSubscription.monthly_barber_id !== params.data.barberId
+      ) {
+        const currentAppointmentStartAt = toValidDate(existingAppointment.start_at) ?? new Date();
+        const barberChangeValidation = canChangeMonthlyBarber(
+          activeSubscription,
+          currentAppointmentStartAt
+        );
+
+        if (!barberChangeValidation.allowed) {
+          throw badRequest(barberChangeValidation.reason!);
+        }
+      }
+    }
+
     updateData.barber_id = params.data.barberId;
   }
 
-  const updated = await updateAppointmentInBarbershop(params.barbershopId, params.appointmentId, updateData);
+  const updated = await updateAppointmentInBarbershop(
+    params.barbershopId,
+    params.appointmentId,
+    updateData
+  );
   if (!updated) throw notFound("Agendamento não encontrado");
 
   return serializeAppointment(updated);
