@@ -29,19 +29,50 @@ function getAuthenticatedBarbershopId(req: Request) {
 function getImportHttpStatus(result: {
   createdCount?: number;
   failedCount?: number;
+  skippedCount?: number;
+  success?: boolean;
 }) {
   const createdCount = result.createdCount ?? 0;
   const failedCount = result.failedCount ?? 0;
+  const skippedCount = result.skippedCount ?? 0;
+
+  if (failedCount > 0 && createdCount === 0 && skippedCount === 0) {
+    return 422;
+  }
 
   if (createdCount > 0 && failedCount === 0) {
     return 201;
   }
 
-  if (createdCount > 0 && failedCount > 0) {
+  if (createdCount > 0 || skippedCount > 0 || failedCount > 0) {
     return 200;
   }
 
   return 422;
+}
+
+function buildRepeatedSpreadsheetMessage(params: {
+  totalRows: number;
+  createdCount?: number;
+  failedCount?: number;
+  skippedCount?: number;
+}) {
+  const totalRows = params.totalRows ?? 0;
+  const createdCount = params.createdCount ?? 0;
+  const failedCount = params.failedCount ?? 0;
+  const skippedCount = params.skippedCount ?? 0;
+
+  const allRowsWereIgnored =
+    totalRows > 0 &&
+    createdCount === 0 &&
+    failedCount === 0 &&
+    skippedCount === totalRows;
+
+  if (allRowsWereIgnored) {
+    return "Nenhum novo usuário foi importado. Esta planilha já foi importada anteriormente ou todos os registros já existem no sistema.";
+  }
+
+  return null;
 }
 
 export async function listUsers(req: Request, res: Response) {
@@ -157,12 +188,25 @@ export async function importUsers(req: Request, res: Response) {
     },
   });
 
-  const status = getImportHttpStatus(result);
+  const repeatedSpreadsheetMessage = buildRepeatedSpreadsheetMessage({
+    totalRows: value.rows.length,
+    createdCount: result.createdCount,
+    failedCount: result.failedCount,
+    skippedCount: result.skippedCount,
+  });
+
+  const finalMessage = repeatedSpreadsheetMessage || result.message || result.summary;
+  const status = getImportHttpStatus({
+    createdCount: result.createdCount,
+    failedCount: result.failedCount,
+    skippedCount: result.skippedCount,
+    success: result.success,
+  });
 
   return res.status(status).send({
     success: result.success,
-    message: result.message,
-    summary: result.summary,
+    message: finalMessage,
+    summary: finalMessage,
     createdCount: result.createdCount,
     skippedCount: result.skippedCount,
     failedCount: result.failedCount,
