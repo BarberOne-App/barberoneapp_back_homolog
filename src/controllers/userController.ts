@@ -23,7 +23,7 @@ function joiErrors(error: any) {
 }
 
 function getAuthenticatedBarbershopId(req: Request) {
-  return req.user?.barbershopId || req.user?.current_barbershop_id || null;
+  return req.user?.barbershopId || null;
 }
 
 function getImportHttpStatus(result: {
@@ -130,11 +130,13 @@ export async function importUsers(req: Request, res: Response) {
     abortEarly: false,
   });
 
-  if (error) return res.status(422).send({
-    success: false,
-    message: "Não foi possível importar a planilha. Verifique os dados obrigatórios.",
-    errors: joiErrors(error),
-  });
+  if (error) {
+    return res.status(422).send({
+      success: false,
+      message: "Não foi possível importar a planilha. Verifique os dados obrigatórios.",
+      errors: joiErrors(error),
+    });
+  }
 
   const barbershopId = getAuthenticatedBarbershopId(req);
   if (!barbershopId) {
