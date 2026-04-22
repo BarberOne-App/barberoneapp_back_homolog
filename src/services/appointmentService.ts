@@ -14,6 +14,7 @@ import {
 } from "../repository/barberRepository.js";
 import { getHomeInfoByBarbershop } from "../repository/settingRepository.js";
 import { findActiveSubscriptionByUser } from "../repository/subscriptionRepository.js";
+import { sendAppointmentConfirmedEmail } from "./emailService.js";
 
 /* ─────────────────── helpers ─────────────────── */
 
@@ -31,6 +32,7 @@ function getServiceDurationMinutes(service: any): number {
 }
 
 const SAO_PAULO_TIME_ZONE = "America/Sao_Paulo";
+const APPOINTMENT_CONFIRMATION_TEST_EMAIL = "rodolphopbuettel@outlook.com";
 const THIRTY_DAYS_IN_MS = 30 * 24 * 60 * 60 * 1000;
 
 function getSaoPauloTimeParts(date: Date | string) {
@@ -565,6 +567,27 @@ export async function updateAppointmentService(params: {
     updateData
   );
   if (!updated) throw notFound("Agendamento não encontrado");
+
+  const statusWillBeConfirmed = String(params.data.status || "").toLowerCase() === "confirmed";
+  const wasAlreadyConfirmed = String(existingAppointment.status || "").toLowerCase() === "confirmed";
+  const recipientEmail = APPOINTMENT_CONFIRMATION_TEST_EMAIL;
+
+  if (statusWillBeConfirmed && !wasAlreadyConfirmed && recipientEmail) {
+    const serviceNames = (updated.appointment_services ?? [])
+      .map((service: any) => String(service.service_name || "").trim())
+      .filter(Boolean);
+
+    sendAppointmentConfirmedEmail({
+      to: recipientEmail,
+      clientName: updated.users?.name,
+      dependentName: updated.dependents?.name,
+      barberName: updated.barbers?.display_name,
+      startAt: updated.start_at,
+      serviceNames,
+    }).catch((error) => {
+      console.error("[email] Falha ao enviar e-mail de confirmação de agendamento:", error);
+    });
+  }
 
   return serializeAppointment(updated);
 }

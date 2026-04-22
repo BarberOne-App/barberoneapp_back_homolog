@@ -32,7 +32,7 @@ import { MercadoPagoConfig, Payment, Preference } from "mercadopago";
 import { PrismaClient } from "@prisma/client";
 import axios from "axios";
 import Stripe from "stripe";
-import { optionalAuth } from "./middleware/authMiddleware.js";
+import { optionalAuth, requireAdmin, requireAuth } from "./middleware/authMiddleware.js";
 
 
 dotenv.config();
@@ -250,7 +250,160 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
     apiVersion: '2026-02-25.clover',
 });
 
-app.post('/payment-intents', async (req, res) => {
+function getStripeConnectReturnUrl() {
+    return process.env.STRIPE_CONNECT_RETURN_URL || 'http://localhost:5173/admin';
+}
+
+function getStripeConnectRefreshUrl() {
+    return process.env.STRIPE_CONNECT_REFRESH_URL || 'http://localhost:5173/admin';
+}
+
+function getPlatformFeePercent() {
+    const raw = Number(process.env.STRIPE_PLATFORM_FEE_PERCENT || '0');
+    if (!Number.isFinite(raw) || raw < 0) return 0;
+    return raw;
+}
+
+function isConnectReady(shop: {
+    stripe_connect_account_id: string | null;
+    stripe_connect_charges_enabled: boolean;
+    stripe_connect_payouts_enabled: boolean;
+}) {
+    return !!shop.stripe_connect_account_id && shop.stripe_connect_charges_enabled && shop.stripe_connect_payouts_enabled;
+}
+
+app.post('/stripe/connect/account', requireAuth, requireAdmin, async (req, res) => {
+    try {
+        const barbershopId = req.user!.barbershopId;
+
+        const shop = await prisma.barbershops.findUnique({
+            where: { id: barbershopId },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
+                stripe_connect_account_id: true,
+            },
+        });
+
+        if (!shop) return res.status(404).json({ message: 'Barbearia não encontrada.' });
+
+        if (shop.stripe_connect_account_id) {
+            return res.status(200).json({
+                accountId: shop.stripe_connect_account_id,
+                created: false,
+            });
+        }
+
+        const account = await stripe.accounts.create({
+            type: 'express',
+            country: 'BR',
+            email: shop.email || undefined,
+            business_type: 'company',
+            capabilities: {
+                card_payments: { requested: true },
+                transfers: { requested: true },
+            },
+            metadata: {
+                barbershopId: shop.id,
+                barbershopName: shop.name,
+            },
+        });
+
+        await prisma.barbershops.update({
+            where: { id: barbershopId },
+            data: {
+                stripe_connect_account_id: account.id,
+                stripe_connect_charges_enabled: account.charges_enabled,
+                stripe_connect_payouts_enabled: account.payouts_enabled,
+                stripe_connect_details_submitted: account.details_submitted,
+                stripe_connect_onboarding_completed_at:
+                    account.charges_enabled && account.payouts_enabled ? new Date() : null,
+            },
+        });
+
+        return res.status(201).json({
+            accountId: account.id,
+            created: true,
+        });
+    } catch (error: any) {
+        return res.status(500).json({
+            message: 'Erro ao criar conta Stripe Connect.',
+            error: error?.message || 'Erro desconhecido',
+        });
+    }
+});
+
+app.post('/stripe/connect/account-link', requireAuth, requireAdmin, async (req, res) => {
+    try {
+        const barbershopId = req.user!.barbershopId;
+
+        const shop = await prisma.barbershops.findUnique({
+            where: { id: barbershopId },
+            select: {
+                id: true,
+                stripe_connect_account_id: true,
+            },
+        });
+
+        if (!shop?.stripe_connect_account_id) {
+            return res.status(409).json({ message: 'Conta Connect ainda não criada para esta barbearia.' });
+        }
+
+        const accountLink = await stripe.accountLinks.create({
+            account: shop.stripe_connect_account_id,
+            refresh_url: getStripeConnectRefreshUrl(),
+            return_url: getStripeConnectReturnUrl(),
+            type: 'account_onboarding',
+        });
+
+        return res.status(200).json({
+            url: accountLink.url,
+            expiresAt: accountLink.expires_at,
+        });
+    } catch (error: any) {
+        return res.status(500).json({
+            message: 'Erro ao gerar link de onboarding da Stripe.',
+            error: error?.message || 'Erro desconhecido',
+        });
+    }
+});
+
+app.get('/stripe/connect/status', requireAuth, async (req, res) => {
+    try {
+        const barbershopId = req.user!.barbershopId;
+
+        const shop = await prisma.barbershops.findUnique({
+            where: { id: barbershopId },
+            select: {
+                stripe_connect_account_id: true,
+                stripe_connect_charges_enabled: true,
+                stripe_connect_payouts_enabled: true,
+                stripe_connect_details_submitted: true,
+                stripe_connect_onboarding_completed_at: true,
+            },
+        });
+
+        if (!shop) return res.status(404).json({ message: 'Barbearia não encontrada.' });
+
+        return res.status(200).json({
+            accountId: shop.stripe_connect_account_id,
+            chargesEnabled: shop.stripe_connect_charges_enabled,
+            payoutsEnabled: shop.stripe_connect_payouts_enabled,
+            detailsSubmitted: shop.stripe_connect_details_submitted,
+            onboardingCompletedAt: shop.stripe_connect_onboarding_completed_at,
+            isReady: isConnectReady(shop),
+        });
+    } catch (error: any) {
+        return res.status(500).json({
+            message: 'Erro ao obter status do Stripe Connect.',
+            error: error?.message || 'Erro desconhecido',
+        });
+    }
+});
+
+app.post('/payment-intents', requireAuth, async (req, res) => {
     try {
         const {
             amount,
@@ -278,13 +431,44 @@ app.post('/payment-intents', async (req, res) => {
             ? Array.from(new Set(normalizedRequestedMethods))
             : allowedPaymentMethods;
 
+        const barbershopId = req.user!.barbershopId;
+        const shop = await prisma.barbershops.findUnique({
+            where: { id: barbershopId },
+            select: {
+                stripe_connect_account_id: true,
+                stripe_connect_charges_enabled: true,
+                stripe_connect_payouts_enabled: true,
+            },
+        });
+
+        if (!shop) {
+            return res.status(404).json({ message: 'Barbearia não encontrada.' });
+        }
+
+        if (!isConnectReady(shop)) {
+            return res.status(409).json({
+                message: 'Stripe Connect não está pronto para receber pagamentos nesta barbearia.',
+            });
+        }
+
+        const amountInCents = Math.round(numericAmount * 100);
+        const platformFeePercent = getPlatformFeePercent();
+        const applicationFeeAmount = Math.round((amountInCents * platformFeePercent) / 100);
+
         const paymentIntent = await stripe.paymentIntents.create({
-            amount: Math.round(numericAmount * 100), // Stripe usa menor unidade da moeda
+            amount: amountInCents,
             currency,
             payment_method_types: finalPaymentMethodTypes,
             receipt_email: customerEmail || undefined,
+            application_fee_amount: applicationFeeAmount,
+            transfer_data: {
+                destination: shop.stripe_connect_account_id!,
+            },
             metadata: {
                 ...metadata,
+                barbershopId,
+                destinationAccountId: shop.stripe_connect_account_id!,
+                platformFeePercent: String(platformFeePercent),
             },
         });
 
@@ -511,7 +695,6 @@ app.get("/pixstatus/:id", async (req, res) => {
 });
 
 app.get('/stripe/subscriptions/by-email', async (req, res) => {
-    console.log('STRIPE SECRET KEY:', process.env.STRIPE_SECRET_KEY);
     try {
         const { email } = req.query;
 
@@ -647,7 +830,6 @@ app.get('/stripe/subscriptions/by-email', async (req, res) => {
 });
 
 app.get('/stripe/subscriptions', optionalAuth, async (req, res) => {
-    console.log('STRIPE SECRET KEY:', process.env.STRIPE_SECRET_KEY);
 
     try {
         const email = String(req.query.email || '').trim();

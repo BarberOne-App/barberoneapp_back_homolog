@@ -229,6 +229,96 @@ async function registerPaymentTransactionFromInvoice(invoice: Stripe.Invoice) {
     });
 }
 
+async function syncConnectAccountStatus(account: Stripe.Account) {
+    const barbershopId = String(account.metadata?.barbershopId || '').trim();
+    if (!barbershopId) return;
+
+    await prisma.barbershops.updateMany({
+        where: {
+            id: barbershopId,
+            stripe_connect_account_id: account.id,
+        },
+        data: {
+            stripe_connect_charges_enabled: account.charges_enabled,
+            stripe_connect_payouts_enabled: account.payouts_enabled,
+            stripe_connect_details_submitted: account.details_submitted,
+            stripe_connect_onboarding_completed_at:
+                account.charges_enabled && account.payouts_enabled ? new Date() : null,
+            updated_at: new Date(),
+        },
+    });
+}
+
+async function upsertAppointmentPaymentFromIntent(intent: Stripe.PaymentIntent, status: payment_status) {
+    const metadata = intent.metadata || {};
+    const appointmentId = String(metadata.appointmentId || '').trim();
+    const userId = String(metadata.userId || '').trim();
+    const barbershopId = String(metadata.barbershopId || '').trim();
+
+    if (!appointmentId || !barbershopId) return;
+
+    const amount = typeof intent.amount_received === 'number' && intent.amount_received > 0
+        ? intent.amount_received / 100
+        : intent.amount / 100;
+
+    const methodType = intent.payment_method_types?.includes('pix') ? 'pix' : 'credito';
+    const chargeId = typeof intent.latest_charge === 'string' ? intent.latest_charge : null;
+    const destinationAccountId = String(metadata.destinationAccountId || '').trim() || null;
+    const applicationFeeAmount = intent.application_fee_amount ?? null;
+
+    const existing = await prisma.payment_transactions.findFirst({
+        where: {
+            OR: [
+                { appointment_id: appointmentId, barbershop_id: barbershopId },
+                { stripe_payment_intent_id: intent.id },
+            ],
+        },
+    });
+
+    const data: Prisma.payment_transactionsUncheckedUpdateInput = {
+        appointment_id: appointmentId,
+        user_id: userId || null,
+        barbershop_id: barbershopId,
+        amount,
+        method: methodType as payment_method,
+        status,
+        status_raw: intent.status,
+        paid_at: status === 'paid' ? new Date() : null,
+        stripe_payment_intent_id: intent.id,
+        stripe_charge_id: chargeId,
+        stripe_destination_account_id: destinationAccountId,
+        stripe_application_fee_amount: applicationFeeAmount,
+        updated_at: new Date(),
+    };
+
+    if (existing) {
+        await prisma.payment_transactions.update({
+            where: { id: existing.id },
+            data,
+        });
+        return;
+    }
+
+    const createData: Prisma.payment_transactionsUncheckedCreateInput = {
+        appointment_id: appointmentId,
+        user_id: userId || null,
+        barbershop_id: barbershopId,
+        amount,
+        method: methodType as payment_method,
+        status,
+        status_raw: intent.status,
+        paid_at: status === 'paid' ? new Date() : null,
+        stripe_payment_intent_id: intent.id,
+        stripe_charge_id: chargeId,
+        stripe_destination_account_id: destinationAccountId,
+        stripe_application_fee_amount: applicationFeeAmount,
+        created_at: new Date(),
+        updated_at: new Date(),
+    };
+
+    await prisma.payment_transactions.create({ data: createData });
+}
+
 router.post(
     "/webhook",
     express.raw({ type: "application/json" }),
@@ -279,6 +369,24 @@ router.post(
                         await syncSubscriptionFromStripe(stripeSubscriptionId);
                         await registerPaymentTransactionFromInvoice(invoice);
                     }
+                    break;
+                }
+
+                case "payment_intent.succeeded": {
+                    const intent = event.data.object as Stripe.PaymentIntent;
+                    await upsertAppointmentPaymentFromIntent(intent, 'paid');
+                    break;
+                }
+
+                case "payment_intent.payment_failed": {
+                    const intent = event.data.object as Stripe.PaymentIntent;
+                    await upsertAppointmentPaymentFromIntent(intent, 'failed');
+                    break;
+                }
+
+                case "account.updated": {
+                    const account = event.data.object as Stripe.Account;
+                    await syncConnectAccountStatus(account);
                     break;
                 }
 

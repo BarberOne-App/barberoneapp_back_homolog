@@ -121,6 +121,10 @@ model payment_transactions {
   mp_payment_id    String?
   mp_preference_id String?
   stripe_invoice_id String?
+  stripe_payment_intent_id String?
+  stripe_charge_id String?
+  stripe_destination_account_id String?
+  stripe_application_fee_amount Int?
   barbershops      barbershops    @relation(fields: [barbershop_id], references: [id], onUpdate: NoAction, map: "fk_payments_barbershop")
   appointments     appointments?  @relation(fields: [appointment_id], references: [id], onUpdate: NoAction)
   subscriptions    subscriptions? @relation(fields: [subscription_id], references: [id], onUpdate: NoAction)
@@ -366,6 +370,11 @@ model barbershops {
   cnpj       String?  @unique
   phone      String?
   email      String?
+  stripe_connect_account_id String? @unique
+  stripe_connect_charges_enabled Boolean @default(false)
+  stripe_connect_payouts_enabled Boolean @default(false)
+  stripe_connect_details_submitted Boolean @default(false)
+  stripe_connect_onboarding_completed_at DateTime? @db.Timestamptz(6)
   created_at DateTime @default(now()) @db.Timestamptz(6)
   updated_at DateTime @default(now()) @db.Timestamptz(6)
 

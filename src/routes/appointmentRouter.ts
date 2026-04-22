@@ -1,12 +1,13 @@
 import { Router } from "express";
 import { asyncHandler } from "../middleware/asyncHandler.js";
-import { requireAuth } from "../middleware/authMiddleware.js";
+import { requireAdminOrReceptionist, requireAuth } from "../middleware/authMiddleware.js";
 import {
   createAppointment,
   deleteAppointment,
   getAppointmentById,
   getAvailableSlots,
   listAppointments,
+  sendAppointmentEmailTest,
   updateAppointment,
 } from "../controllers/appointmentController.js";
 
@@ -28,6 +29,14 @@ router.post("/appointments", requireAuth, asyncHandler(createAppointment));
 
 // Atualizar agendamento (status, notes, barbeiro) — validado no service por permissão/dono
 router.patch("/appointments/:id", requireAuth, asyncHandler(updateAppointment));
+
+// Disparo manual de e-mail de teste para validação de SMTP
+router.post(
+  "/appointments/test-email",
+  requireAuth,
+  requireAdminOrReceptionist,
+  asyncHandler(sendAppointmentEmailTest)
+);
 
 // Cancelar agendamento (soft) — admin ou o próprio cliente (verificação futura no service)
 router.delete("/appointments/:id", requireAuth, asyncHandler(deleteAppointment));
