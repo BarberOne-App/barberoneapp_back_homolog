@@ -15,6 +15,19 @@ const SUB_INCLUDE = {
   },
 } as const;
 
+function getStartOfToday() {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function getPendingGraceLimitDate() {
+  const startOfToday = getStartOfToday();
+  const graceLimit = new Date(startOfToday);
+  graceLimit.setDate(graceLimit.getDate() - 5);
+  return graceLimit;
+}
+
 /* ───── LIST ───── */
 export async function listSubscriptionsInBarbershop(params: {
   barbershopId: string;
@@ -24,6 +37,7 @@ export async function listSubscriptionsInBarbershop(params: {
   limit?: number;
 }) {
   const where: any = { barbershop_id: params.barbershopId };
+
   if (params.userId) where.user_id = params.userId;
   if (params.status) where.status = params.status;
 
@@ -55,24 +69,39 @@ export async function findSubscriptionByIdInBarbershop(
   });
 }
 
-/* ───── FIND ACTIVE BY USER ───── */
+/* ───── FIND ACTIVE/PENDING BY USER ───── */
 export async function findActiveSubscriptionByUser(
   barbershopId: string,
   userId: string
 ) {
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
+  const startOfToday = getStartOfToday();
+  const pendingGraceLimit = getPendingGraceLimitDate();
 
   return prisma.subscriptions.findFirst({
     where: {
       barbershop_id: barbershopId,
       user_id: userId,
-      status: "active",
       OR: [
-        { next_billing_at: null },
-        { next_billing_at: { gte: startOfToday } },
+        {
+          status: "active",
+          OR: [
+            { next_billing_at: null },
+            { next_billing_at: { gte: startOfToday } },
+          ],
+        },
+        {
+          status: "paused",
+          next_billing_at: {
+            gte: pendingGraceLimit,
+            lt: startOfToday,
+          },
+        },
       ],
     },
+    orderBy: [
+      { last_billing_at: "desc" },
+      { created_at: "desc" },
+    ],
     include: SUB_INCLUDE,
   });
 }
@@ -106,10 +135,11 @@ export async function createSubscriptionTx(data: {
         started_at: now,
         next_billing_at: nextBilling,
         last_billing_at: now,
+        days_overdue: 0,
+        overdue_notification_sent: false,
       },
     });
 
-    // Criar primeiro ciclo
     const periodStart = new Date(now.getUTCFullYear(), now.getUTCMonth(), 1);
     const periodEnd = new Date(now.getUTCFullYear(), now.getUTCMonth() + 1, 0);
 
@@ -188,7 +218,6 @@ export async function renewSubscriptionTx(
     const nextBilling = new Date(now);
     nextBilling.setMonth(nextBilling.getMonth() + 1);
 
-    // Atualizar subscription
     await tx.subscriptions.update({
       where: { id },
       data: {
@@ -202,7 +231,6 @@ export async function renewSubscriptionTx(
       },
     });
 
-    // Criar novo ciclo
     const periodStart = new Date(now.getUTCFullYear(), now.getUTCMonth(), 1);
     const periodEnd = new Date(now.getUTCFullYear(), now.getUTCMonth() + 1, 0);
 
@@ -226,6 +254,7 @@ export async function renewSubscriptionTx(
 /* ───── FIND OVERDUE SUBSCRIPTIONS ───── */
 export async function findOverdueSubscriptions(barbershopId: string) {
   const now = new Date();
+
   return prisma.subscriptions.findMany({
     where: {
       barbershop_id: barbershopId,

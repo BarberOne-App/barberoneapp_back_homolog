@@ -21,8 +21,8 @@ router.get("/subscriptions/:id", requireAuth, asyncHandler(getSubscriptionById))
 // Criar — admin / recepcionista
 router.post("/subscriptions", requireAuth, asyncHandler(createSubscription));
 
-// Atualizar (status, barbeiro mensal, etc.) — admin
-router.patch("/subscriptions/:id", requireAuth, requireAdmin, asyncHandler(updateSubscription));
+// Atualizar (status, barbeiro mensal, etc.) — qualquer logado
+router.patch("/subscriptions/:id", requireAuth, asyncHandler(updateSubscription));
 
 // Ações de assinatura — admin
 router.patch("/subscriptions/:id/cancel", requireAuth, requireAdmin, asyncHandler(cancelSubscription));
