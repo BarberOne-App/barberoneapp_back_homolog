@@ -34,6 +34,15 @@ function getServiceDurationMinutes(service: any): number {
 const SAO_PAULO_TIME_ZONE = "America/Sao_Paulo";
 const APPOINTMENT_CONFIRMATION_TEST_EMAIL = "rodolphopbuettel@outlook.com";
 const THIRTY_DAYS_IN_MS = 30 * 24 * 60 * 60 * 1000;
+const SCHEDULE_BLOCK_MINUTES = 30;
+
+function roundUpToScheduleBlock(minutes: number): number {
+  if (!Number.isFinite(minutes) || minutes <= 0) {
+    return SCHEDULE_BLOCK_MINUTES;
+  }
+
+  return Math.ceil(minutes / SCHEDULE_BLOCK_MINUTES) * SCHEDULE_BLOCK_MINUTES;
+}
 
 function getSaoPauloTimeParts(date: Date | string) {
   const value = date instanceof Date ? date : new Date(date);
@@ -99,7 +108,7 @@ function serializeAppointment(a: any) {
 /* ── Horário de funcionamento padrão (configurável futuramente) ── */
 const OPEN_HOUR = 9; // 09:00
 const CLOSE_HOUR = 20; // 20:00
-const SLOT_STEP = 5; // intervalo base de 5 min para suportar serviços de 10, 15, 20, 30 min etc.
+const SLOT_STEP = 30; // agenda trabalha em blocos de 30 minutos
 
 function normalizeText(value: string) {
   return String(value || "")
@@ -395,12 +404,14 @@ export async function createAppointmentService(params: {
     throw badRequest("Duração total dos serviços deve ser > 0");
   }
 
+  const blockedDuration = roundUpToScheduleBlock(totalDuration);
+
   const startAt = buildSaoPauloDateTime(date, time);
   if (Number.isNaN(startAt.getTime())) {
     throw badRequest("Data ou horário inválidos");
   }
 
-  const endAt = new Date(startAt.getTime() + totalDuration * 60_000);
+  const endAt = new Date(startAt.getTime() + blockedDuration * 60_000);
 
   const startMinutes = parseTimeToMinutes(time);
   const { todayStr, nowMinutes } = getSaoPauloNow();
@@ -620,6 +631,8 @@ export async function getAvailableSlotsService(params: {
     throw badRequest("Duração inválida");
   }
 
+  const blockedDuration = roundUpToScheduleBlock(duration);
+
   const appointments = await getBarberAppointmentsForDate(
     params.barbershopId,
     params.barberId,
@@ -642,8 +655,12 @@ export async function getAvailableSlotsService(params: {
   const closeMin = openingWindow.end;
   const slots: string[] = [];
 
-  for (let slotStart = openMin; slotStart + duration <= closeMin; slotStart += SLOT_STEP) {
-    const slotEnd = slotStart + duration;
+  for (
+    let slotStart = openMin;
+    slotStart + blockedDuration <= closeMin;
+    slotStart += SLOT_STEP
+  ) {
+    const slotEnd = slotStart + blockedDuration;
 
     const collision = busy.some((b) => slotStart < b.end && slotEnd > b.start);
 
