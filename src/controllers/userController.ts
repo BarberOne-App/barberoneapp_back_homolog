@@ -22,16 +22,42 @@ function joiErrors(error: any) {
   return error.details?.map((d: any) => d.message) ?? ["Dados inválidos"];
 }
 
+function getAuthenticatedBarbershopId(req: Request) {
+  return req.user?.barbershopId || req.user?.current_barbershop_id || null;
+}
+
+function getImportHttpStatus(result: {
+  createdCount?: number;
+  failedCount?: number;
+}) {
+  const createdCount = result.createdCount ?? 0;
+  const failedCount = result.failedCount ?? 0;
+
+  if (createdCount > 0 && failedCount === 0) {
+    return 201;
+  }
+
+  if (createdCount > 0 && failedCount > 0) {
+    return 200;
+  }
+
+  return 422;
+}
+
 export async function listUsers(req: Request, res: Response) {
-  console.log(req.user);
-  const { error, value } = ListUsersQuerySchema.validate(req.query, { abortEarly: false });
+  const { error, value } = ListUsersQuerySchema.validate(req.query, {
+    abortEarly: false,
+  });
+
   if (error) return res.status(422).send(joiErrors(error));
 
-  const barbershopId = '29f85580-2fb7-497d-b331-67bcc4da25e1';
+  const barbershopId = getAuthenticatedBarbershopId(req);
+  if (!barbershopId) {
+    return res.status(401).send(["Barbearia do usuário autenticado não encontrada"]);
+  }
 
   const result = await listUsersService({
-    // barbershopId: req.user!.barbershopId,
-    barbershopId: barbershopId,
+    barbershopId,
     actorRole: req.user!.role,
     query: {
       role: value.role,
@@ -48,11 +74,13 @@ export async function getUserById(req: Request, res: Response) {
   const { error } = UserIdParamSchema.validate(req.params);
   if (error) return res.status(422).send(joiErrors(error));
 
-  const barbershopId = '29f85580-2fb7-497d-b331-67bcc4da25e1';
+  const barbershopId = getAuthenticatedBarbershopId(req);
+  if (!barbershopId) {
+    return res.status(401).send(["Barbearia do usuário autenticado não encontrada"]);
+  }
 
   const result = await getUserByIdService({
-    // barbershopId: req.user!.barbershopId,
-    barbershopId: barbershopId,
+    barbershopId,
     userId: req.params.id,
   });
 
@@ -61,13 +89,15 @@ export async function getUserById(req: Request, res: Response) {
 
 export async function checkEmail(req: Request, res: Response) {
   const email = req.params.email;
-  if (!email) return res.status(400).send(["Email obrigatório"]);
+  if (!email) return res.status(400).send(["E-mail obrigatório"]);
 
-  const barbershopId = '29f85580-2fb7-497d-b331-67bcc4da25e1';
+  const barbershopId = getAuthenticatedBarbershopId(req);
+  if (!barbershopId) {
+    return res.status(401).send(["Barbearia do usuário autenticado não encontrada"]);
+  }
 
   const result = await checkEmailService({
-    barbershopId: barbershopId,
-    // barbershopId: req.user!.barbershopId,
+    barbershopId,
     email,
   });
 
@@ -75,26 +105,45 @@ export async function checkEmail(req: Request, res: Response) {
 }
 
 export async function createUser(req: Request, res: Response) {
-  const { error } = CreateUserSchema.validate(req.body);
+  const { error, value } = CreateUserSchema.validate(req.body, {
+    abortEarly: false,
+  });
+
   if (error) return res.status(422).send(joiErrors(error));
 
-  const barbershopId = '29f85580-2fb7-497d-b331-67bcc4da25e1';
+  const barbershopId = getAuthenticatedBarbershopId(req);
+  if (!barbershopId) {
+    return res.status(401).send(["Barbearia do usuário autenticado não encontrada"]);
+  }
 
   const result = await createUserService({
-    barbershopId: barbershopId,
-    // barbershopId: req.user!.barbershopId,
+    barbershopId,
     actorRole: req.user!.role,
-    data: req.body,
+    data: value,
   });
 
   return res.status(201).send(result);
 }
 
 export async function importUsers(req: Request, res: Response) {
-  const { error, value } = ImportUsersSchema.validate(req.body, { abortEarly: false });
-  if (error) return res.status(422).send(joiErrors(error));
+  const { error, value } = ImportUsersSchema.validate(req.body, {
+    abortEarly: false,
+  });
 
-  const barbershopId = '29f85580-2fb7-497d-b331-67bcc4da25e1';
+  if (error) return res.status(422).send({
+    success: false,
+    message: "Não foi possível importar a planilha. Verifique os dados obrigatórios.",
+    errors: joiErrors(error),
+  });
+
+  const barbershopId = getAuthenticatedBarbershopId(req);
+  if (!barbershopId) {
+    return res.status(401).send({
+      success: false,
+      message: "Barbearia do usuário autenticado não encontrada.",
+      errors: ["Barbearia do usuário autenticado não encontrada"],
+    });
+  }
 
   const result = await importUsersService({
     barbershopId,
@@ -106,7 +155,17 @@ export async function importUsers(req: Request, res: Response) {
     },
   });
 
-  return res.status(201).send(result);
+  const status = getImportHttpStatus(result);
+
+  return res.status(status).send({
+    success: result.success,
+    message: result.message,
+    summary: result.summary,
+    createdCount: result.createdCount,
+    skippedCount: result.skippedCount,
+    failedCount: result.failedCount,
+    errors: result.errors,
+  });
 }
 
 export async function updateUser(req: Request, res: Response) {
@@ -116,11 +175,13 @@ export async function updateUser(req: Request, res: Response) {
   const b = UpdateUserSchema.validate(req.body, { abortEarly: false });
   if (b.error) return res.status(422).send(joiErrors(b.error));
 
-  const barbershopId = '29f85580-2fb7-497d-b331-67bcc4da25e1';
+  const barbershopId = getAuthenticatedBarbershopId(req);
+  if (!barbershopId) {
+    return res.status(401).send(["Barbearia do usuário autenticado não encontrada"]);
+  }
 
   const result = await updateUserService({
-    barbershopId: barbershopId,
-    // barbershopId: req.user!.barbershopId,
+    barbershopId,
     actorRole: req.user!.role,
     actorId: req.user!.id,
     userId: req.params.id,
@@ -137,11 +198,13 @@ export async function updatePermissions(req: Request, res: Response) {
   const b = UpdatePermissionsSchema.validate(req.body, { abortEarly: false });
   if (b.error) return res.status(422).send(joiErrors(b.error));
 
-  const barbershopId = '29f85580-2fb7-497d-b331-67bcc4da25e1';
+  const barbershopId = getAuthenticatedBarbershopId(req);
+  if (!barbershopId) {
+    return res.status(401).send(["Barbearia do usuário autenticado não encontrada"]);
+  }
 
   const result = await updatePermissionsService({
-    barbershopId: barbershopId,
-    // barbershopId: req.user!.barbershopId,
+    barbershopId,
     actorRole: req.user!.role,
     userId: req.params.id,
     permissions: b.value.permissions,
@@ -154,11 +217,13 @@ export async function deleteUser(req: Request, res: Response) {
   const { error } = UserIdParamSchema.validate(req.params);
   if (error) return res.status(422).send(joiErrors(error));
 
-  const barbershopId = '29f85580-2fb7-497d-b331-67bcc4da25e1';
+  const barbershopId = getAuthenticatedBarbershopId(req);
+  if (!barbershopId) {
+    return res.status(401).send(["Barbearia do usuário autenticado não encontrada"]);
+  }
 
   const result = await deleteUserService({
-    barbershopId: barbershopId,
-    // barbershopId: req.user!.barbershopId,
+    barbershopId,
     actorRole: req.user!.role,
     actorId: req.user!.id,
     userId: req.params.id,
