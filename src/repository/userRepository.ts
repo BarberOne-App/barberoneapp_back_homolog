@@ -7,6 +7,7 @@ const userSelect = {
   email: true,
   phone: true,
   cpf: true,
+  birth_date: true,
   role: true,
   is_admin: true,
   permissions: true,
@@ -88,6 +89,7 @@ export async function createUserInBarbershop(data: {
   email: string;
   phone?: string | null;
   cpf?: string | null;
+  birthDate?: Date | string | null;
   role: string;
   isAdmin: boolean;
   passwordHash: string;
@@ -101,6 +103,7 @@ export async function createUserInBarbershop(data: {
       email: data.email,
       phone: data.phone ?? null,
       cpf: data.cpf ?? null,
+      birth_date: data.birthDate ? new Date(data.birthDate) : null,
       role: data.role as any,
       is_admin: data.isAdmin,
       password_hash: data.passwordHash,
@@ -120,7 +123,6 @@ export async function updateUserInBarbershop(
   userId: string,
   data: Prisma.usersUpdateInput
 ) {
-  // only update if belongs to this barbershop
   const existing = await findUserByIdInBarbershop(barbershopId, userId);
   if (!existing) return null;
 

@@ -21,6 +21,8 @@ function serializeUser(u: any) {
     email: u.email,
     phone: u.phone,
     cpf: u.cpf,
+    birthDate: u.birth_date ?? null,
+    birth_date: u.birth_date ?? null,
     role: u.role,
     isAdmin: u.is_admin,
     permissions: u.permissions,
@@ -38,7 +40,11 @@ export async function listUsersService(params: {
   actorRole: string;
   query: { role?: string; q?: string; page?: number; limit?: number };
 }) {
-  if (params.actorRole !== "admin" && params.actorRole !== "receptionist" && params.actorRole !== "barber") {
+  if (
+    params.actorRole !== "admin" &&
+    params.actorRole !== "receptionist" &&
+    params.actorRole !== "barber"
+  ) {
     throw forbidden("Sem permissão para listar usuários");
   }
 
@@ -76,7 +82,10 @@ export async function checkEmailService(params: {
   barbershopId: string;
   email: string;
 }) {
-  const exists = await emailExistsInBarbershop(params.barbershopId, params.email.trim().toLowerCase());
+  const exists = await emailExistsInBarbershop(
+    params.barbershopId,
+    params.email.trim().toLowerCase()
+  );
   return { exists };
 }
 
@@ -89,6 +98,7 @@ export async function createUserService(params: {
     email: string;
     phone?: string | null;
     cpf?: string | null;
+    birthDate?: string | null;
     password: string;
     role: string;
     isAdmin?: boolean;
@@ -113,6 +123,7 @@ export async function createUserService(params: {
     email,
     phone: params.data.phone ?? null,
     cpf: params.data.cpf ?? null,
+    birthDate: params.data.birthDate ?? null,
     role: params.data.role,
     isAdmin: params.data.isAdmin ?? false,
     passwordHash,
@@ -134,6 +145,7 @@ export async function importUsersService(params: {
       email: string;
       phone?: string | null;
       cpf?: string | null;
+      birthDate?: string | null;
       role?: string;
       isAdmin?: boolean;
       permissions?: Record<string, boolean>;
@@ -176,7 +188,11 @@ export async function importUsersService(params: {
           skippedCount += 1;
           continue;
         }
-        errors.push({ row: rowIndex, email, message: "E-mail já cadastrado nessa barbearia" });
+        errors.push({
+          row: rowIndex,
+          email,
+          message: "E-mail já cadastrado nessa barbearia",
+        });
         continue;
       }
 
@@ -186,6 +202,7 @@ export async function importUsersService(params: {
         email,
         phone: row.phone ?? null,
         cpf: row.cpf ?? null,
+        birthDate: row.birthDate ?? null,
         role: row.role || "client",
         isAdmin: row.isAdmin ?? false,
         passwordHash,
@@ -275,6 +292,7 @@ export async function updateUserService(params: {
     email?: string;
     phone?: string | null;
     cpf?: string | null;
+    birthDate?: string | null;
     role?: string;
     isAdmin?: boolean;
     photoUrl?: string | null;
@@ -312,6 +330,9 @@ export async function updateUserService(params: {
 
   if (params.data.phone !== undefined) updateData.phone = params.data.phone ?? null;
   if (params.data.cpf !== undefined) updateData.cpf = params.data.cpf ?? null;
+  if (params.data.birthDate !== undefined) {
+    updateData.birth_date = params.data.birthDate ? new Date(params.data.birthDate) : null;
+  }
   if (params.data.role !== undefined) updateData.role = params.data.role;
   if (params.data.isAdmin !== undefined) updateData.is_admin = params.data.isAdmin;
   if (params.data.photoUrl !== undefined) updateData.photo_url = params.data.photoUrl ?? null;
@@ -322,7 +343,7 @@ export async function updateUserService(params: {
       throw conflict("Informe a nova senha");
     }
 
-    updateData.password_hash = await bcrypt.hash(params.data.newPassword, 10);
+    updateData.password_hash = await bcrypt.hash(params.data.newPassword, rounds());
   } else if (params.data.currentPassword || params.data.newPassword) {
     if (!params.data.currentPassword || !params.data.newPassword) {
       throw conflict("Informe a senha atual e a nova senha");
@@ -337,7 +358,7 @@ export async function updateUserService(params: {
       throw forbidden("Senha atual incorreta");
     }
 
-    updateData.password_hash = await bcrypt.hash(params.data.newPassword, 10);
+    updateData.password_hash = await bcrypt.hash(params.data.newPassword, rounds());
   }
   // if (params.data.currentPassword || params.data.newPassword) {
   //   if (!params.data.currentPassword || !params.data.newPassword) {
@@ -366,6 +387,7 @@ export async function updateUserService(params: {
 
   return serializeUser(updated);
 }
+
 /* ── UPDATE PERMISSIONS ── */
 export async function updatePermissionsService(params: {
   barbershopId: string;
@@ -377,7 +399,11 @@ export async function updatePermissionsService(params: {
     throw forbidden("Apenas admin pode alterar permissões");
   }
 
-  const updated = await updateUserPermissions(params.barbershopId, params.userId, params.permissions);
+  const updated = await updateUserPermissions(
+    params.barbershopId,
+    params.userId,
+    params.permissions
+  );
   if (!updated) throw notFound("Usuário não encontrado");
 
   return serializeUser(updated);
