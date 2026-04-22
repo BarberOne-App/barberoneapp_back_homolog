@@ -8,7 +8,10 @@ import {
   listAppointmentsInBarbershop,
   updateAppointmentInBarbershop,
 } from "../repository/appointmentRepository.js";
-import { findBarberByIdInBarbershop, findBarberByUserIdInBarbershop } from "../repository/barberRepository.js";
+import {
+  findBarberByIdInBarbershop,
+  findBarberByUserIdInBarbershop,
+} from "../repository/barberRepository.js";
 import { getHomeInfoByBarbershop } from "../repository/settingRepository.js";
 import { findActiveSubscriptionByUser } from "../repository/subscriptionRepository.js";
 
@@ -94,7 +97,7 @@ function serializeAppointment(a: any) {
 /* ── Horário de funcionamento padrão (configurável futuramente) ── */
 const OPEN_HOUR = 9; // 09:00
 const CLOSE_HOUR = 20; // 20:00
-const SLOT_STEP = 30; // intervalo base de 30 min
+const SLOT_STEP = 5; // intervalo base de 5 min para suportar serviços de 10, 15, 20, 30 min etc.
 
 function normalizeText(value: string) {
   return String(value || "")
@@ -397,13 +400,6 @@ export async function createAppointmentService(params: {
 
   const endAt = new Date(startAt.getTime() + totalDuration * 60_000);
 
-  // Mantido para futura regra de horário de funcionamento
-  // const startHour = startAt.getUTCHours();
-  // const endHour = endAt.getUTCHours() + (endAt.getUTCMinutes() > 0 ? 1 : 0);
-  // if (startHour < OPEN_HOUR || endHour > CLOSE_HOUR) {
-  //   throw badRequest(`Horário fora do funcionamento (${OPEN_HOUR}:00 – ${CLOSE_HOUR}:00)`);
-  // }
-
   const startMinutes = parseTimeToMinutes(time);
   const { todayStr, nowMinutes } = getSaoPauloNow();
   const isPastDate = date < todayStr;
@@ -595,6 +591,12 @@ export async function getAvailableSlotsService(params: {
   const barber = await findBarberByIdInBarbershop(params.barbershopId, params.barberId);
   if (!barber) throw notFound("Barbeiro não encontrado");
 
+  const duration = Number(params.duration);
+
+  if (!Number.isFinite(duration) || duration <= 0) {
+    throw badRequest("Duração inválida");
+  }
+
   const appointments = await getBarberAppointmentsForDate(
     params.barbershopId,
     params.barberId,
@@ -617,8 +619,8 @@ export async function getAvailableSlotsService(params: {
   const closeMin = openingWindow.end;
   const slots: string[] = [];
 
-  for (let slotStart = openMin; slotStart + params.duration <= closeMin; slotStart += SLOT_STEP) {
-    const slotEnd = slotStart + params.duration;
+  for (let slotStart = openMin; slotStart + duration <= closeMin; slotStart += SLOT_STEP) {
+    const slotEnd = slotStart + duration;
 
     const collision = busy.some((b) => slotStart < b.end && slotEnd > b.start);
 
