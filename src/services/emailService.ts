@@ -12,7 +12,9 @@ function buildTransporter() {
   const user = process.env.EMAIL_USER;
   const pass = process.env.EMAIL_PASSWORD;
 
-  if (!host || !user || !pass) return null;
+  if (!host || !user || !pass) {
+    throw new Error("SMTP não configurado. Defina EMAIL_HOST, EMAIL_USER e EMAIL_PASSWORD no backend.");
+  }
 
   return nodemailer.createTransport({
     host,
@@ -57,7 +59,6 @@ export async function sendAppointmentConfirmedEmail(params: {
   serviceNames: string[];
 }) {
   const transporter = buildTransporter();
-  if (!transporter) return;
 
   const from = process.env.EMAIL_FROM || process.env.EMAIL_USER;
   if (!from) return;

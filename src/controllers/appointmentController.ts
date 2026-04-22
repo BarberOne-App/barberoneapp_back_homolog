@@ -14,6 +14,9 @@ import {
   listAppointmentsService,
   updateAppointmentService,
 } from "../services/appointmentService.js";
+import { sendAppointmentConfirmedEmail } from "../services/emailService.js";
+
+const APPOINTMENT_CONFIRMATION_TEST_EMAIL = "rodolphopbuettel@outlook.com";
 
 function joiErrors(error: any) {
   return error.details?.map((d: any) => d.message) ?? ["Dados inválidos"];
@@ -150,4 +153,29 @@ export async function getAvailableSlots(req: Request, res: Response) {
   });
 
   return res.status(200).send({ slots });
+}
+
+/* ───── TEST E-MAIL ───── */
+export async function sendAppointmentEmailTest(_req: Request, res: Response) {
+  try {
+    await sendAppointmentConfirmedEmail({
+      to: APPOINTMENT_CONFIRMATION_TEST_EMAIL,
+      clientName: "Teste Backend",
+      barberName: "BarberOne",
+      startAt: new Date(),
+      serviceNames: ["Corte de cabelo"],
+    });
+
+    return res.status(200).send({
+      ok: true,
+      message: `E-mail de teste enviado para ${APPOINTMENT_CONFIRMATION_TEST_EMAIL}`,
+      to: APPOINTMENT_CONFIRMATION_TEST_EMAIL,
+    });
+  } catch (error: any) {
+    return res.status(500).send({
+      ok: false,
+      message: "Falha ao enviar e-mail de teste",
+      error: error?.message || "Erro desconhecido",
+    });
+  }
 }
