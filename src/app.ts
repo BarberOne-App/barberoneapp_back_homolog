@@ -354,11 +354,11 @@ app.post('/payment-intents', requireAuth, async (req, res) => {
             return res.status(404).json({ message: 'Barbearia não encontrada.' });
         }
 
-        if (!isConnectReady(shop)) {
-            return res.status(409).json({
-                message: 'Stripe Connect não está pronto para receber pagamentos nesta barbearia.',
-            });
-        }
+        // if (!isConnectReady(shop)) {
+        //     return res.status(409).json({
+        //         message: 'Stripe Connect não está pronto para receber pagamentos nesta barbearia.',
+        //     });
+        // }
 
         const amountInCents = Math.round(numericAmount * 100);
         const platformFeePercent = getPlatformFeePercent();
