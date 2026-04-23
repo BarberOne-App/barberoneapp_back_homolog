@@ -285,7 +285,7 @@ app.get('/stripe/connect/status', requireAuth, async (req, res) => {
 
         if (!shop) return res.status(404).json({ message: 'Barbearia não encontrada.' });
 
-        const stripe = new Stripe('sk_test_51TC3UIJoaQpvOnNA22ypgkFxQjXUSriM8ZDry1JJPzilPzbE9wLyPi45z1LgZAzKrywVamRRJDUOqlARSFZwLWDw00ixd9m1ME');
+        const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
         const account = await stripe.accounts.retrieve(shop.stripe_connect_account_id!);
         return res.status(200).json({
             accountId: account.id,
