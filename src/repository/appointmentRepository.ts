@@ -45,6 +45,13 @@ const appointmentSelect = {
   },
 } satisfies Prisma.appointmentsSelect;
 
+function getUtcDayRange(date: string) {
+  return {
+    dayStart: new Date(`${date}T00:00:00Z`),
+    dayEnd: new Date(`${date}T23:59:59Z`),
+  };
+}
+
 /* ── LIST ── */
 export async function listAppointmentsInBarbershop(params: {
   barbershopId: string;
@@ -66,8 +73,12 @@ export async function listAppointmentsInBarbershop(params: {
 
   if (params.dateFrom || params.dateTo) {
     where.start_at = {};
-    if (params.dateFrom) (where.start_at as any).gte = new Date(`${params.dateFrom}T00:00:00Z`);
-    if (params.dateTo) (where.start_at as any).lte = new Date(`${params.dateTo}T23:59:59Z`);
+    if (params.dateFrom) {
+      (where.start_at as Prisma.DateTimeFilter).gte = new Date(`${params.dateFrom}T00:00:00Z`);
+    }
+    if (params.dateTo) {
+      (where.start_at as Prisma.DateTimeFilter).lte = new Date(`${params.dateTo}T23:59:59Z`);
+    }
   }
 
   const skip = (params.page - 1) * params.limit;
@@ -87,14 +98,23 @@ export async function listAppointmentsInBarbershop(params: {
 }
 
 /* ── GET BY ID ── */
-export async function findAppointmentByIdInBarbershop(barbershopId: string, appointmentId: string) {
+export async function findAppointmentByIdInBarbershop(
+  barbershopId: string,
+  appointmentId: string
+) {
   return prisma.appointments.findFirst({
-    where: { id: appointmentId, barbershop_id: barbershopId },
+    where: {
+      id: appointmentId,
+      barbershop_id: barbershopId,
+    },
     select: appointmentSelect,
   });
 }
 
-export async function getAppointmentByIdInBarbershop(barbershopId: string, appointmentId: string) {
+export async function getAppointmentByIdInBarbershop(
+  barbershopId: string,
+  appointmentId: string
+) {
   return findAppointmentByIdInBarbershop(barbershopId, appointmentId);
 }
 
@@ -128,10 +148,10 @@ export async function createAppointmentTx(data: {
         barbershop_id: data.barbershopId,
         barber_id: data.barberId,
         client_id: data.clientId,
-        dependent_id: data.dependentId,
+        dependent_id: data.dependentId ?? null,
         start_at: data.startAt,
         end_at: data.endAt,
-        notes: data.notes,
+        notes: data.notes ?? null,
         status: "scheduled",
         appointment_services: {
           create: data.services.map((s) => ({
@@ -155,11 +175,12 @@ export async function createAppointmentTx(data: {
       select: appointmentSelect,
     });
 
-    // Decrementar estoque dos produtos
     for (const p of data.products) {
       await tx.products.update({
         where: { id: p.productId },
-        data: { stock: { decrement: p.quantity } },
+        data: {
+          stock: { decrement: p.quantity },
+        },
       });
     }
 
@@ -178,24 +199,29 @@ export async function updateAppointmentInBarbershop(
 
   return prisma.appointments.update({
     where: { id: appointmentId },
-    data,
+    data: {
+      ...data,
+      updated_at: new Date(),
+    },
     select: appointmentSelect,
   });
 }
 
-/* ── DELETE (soft: marca cancelled) ── */
-export async function cancelAppointmentInBarbershop(barbershopId: string, appointmentId: string) {
+/* ── CANCEL (soft delete) ── */
+export async function cancelAppointmentInBarbershop(
+  barbershopId: string,
+  appointmentId: string
+) {
   const existing = await findAppointmentByIdInBarbershop(barbershopId, appointmentId);
   if (!existing) return null;
 
-  // return prisma.appointments.update({
-  //   where: { id: appointmentId },
-  //   data: { status: "cancelled" },
-  //   select: appointmentSelect,
-  // });
-
-  return prisma.appointments.delete({
-    where: { id: appointmentId }
+  return prisma.appointments.update({
+    where: { id: appointmentId },
+    data: {
+      status: "cancelled",
+      updated_at: new Date(),
+    },
+    select: appointmentSelect,
   });
 }
 
@@ -203,10 +229,9 @@ export async function cancelAppointmentInBarbershop(barbershopId: string, appoin
 export async function getBarberAppointmentsForDate(
   barbershopId: string,
   barberId: string,
-  date: string // "YYYY-MM-DD"
+  date: string
 ) {
-  const dayStart = new Date(`${date}T00:00:00Z`);
-  const dayEnd = new Date(`${date}T23:59:59Z`);
+  const { dayStart, dayEnd } = getUtcDayRange(date);
 
   return prisma.appointments.findMany({
     where: {
@@ -230,8 +255,7 @@ export async function getClientAppointmentsForDate(params: {
   date: string;
   dependentId?: string | null;
 }) {
-  const dayStart = new Date(`${params.date}T00:00:00Z`);
-  const dayEnd = new Date(`${params.date}T23:59:59Z`);
+  const { dayStart, dayEnd } = getUtcDayRange(params.date);
 
   const ownerWhere: Prisma.appointmentsWhereInput = params.dependentId
     ? {

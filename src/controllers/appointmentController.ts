@@ -26,6 +26,7 @@ function joiErrors(error: any) {
 export async function listAppointments(req: Request, res: Response) {
   const { error, value } = ListAppointmentsQuerySchema.validate(req.query, {
     abortEarly: false,
+    stripUnknown: true,
   });
 
   if (error) {
@@ -53,8 +54,9 @@ export async function listAppointments(req: Request, res: Response) {
 
 /* ───── GET BY ID ───── */
 export async function getAppointmentById(req: Request, res: Response) {
-  const { error } = AppointmentIdParamSchema.validate(req.params, {
+  const { error, value } = AppointmentIdParamSchema.validate(req.params, {
     abortEarly: false,
+    stripUnknown: true,
   });
 
   if (error) {
@@ -63,7 +65,7 @@ export async function getAppointmentById(req: Request, res: Response) {
 
   const result = await getAppointmentByIdService({
     barbershopId: req.user!.barbershopId,
-    appointmentId: req.params.id,
+    appointmentId: value.id,
   });
 
   return res.status(200).send(result);
@@ -73,6 +75,7 @@ export async function getAppointmentById(req: Request, res: Response) {
 export async function createAppointment(req: Request, res: Response) {
   const { error, value } = CreateAppointmentSchema.validate(req.body, {
     abortEarly: false,
+    stripUnknown: true,
   });
 
   if (error) {
@@ -81,7 +84,16 @@ export async function createAppointment(req: Request, res: Response) {
 
   const result = await createAppointmentService({
     barbershopId: req.user!.barbershopId,
-    data: value,
+    data: {
+      barberId: value.barberId,
+      clientId: value.clientId,
+      dependentId: value.dependentId ?? null,
+      date: value.date,
+      time: value.time,
+      notes: value.notes ?? null,
+      services: value.services ?? [],
+      products: value.products ?? [],
+    },
   });
 
   return res.status(201).send(result);
@@ -91,6 +103,7 @@ export async function createAppointment(req: Request, res: Response) {
 export async function updateAppointment(req: Request, res: Response) {
   const paramsValidation = AppointmentIdParamSchema.validate(req.params, {
     abortEarly: false,
+    stripUnknown: true,
   });
 
   if (paramsValidation.error) {
@@ -99,6 +112,7 @@ export async function updateAppointment(req: Request, res: Response) {
 
   const bodyValidation = UpdateAppointmentSchema.validate(req.body, {
     abortEarly: false,
+    stripUnknown: true,
   });
 
   if (bodyValidation.error) {
@@ -110,8 +124,12 @@ export async function updateAppointment(req: Request, res: Response) {
     actorRole: req.user!.role,
     actorIsAdmin: req.user!.isAdmin,
     actorId: req.user!.id,
-    appointmentId: req.params.id,
-    data: bodyValidation.value,
+    appointmentId: paramsValidation.value.id,
+    data: {
+      status: bodyValidation.value.status,
+      notes: bodyValidation.value.notes,
+      barberId: bodyValidation.value.barberId,
+    },
   });
 
   return res.status(200).send(result);
@@ -119,8 +137,9 @@ export async function updateAppointment(req: Request, res: Response) {
 
 /* ───── CANCEL (soft delete) ───── */
 export async function deleteAppointment(req: Request, res: Response) {
-  const { error } = AppointmentIdParamSchema.validate(req.params, {
+  const { error, value } = AppointmentIdParamSchema.validate(req.params, {
     abortEarly: false,
+    stripUnknown: true,
   });
 
   if (error) {
@@ -129,7 +148,7 @@ export async function deleteAppointment(req: Request, res: Response) {
 
   const result = await cancelAppointmentService({
     barbershopId: req.user!.barbershopId,
-    appointmentId: req.params.id,
+    appointmentId: value.id,
   });
 
   return res.status(200).send(result);
@@ -139,6 +158,7 @@ export async function deleteAppointment(req: Request, res: Response) {
 export async function getAvailableSlots(req: Request, res: Response) {
   const { error, value } = AvailableSlotsQuerySchema.validate(req.query, {
     abortEarly: false,
+    stripUnknown: true,
   });
 
   if (error) {
