@@ -79,110 +79,6 @@ app.get("/", function (req, res) {
     res.status(200).render("app", { mercadoPagoPublicKey });
 });
 
-// app.post("/process_payment", async (req, res) => {
-
-//     console.log("Processando pagamento com dados:", req.body);
-//     try {
-
-//         const body = req.body;
-
-//         const payment = new Payment(client);
-
-//         const externalReference = `pay_${Date.now()}_${crypto.randomUUID()}`;
-
-//         const paymentData: Record<string, any> = {
-//             transaction_amount: Number(body.transaction_amount),
-//             token: body.token,
-//             description: body.description,
-//             installments: Number(body.installments),
-//             payment_method_id: body.payment_method_id,
-//             issuer_id: body.issuer_id || undefined,
-//             external_reference: externalReference,
-//             statement_descriptor: "BarberShop",
-//             ...(MP_NOTIFICATION_URL ? { notification_url: MP_NOTIFICATION_URL } : {}),
-//             payer: {
-//                 email: body.payer?.email,
-//                 identification: {
-//                     type: body.payer?.identification?.type,
-//                     number: body.payer?.identification?.number,
-//                 },
-//             },
-//             additional_info: {
-//                 items: [
-//                     {
-//                         id: body.id,
-//                         title: body.title,
-//                         description: body.description,
-//                         category_id: body.category_id || "others",
-//                         quantity: body.quantity || 1,
-//                         unit_price: Number(body.unit_price) || Number(body.transaction_amount),
-//                     },
-//                 ],
-//             },
-//         };
-
-//         const idempotencyKey = req.get("X-Idempotency-Key") || undefined;
-
-//         const result = await payment.create({
-//             body: paymentData,
-//             requestOptions: idempotencyKey ? { idempotencyKey } : undefined,
-//         });
-
-//         console.log("IDEMPOTENCY:", idempotencyKey);
-//         console.log("EXTERNAL_REFERENCE:", externalReference);
-
-//         console.log("Pagamento criado:", result);
-
-//         // Se o status já é definitivo, retorna direto
-//         if (isFinalForYourFront(result.status ?? "")) {
-//             return res.status(201).json({
-//                 id: result.id,
-//                 status: result.status,
-//                 status_detail: result.status_detail,
-//                 payment_method_id: result.payment_method_id,
-//                 external_reference: externalReference,
-//                 card: { last_four_digits: result.card?.last_four_digits },
-//             });
-//         }
-
-//         // Status pendente (in_process) — aguardar webhook com status final
-//         console.log(`Pagamento ${result.id} em análise (${result.status}), aguardando webhook...`);
-//         try {
-//             const final: any = await waitPaymentFinal(String(result.id), { timeoutMs: 120_000 });
-
-//             return res.status(201).json({
-//                 id: final.id ?? result.id,
-//                 status: mapToFrontStatus(final.status ?? "rejected"),
-//                 status_detail: final.status_detail ?? result.status_detail,
-//                 payment_method_id: final.payment_method_id ?? result.payment_method_id,
-//                 external_reference: externalReference,
-//                 card: { last_four_digits: final.card?.last_four_digits ?? result.card?.last_four_digits },
-//             });
-//         } catch {
-//             // Timeout — o webhook não chegou a tempo
-//             console.warn(`Timeout aguardando status final do pagamento ${result.id}`);
-//             // return res.status(201).json({
-//             //     id: result.id,
-//             //     status: "rejected",
-//             //     status_detail: "timeout_waiting_for_final_status",
-//             //     payment_method_id: result.payment_method_id,
-//             //     external_reference: externalReference,
-//             //     card: { last_four_digits: result.card?.last_four_digits },
-//             // });
-//             return res.status(201).json({
-//                 id: result.id,
-//                 status: "pending",
-//                 status_detail: "waiting_for_final_status",
-//                 external_reference: externalReference,
-//             });
-//         }
-//     } catch (error) {
-//         console.log(error);
-//         const { errorMessage, errorStatus } = validateError(error);
-//         return res.status(errorStatus).json({ error_message: errorMessage });
-//     }
-// });
-
 app.post("/process_payment", async (req, res) => {
 
     console.log("Processando pagamento com dados:", req.body);
@@ -371,30 +267,43 @@ app.post('/stripe/connect/account-link', requireAuth, requireAdmin, async (req, 
 });
 
 app.get('/stripe/connect/status', requireAuth, async (req, res) => {
+
     try {
         const barbershopId = req.user!.barbershopId;
+        console.log("Barbershop ID:", barbershopId);
 
         const shop = await prisma.barbershops.findUnique({
             where: { id: barbershopId },
-            select: {
-                stripe_connect_account_id: true,
-                stripe_connect_charges_enabled: true,
-                stripe_connect_payouts_enabled: true,
-                stripe_connect_details_submitted: true,
-                stripe_connect_onboarding_completed_at: true,
-            },
+            // select: {
+            //     stripe_connect_account_id: true,
+            //     stripe_connect_charges_enabled: true,
+            //     stripe_connect_payouts_enabled: true,
+            //     stripe_connect_details_submitted: true,
+            //     stripe_connect_onboarding_completed_at: true,
+            // },
         });
 
         if (!shop) return res.status(404).json({ message: 'Barbearia não encontrada.' });
 
+        const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
+        const account = await stripe.accounts.retrieve(shop.stripe_connect_account_id!);
         return res.status(200).json({
-            accountId: shop.stripe_connect_account_id,
-            chargesEnabled: shop.stripe_connect_charges_enabled,
-            payoutsEnabled: shop.stripe_connect_payouts_enabled,
-            detailsSubmitted: shop.stripe_connect_details_submitted,
-            onboardingCompletedAt: shop.stripe_connect_onboarding_completed_at,
-            isReady: isConnectReady(shop),
+            accountId: account.id,
+            chargesEnabled: account.charges_enabled,
+            payoutsEnabled: account.payouts_enabled,
+            detailsSubmitted: account.details_submitted,
         });
+
+
+        // return res.status(200).json({
+        //     accountId: shop.stripe_connect_account_id,
+        //     chargesEnabled: shop.stripe_connect_charges_enabled,
+        //     payoutsEnabled: shop.stripe_connect_payouts_enabled,
+        //     detailsSubmitted: shop.stripe_connect_details_submitted,
+        //     onboardingCompletedAt: shop.stripe_connect_onboarding_completed_at,
+        //     isReady: isConnectReady(shop),
+        // });
+
     } catch (error: any) {
         return res.status(500).json({
             message: 'Erro ao obter status do Stripe Connect.',
@@ -490,7 +399,6 @@ app.post('/payment-intents', requireAuth, async (req, res) => {
         });
     }
 });
-
 
 app.post('/stripe/subscriptions', async (req, res) => {
     try {
@@ -1020,12 +928,12 @@ app.get('/stripe/subscriptions', optionalAuth, async (req, res) => {
                 },
                 plan: matchedPlan
                     ? {
-                          id: matchedPlan.id,
-                          name: matchedPlan.name,
-                          price: Number(matchedPlan.price),
-                          mpPreapprovalPlanId: matchedPlan.mp_preapproval_plan_id,
-                          features: (matchedPlan.subscription_plan_features ?? []).map((f: any) => f.feature),
-                      }
+                        id: matchedPlan.id,
+                        name: matchedPlan.name,
+                        price: Number(matchedPlan.price),
+                        mpPreapprovalPlanId: matchedPlan.mp_preapproval_plan_id,
+                        features: (matchedPlan.subscription_plan_features ?? []).map((f: any) => f.feature),
+                    }
                     : null,
             };
         });
