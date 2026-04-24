@@ -25,8 +25,34 @@ function normalizePlanPayload(body: any) {
     body?.productId ??
     undefined;
 
+  const stripeProductId =
+    body?.stripeProductId ??
+    body?.stripe_product_id ??
+    undefined;
+
+  const stripePriceId =
+    body?.stripePriceId ??
+    body?.stripe_price_id ??
+    undefined;
+
+  const stripePaymentLinkUrl =
+    body?.stripePaymentLinkUrl ??
+    body?.stripe_payment_link_url ??
+    body?.subscriptionUrl ??
+    undefined;
+
+  const syncStripe =
+    body?.syncStripe ??
+    body?.autoCreateStripe ??
+    body?.createOnStripe ??
+    undefined;
+
   return {
     ...body,
+    ...(stripeProductId !== undefined ? { stripeProductId } : {}),
+    ...(stripePriceId !== undefined ? { stripePriceId } : {}),
+    ...(stripePaymentLinkUrl !== undefined ? { stripePaymentLinkUrl } : {}),
+    ...(syncStripe !== undefined ? { syncStripe } : {}),
     ...(mpPreapprovalPlanId !== undefined ? { mpPreapprovalPlanId } : {}),
   };
 }
