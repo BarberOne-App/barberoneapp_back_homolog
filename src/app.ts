@@ -154,6 +154,16 @@ function getStripeConnectRefreshUrl() {
     return process.env.STRIPE_CONNECT_REFRESH_URL || 'http://localhost:5173/admin';
 }
 
+function getFrontendAppBaseUrl() {
+    return (
+        process.env.FRONTEND_APP_URL ||
+        process.env.FRONTEND_URL ||
+        process.env.APP_WEB_URL ||
+        process.env.PUBLIC_WEB_URL ||
+        'http://localhost:5173'
+    ).replace(/\/+$/, '');
+}
+
 function getPlatformFeePercent() {
     const raw = Number(process.env.STRIPE_PLATFORM_FEE_PERCENT || '0');
     if (!Number.isFinite(raw) || raw < 0) return 0;
@@ -441,6 +451,63 @@ app.post('/stripe/subscriptions', async (req, res) => {
         }
         console.error('Erro desconhecido:', error);
         return res.status(500).json({ message: 'Erro ao criar subscription.' });
+    }
+});
+
+app.post('/stripe/subscription-checkout-session', requireAuth, async (req, res) => {
+    try {
+        const { planId, email } = req.body;
+        if (!planId) {
+            return res.status(400).json({ message: 'ID do plano é obrigatório.' });
+        }
+
+        const plan = await prisma.subscription_plans.findFirst({
+            where: {
+                id: String(planId),
+                barbershop_id: req.user!.barbershopId,
+            },
+        });
+
+        if (!plan) {
+            return res.status(404).json({ message: 'Plano não encontrado.' });
+        }
+
+        const stripePriceId = String((plan as any).stripe_price_id || '').trim();
+        if (!stripePriceId) {
+            return res.status(409).json({ message: 'Plano sem preço Stripe vinculado.' });
+        }
+
+        const stripeRequestOptions = await getStripeRequestOptionsForBarbershop(req.user?.barbershopId);
+        const frontendBaseUrl = getFrontendAppBaseUrl();
+
+        const session = await stripe.checkout.sessions.create(
+            {
+                mode: 'subscription',
+                line_items: [{ price: stripePriceId, quantity: 1 }],
+                customer_email: String(email || req.user?.email || '').trim() || undefined,
+                success_url: `${frontendBaseUrl}/profile`,
+                cancel_url: `${frontendBaseUrl}/profile`,
+                allow_promotion_codes: true,
+                subscription_data: {
+                    metadata: {
+                        planId: String(plan.id),
+                        barbershopId: String(req.user!.barbershopId),
+                    },
+                },
+                metadata: {
+                    planId: String(plan.id),
+                    barbershopId: String(req.user!.barbershopId),
+                },
+            },
+            stripeRequestOptions,
+        );
+
+        return res.status(200).json({ url: session.url });
+    } catch (error: any) {
+        return res.status(500).json({
+            message: 'Erro ao criar checkout da assinatura.',
+            error: error?.message || 'Erro desconhecido',
+        });
     }
 });
 
