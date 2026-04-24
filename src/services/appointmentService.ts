@@ -708,9 +708,7 @@ export async function cancelAppointmentService(params: {
   return serializeAppointment(cancelled);
 }
 
-/* ═══════════════════════════════════════════════════════════
-   AVAILABLE SLOTS — Lógica Crítica
-   ═══════════════════════════════════════════════════════════ */
+
 export async function getAvailableSlotsService(params: {
   barbershopId: string;
   barberId: string;
