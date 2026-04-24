@@ -1,3 +1,4 @@
+﻿import prisma from "../database/database.js";
 import { badRequest, forbidden, notFound } from "../errors/index.js";
 import {
   cancelAppointmentInBarbershop,
@@ -106,9 +107,9 @@ function serializeAppointment(a: any) {
 }
 
 /* ── Horário de funcionamento padrão (configurável futuramente) ── */
-const OPEN_HOUR = 9; // 09:00
-const CLOSE_HOUR = 20; // 20:00
-const SLOT_STEP = 30; // agenda trabalha em blocos de 30 minutos
+const OPEN_HOUR = 9;
+const CLOSE_HOUR = 20;
+const SLOT_STEP = 30;
 
 function normalizeText(value: string) {
   return String(value || "")
@@ -184,6 +185,7 @@ function lineAppliesToWeekday(line: string, weekday: number) {
   const dayRegex = /(domingo|dom|segunda|seg|terca|ter|quarta|qua|quinta|qui|sexta|sex|sabado|sab)/g;
   const tokens = [...normalized.matchAll(dayRegex)].map((m) => m[1]);
   const days: number[] = [];
+
   for (const token of tokens) {
     const day = dayTokenToWeekday(token);
     if (day !== null) days.push(day);
@@ -217,9 +219,7 @@ async function getOpeningWindowFromHomeInfo(barbershopId: string, date: string) 
     }
 
     const range = extractTimeRangeFromLine(line);
-    if (range) {
-      return range;
-    }
+    if (range) return range;
   }
 
   return { start: OPEN_HOUR * 60, end: CLOSE_HOUR * 60 };
@@ -306,6 +306,7 @@ export async function listAppointmentsService(params: {
   };
 }) {
   const shouldReturnAll = String(params.query.allAppointments).toLowerCase() === "true";
+
   if (shouldReturnAll) {
     const page = params.query.page ?? 1;
     const limit = params.query.limit ?? 100;
@@ -334,14 +335,12 @@ export async function listAppointmentsService(params: {
     clientId = params.actorId;
   }
 
-  const barberId = params.query.barberId;
-
   const page = params.query.page ?? 1;
   const limit = params.query.limit ?? 100;
 
   const { items, total } = await listAppointmentsInBarbershop({
     barbershopId: params.barbershopId,
-    barberId,
+    barberId: params.query.barberId,
     clientId,
     status: params.query.status,
     dateFrom: params.query.dateFrom,
@@ -424,10 +423,7 @@ export async function createAppointmentService(params: {
 
   const activeSubscription = await findActiveSubscriptionByUser(params.barbershopId, clientId);
 
-  if (
-    activeSubscription?.monthly_barber_id &&
-    activeSubscription.monthly_barber_id !== barberId
-  ) {
+  if (activeSubscription?.monthly_barber_id && activeSubscription.monthly_barber_id !== barberId) {
     const barberChangeValidation = canChangeMonthlyBarber(activeSubscription, startAt);
 
     if (!barberChangeValidation.allowed) {
@@ -547,6 +543,7 @@ export async function updateAppointmentService(params: {
     if (!barber) throw notFound("Barbeiro não encontrado");
 
     const appointmentClientId = existingAppointment.client_id;
+
     if (appointmentClientId && params.data.barberId !== existingAppointment.barber_id) {
       const activeSubscription = await findActiveSubscriptionByUser(
         params.barbershopId,
@@ -615,9 +612,17 @@ export async function cancelAppointmentService(params: {
     params.barbershopId,
     params.appointmentId
   );
-  if (!appointment) throw notFound("Agendamento não encontrado");
+
+  if (!appointment) {
+    throw notFound("Agendamento não encontrado");
+  }
+
+  if (normalizeText(appointment.status) === "cancelled") {
+    throw badRequest("Este agendamento já está cancelado");
+  }
 
   const isAdmin = params.actorRole === "admin" || !!params.actorIsAdmin;
+
   if (!isAdmin) {
     if (params.actorRole !== "client") {
       throw forbidden("Apenas admin pode cancelar este agendamento");
@@ -628,6 +633,7 @@ export async function cancelAppointmentService(params: {
     }
 
     const appointmentStartAt = new Date(appointment.start_at);
+
     if (Number.isNaN(appointmentStartAt.getTime())) {
       throw badRequest("Data do agendamento inválida para cancelamento");
     }
@@ -642,8 +648,63 @@ export async function cancelAppointmentService(params: {
     }
   }
 
-  const cancelled = await cancelAppointmentInBarbershop(params.barbershopId, params.appointmentId);
-  if (!cancelled) throw notFound("Agendamento não encontrado");
+  await prisma.$transaction(async (tx) => {
+    const appointmentProducts = await tx.appointment_products.findMany({
+      where: {
+        appointment_id: params.appointmentId,
+      },
+      select: {
+        product_id: true,
+        quantity: true,
+      },
+    });
+
+    for (const item of appointmentProducts) {
+      if (!item.product_id) continue;
+
+      const quantityToReturn = Number(item.quantity ?? 0);
+
+      if (!Number.isFinite(quantityToReturn) || quantityToReturn <= 0) {
+        continue;
+      }
+
+      await tx.products.updateMany({
+        where: {
+          id: item.product_id,
+          barbershop_id: params.barbershopId,
+        },
+        data: {
+          stock: {
+            increment: quantityToReturn,
+          },
+        },
+      });
+    }
+
+    await tx.appointments.updateMany({
+      where: {
+        id: params.appointmentId,
+        barbershop_id: params.barbershopId,
+        status: {
+          not: "cancelled",
+        },
+      },
+      data: {
+        status: "cancelled",
+        updated_at: new Date(),
+      },
+    });
+  });
+
+  const cancelled = await findAppointmentByIdInBarbershop(
+    params.barbershopId,
+    params.appointmentId
+  );
+
+  if (!cancelled) {
+    throw notFound("Agendamento não encontrado");
+  }
+
   return serializeAppointment(cancelled);
 }
 
@@ -676,6 +737,7 @@ export async function getAvailableSlotsService(params: {
   const busy = appointments.map((a) => {
     const s = getSaoPauloTimeParts(a.start_at);
     const e = getSaoPauloTimeParts(a.end_at);
+
     return {
       start: s.hour * 60 + s.minute,
       end: e.hour * 60 + e.minute,
@@ -706,6 +768,7 @@ export async function getAvailableSlotsService(params: {
   }
 
   const { todayStr, nowMinutes } = getSaoPauloNow();
+
   if (params.date === todayStr) {
     return slots.filter((s) => {
       const [h, m] = s.split(":").map(Number);
