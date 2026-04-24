@@ -1,13 +1,42 @@
 import prisma from "../database/database.js";
 
 /* ───── LIST ───── */
-export async function listEmployeePayments(barbershopId: string, employeeId?: string) {
+export async function listEmployeePayments(
+  barbershopId: string,
+  employeeId?: string
+) {
   const where: any = { barbershop_id: barbershopId };
-  if (employeeId) where.employee_id = employeeId;
+
+  if (employeeId) {
+    where.employee_id = employeeId;
+  }
 
   return prisma.employee_payments.findMany({
     where,
     orderBy: { created_at: "desc" },
+    include: {
+      employee: { select: { id: true, name: true } },
+      creator: { select: { id: true, name: true } },
+    },
+  });
+}
+
+/* ───── FIND BY PERIOD ───── */
+export async function findEmployeePaymentByPeriod(data: {
+  barbershopId: string;
+  employeeId: string;
+  period: string;
+  periodStart: string;
+  periodEnd: string;
+}) {
+  return prisma.employee_payments.findFirst({
+    where: {
+      barbershop_id: data.barbershopId,
+      employee_id: data.employeeId,
+      period: data.period,
+      period_start: data.periodStart,
+      period_end: data.periodEnd,
+    },
     include: {
       employee: { select: { id: true, name: true } },
       creator: { select: { id: true, name: true } },
