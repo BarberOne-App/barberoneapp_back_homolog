@@ -168,6 +168,22 @@ function isConnectReady(shop: {
     return !!shop.stripe_connect_account_id && shop.stripe_connect_charges_enabled && shop.stripe_connect_payouts_enabled;
 }
 
+async function getStripeRequestOptionsForBarbershop(barbershopId?: string | null): Promise<Stripe.RequestOptions | undefined> {
+    if (!barbershopId) return undefined;
+
+    const shop = await prisma.barbershops.findUnique({
+        where: { id: barbershopId },
+        select: {
+            stripe_connect_account_id: true,
+        },
+    });
+
+    const stripeAccount = String(shop?.stripe_connect_account_id || '').trim();
+    if (!stripeAccount) return undefined;
+
+    return { stripeAccount };
+}
+
 app.post('/stripe/connect/account', requireAuth, requireAdmin, async (req, res) => {
     try {
         const barbershopId = req.user!.barbershopId;
@@ -274,13 +290,6 @@ app.get('/stripe/connect/status', requireAuth, async (req, res) => {
 
         const shop = await prisma.barbershops.findUnique({
             where: { id: barbershopId },
-            // select: {
-            //     stripe_connect_account_id: true,
-            //     stripe_connect_charges_enabled: true,
-            //     stripe_connect_payouts_enabled: true,
-            //     stripe_connect_details_submitted: true,
-            //     stripe_connect_onboarding_completed_at: true,
-            // },
         });
 
         if (!shop) return res.status(404).json({ message: 'Barbearia não encontrada.' });
@@ -354,11 +363,6 @@ app.post('/payment-intents', requireAuth, async (req, res) => {
             return res.status(404).json({ message: 'Barbearia não encontrada.' });
         }
 
-        // if (!isConnectReady(shop)) {
-        //     return res.status(409).json({
-        //         message: 'Stripe Connect não está pronto para receber pagamentos nesta barbearia.',
-        //     });
-        // }
 
         const amountInCents = Math.round(numericAmount * 100);
         const platformFeePercent = getPlatformFeePercent();
@@ -602,9 +606,10 @@ app.get("/pixstatus/:id", async (req, res) => {
     return res.status(200).json(result.status);
 });
 
-app.get('/stripe/subscriptions/by-email', async (req, res) => {
+app.get('/stripe/subscriptions/by-email', optionalAuth, async (req, res) => {
     try {
         const { email } = req.query;
+        const stripeRequestOptions = await getStripeRequestOptionsForBarbershop(req.user?.barbershopId);
 
         if (!email) {
             return res.status(400).json({ error: 'Email é obrigatório.' });
@@ -613,7 +618,7 @@ app.get('/stripe/subscriptions/by-email', async (req, res) => {
         const customers = await stripe.customers.list({
             email: String(email).trim(),
             limit: 100,
-        });
+        }, stripeRequestOptions);
 
         if (!customers.data.length) {
             return res.json({
@@ -629,7 +634,7 @@ app.get('/stripe/subscriptions/by-email', async (req, res) => {
                 customer: customer.id,
                 status: 'all',
                 limit: 100,
-            });
+            }, stripeRequestOptions);
 
             for (const sub of subs.data) {
                 const subscriptionAny = sub as any;
@@ -686,9 +691,18 @@ app.get('/stripe/subscriptions/by-email', async (req, res) => {
         if (productIds.length > 0) {
             const plans = await prisma.subscription_plans.findMany({
                 where: {
-                    mp_preapproval_plan_id: {
-                        in: productIds,
-                    },
+                    OR: [
+                        {
+                            stripe_product_id: {
+                                in: productIds,
+                            },
+                        },
+                        {
+                            mp_preapproval_plan_id: {
+                                in: productIds,
+                            },
+                        },
+                    ],
                 },
                 include: {
                     subscription_plan_features: {
@@ -697,11 +711,16 @@ app.get('/stripe/subscriptions/by-email', async (req, res) => {
                 },
             });
 
-            planByMpId = new Map(
-                plans
-                    .filter((p) => p.mp_preapproval_plan_id)
-                    .map((p) => [String(p.mp_preapproval_plan_id), p])
-            );
+            planByMpId = new Map();
+            for (const plan of plans) {
+                const stripeProductId = (plan as any).stripe_product_id;
+                if (stripeProductId) {
+                    planByMpId.set(String(stripeProductId), plan);
+                }
+                if (plan.mp_preapproval_plan_id) {
+                    planByMpId.set(String(plan.mp_preapproval_plan_id), plan);
+                }
+            }
         }
 
         const subscriptionsWithPlan = subscriptions.map((sub) => {
@@ -716,7 +735,10 @@ app.get('/stripe/subscriptions/by-email', async (req, res) => {
                         id: matchedPlan.id,
                         name: matchedPlan.name,
                         price: Number(matchedPlan.price),
-                        mpPreapprovalPlanId: matchedPlan.mp_preapproval_plan_id,
+                        stripeProductId: matchedPlan.stripe_product_id,
+                        stripePriceId: matchedPlan.stripe_price_id,
+                        stripePaymentLinkUrl: matchedPlan.stripe_payment_link_url,
+                        mpPreapprovalPlanId: matchedPlan.mp_preapproval_plan_id ?? matchedPlan.stripe_product_id,
                         features: (matchedPlan.subscription_plan_features ?? []).map((f: any) => f.feature),
                     }
                     : null,
@@ -742,6 +764,7 @@ app.get('/stripe/subscriptions', optionalAuth, async (req, res) => {
     try {
         const email = String(req.query.email || '').trim();
         const listAll = String(req.query.all || '').toLowerCase() === 'true';
+        const stripeRequestOptions = await getStripeRequestOptionsForBarbershop(req.user?.barbershopId);
 
         // if (listAll && !(req.user?.role === 'admin' || req.user?.isAdmin)) {
         //     return res.status(403).json({ error: 'Apenas administradores podem listar todas as assinaturas.' });
@@ -755,7 +778,7 @@ app.get('/stripe/subscriptions', optionalAuth, async (req, res) => {
                 const page = await stripe.customers.list({
                     limit: 100,
                     ...(startingAfter ? { starting_after: startingAfter } : {}),
-                });
+                }, stripeRequestOptions);
 
                 customers.push(...page.data);
                 startingAfter = page.has_more ? page.data[page.data.length - 1]?.id : undefined;
@@ -770,12 +793,12 @@ app.get('/stripe/subscriptions', optionalAuth, async (req, res) => {
                 ? (await stripe.customers.list({
                     email,
                     limit: 100,
-                })).data
+                }, stripeRequestOptions)).data
                 : req.user?.email
                     ? (await stripe.customers.list({
                         email: String(req.user.email).trim(),
                         limit: 100,
-                    })).data
+                    }, stripeRequestOptions)).data
                     : [];
 
         if (!customers.length) {
@@ -794,7 +817,7 @@ app.get('/stripe/subscriptions', optionalAuth, async (req, res) => {
                 customer: customer.id,
                 status: 'all',
                 limit: 100,
-            });
+            }, stripeRequestOptions);
 
             const activeSubscriptions = subs.data.filter((sub) => {
                 const status = String(sub.status || '').toLowerCase();
@@ -877,9 +900,18 @@ app.get('/stripe/subscriptions', optionalAuth, async (req, res) => {
         if (productIds.length > 0) {
             const plans = await prisma.subscription_plans.findMany({
                 where: {
-                    mp_preapproval_plan_id: {
-                        in: productIds,
-                    },
+                    OR: [
+                        {
+                            stripe_product_id: {
+                                in: productIds,
+                            },
+                        },
+                        {
+                            mp_preapproval_plan_id: {
+                                in: productIds,
+                            },
+                        },
+                    ],
                 },
                 include: {
                     subscription_plan_features: {
@@ -888,11 +920,16 @@ app.get('/stripe/subscriptions', optionalAuth, async (req, res) => {
                 },
             });
 
-            planByMpId = new Map(
-                plans
-                    .filter((p) => p.mp_preapproval_plan_id)
-                    .map((p) => [String(p.mp_preapproval_plan_id), p])
-            );
+            planByMpId = new Map();
+            for (const plan of plans) {
+                const stripeProductId = (plan as any).stripe_product_id;
+                if (stripeProductId) {
+                    planByMpId.set(String(stripeProductId), plan);
+                }
+                if (plan.mp_preapproval_plan_id) {
+                    planByMpId.set(String(plan.mp_preapproval_plan_id), plan);
+                }
+            }
         }
 
         const subscriptionsWithPlan = subscriptions.map((sub) => {
@@ -931,7 +968,10 @@ app.get('/stripe/subscriptions', optionalAuth, async (req, res) => {
                         id: matchedPlan.id,
                         name: matchedPlan.name,
                         price: Number(matchedPlan.price),
-                        mpPreapprovalPlanId: matchedPlan.mp_preapproval_plan_id,
+                        stripeProductId: matchedPlan.stripe_product_id,
+                        stripePriceId: matchedPlan.stripe_price_id,
+                        stripePaymentLinkUrl: matchedPlan.stripe_payment_link_url,
+                        mpPreapprovalPlanId: matchedPlan.mp_preapproval_plan_id ?? matchedPlan.stripe_product_id,
                         features: (matchedPlan.subscription_plan_features ?? []).map((f: any) => f.feature),
                     }
                     : null,
@@ -973,9 +1013,11 @@ app.patch('/stripe/subscriptions/:id/cancel', optionalAuth, async (req, res) => 
             return res.status(400).json({ error: 'ID da assinatura é obrigatório.' });
         }
 
+        const stripeRequestOptions = await getStripeRequestOptionsForBarbershop(req.user?.barbershopId);
+
         const subscription = await stripe.subscriptions.update(id, {
             cancel_at_period_end: true,
-        });
+        }, stripeRequestOptions);
 
         return res.json({
             id: subscription.id,

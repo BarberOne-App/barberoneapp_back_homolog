@@ -50,6 +50,9 @@ export async function createPlanInBarbershop(data: {
   cutsPerMonth: number;
   active?: boolean;
   recommended?: boolean;
+  stripeProductId?: string | null;
+  stripePriceId?: string | null;
+  stripePaymentLinkUrl?: string | null;
   mpSubscriptionUrl?: string | null;
   mpPreapprovalPlanId?: string | null;
   features?: string[];
@@ -65,6 +68,9 @@ export async function createPlanInBarbershop(data: {
         cuts_per_month: data.cutsPerMonth,
         active: data.active ?? true,
         recommended: data.recommended ?? false,
+        stripe_product_id: normalizeNullableString(data.stripeProductId),
+        stripe_price_id: normalizeNullableString(data.stripePriceId),
+        stripe_payment_link_url: normalizeNullableString(data.stripePaymentLinkUrl),
         mp_subscription_url: data.mpSubscriptionUrl ?? null,
         mp_preapproval_plan_id: normalizeNullableString(data.mpPreapprovalPlanId),
       },
@@ -101,6 +107,9 @@ export async function updatePlanInBarbershop(
     cutsPerMonth?: number;
     active?: boolean;
     recommended?: boolean;
+    stripeProductId?: string | null;
+    stripePriceId?: string | null;
+    stripePaymentLinkUrl?: string | null;
     mpSubscriptionUrl?: string | null;
     mpPreapprovalPlanId?: string | null;
     features?: string[];
@@ -121,6 +130,15 @@ export async function updatePlanInBarbershop(
     if (data.cutsPerMonth !== undefined) updateData.cuts_per_month = data.cutsPerMonth;
     if (data.active !== undefined) updateData.active = data.active;
     if (data.recommended !== undefined) updateData.recommended = data.recommended;
+    if (data.stripeProductId !== undefined) {
+      updateData.stripe_product_id = normalizeNullableString(data.stripeProductId);
+    }
+    if (data.stripePriceId !== undefined) {
+      updateData.stripe_price_id = normalizeNullableString(data.stripePriceId);
+    }
+    if (data.stripePaymentLinkUrl !== undefined) {
+      updateData.stripe_payment_link_url = normalizeNullableString(data.stripePaymentLinkUrl);
+    }
     if (data.mpSubscriptionUrl !== undefined) updateData.mp_subscription_url = data.mpSubscriptionUrl;
     if (data.mpPreapprovalPlanId !== undefined) {
       updateData.mp_preapproval_plan_id = normalizeNullableString(data.mpPreapprovalPlanId);

@@ -233,6 +233,10 @@ model subscription_plans {
   color       String?
   recommended Boolean @default(false)
 
+  stripe_product_id      String?
+  stripe_price_id        String?
+  stripe_payment_link_url String?
+
   mp_subscription_url    String?
   mp_preapproval_plan_id String? @unique
 
@@ -247,6 +251,8 @@ model subscription_plans {
 
   @@unique([barbershop_id, name], map: "uq_plan_name_per_barbershop")
   @@index([barbershop_id], map: "idx_plans_barbershop_id")
+  @@index([barbershop_id, stripe_product_id], map: "idx_plans_barbershop_stripe_product")
+  @@index([barbershop_id, stripe_price_id], map: "idx_plans_barbershop_stripe_price")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
