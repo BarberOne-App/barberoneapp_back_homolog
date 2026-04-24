@@ -6,6 +6,18 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: "2026-02-25.clover",
 });
 
+function getProfileRedirectUrl() {
+  const baseUrl =
+    process.env.FRONTEND_APP_URL ||
+    process.env.FRONTEND_URL ||
+    process.env.APP_WEB_URL ||
+    process.env.PUBLIC_WEB_URL ||
+    "http://localhost:5173";
+
+  const normalizedBase = String(baseUrl).replace(/\/+$/, "");
+  return `${normalizedBase}/profile`;
+}
+
 function toAmountInCents(amount: number) {
   const value = Number(amount);
   if (!Number.isFinite(value) || value < 0) {
@@ -95,6 +107,12 @@ export async function provisionConnectRecurringPlan(params: {
         barbershopId: shop.id,
       },
       allow_promotion_codes: true,
+      after_completion: {
+        type: "redirect",
+        redirect: {
+          url: getProfileRedirectUrl(),
+        },
+      },
     },
     { stripeAccount },
   );
