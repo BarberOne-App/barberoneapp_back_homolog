@@ -607,7 +607,41 @@ export async function updateAppointmentService(params: {
 export async function cancelAppointmentService(params: {
   barbershopId: string;
   appointmentId: string;
+  actorRole: string;
+  actorIsAdmin?: boolean;
+  actorId: string;
 }) {
+  const appointment = await findAppointmentByIdInBarbershop(
+    params.barbershopId,
+    params.appointmentId
+  );
+  if (!appointment) throw notFound("Agendamento não encontrado");
+
+  const isAdmin = params.actorRole === "admin" || !!params.actorIsAdmin;
+  if (!isAdmin) {
+    if (params.actorRole !== "client") {
+      throw forbidden("Apenas admin pode cancelar este agendamento");
+    }
+
+    if (String(appointment.client_id) !== String(params.actorId)) {
+      throw forbidden("Cliente sem permissão para cancelar este agendamento");
+    }
+
+    const appointmentStartAt = new Date(appointment.start_at);
+    if (Number.isNaN(appointmentStartAt.getTime())) {
+      throw badRequest("Data do agendamento inválida para cancelamento");
+    }
+
+    const minutesUntilAppointment =
+      (appointmentStartAt.getTime() - Date.now()) / (60 * 1000);
+
+    if (minutesUntilAppointment <= 15) {
+      throw forbidden(
+        "O cliente só pode cancelar até 15 minutos antes do horário do agendamento. Depois disso, somente o admin pode cancelar."
+      );
+    }
+  }
+
   const cancelled = await cancelAppointmentInBarbershop(params.barbershopId, params.appointmentId);
   if (!cancelled) throw notFound("Agendamento não encontrado");
   return serializeAppointment(cancelled);

@@ -149,6 +149,9 @@ export async function deleteAppointment(req: Request, res: Response) {
   const result = await cancelAppointmentService({
     barbershopId: req.user!.barbershopId,
     appointmentId: value.id,
+    actorRole: req.user!.role,
+    actorIsAdmin: req.user!.isAdmin,
+    actorId: req.user!.id,
   });
 
   return res.status(200).send(result);
