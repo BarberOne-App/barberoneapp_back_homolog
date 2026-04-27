@@ -348,8 +348,8 @@ model users {
   created_at DateTime @default(now()) @db.Timestamptz(6)
   updated_at DateTime @default(now()) @db.Timestamptz(6)
 
-  current_barbershop_id String      @db.Uuid
-  current_barbershop    barbershops @relation("UserCurrentBarbershop", fields: [current_barbershop_id], references: [id])
+  current_barbershop_id String?      @db.Uuid
+  current_barbershop    barbershops? @relation("UserCurrentBarbershop", fields: [current_barbershop_id], references: [id])
 
   barbershop_links user_barbershops[]
 

@@ -79,7 +79,7 @@ async function createLandingSubscriptionCheckoutUrl(params: {
   return session.url || null;
 }
 
-function generateTokenPair(payload: { userId: string; barbershopId: string; role: any; isAdmin: boolean }) {
+function generateTokenPair(payload: { userId: string; barbershopId: string | null; role: any; isAdmin: boolean }) {
   return {
     token: signToken(payload),
     refreshToken: signRefreshToken(payload),
@@ -96,18 +96,22 @@ export async function loginService(params: { email: string; password: string }) 
   if (!ok) throw unauthorized("Credenciais inválidas");
 
   const shop = user.current_barbershop;
-  if (!shop) throw notFound("Usuário não vinculado a nenhuma barbearia");
+  const isSuperAdmin = String(user.role) === "super_admin";
+
+  if (!shop && !isSuperAdmin) {
+    throw notFound("Usuário não vinculado a nenhuma barbearia");
+  }
 
   const token = signToken({
     userId: user.id,
-    barbershopId: shop.id,
+    barbershopId: shop?.id ?? null,
     role: user.role as any,
     isAdmin: user.is_admin,
   });
 
   return {
     token,
-    barbershop: shop,
+    barbershop: shop ?? null,
     user: {
       id: user.id,
       name: user.name,
@@ -371,9 +375,14 @@ export async function refreshTokenService(refreshToken: string) {
   const user = await findUserById(payload.userId);
   if (!user) throw unauthorized("Usuário não encontrado");
 
+  const isSuperAdmin = String(user.role) === "super_admin";
+  if (!isSuperAdmin && !user.current_barbershop_id) {
+    throw unauthorized("Usuário sem barbearia ativa");
+  }
+
   const tokenPayload = {
     userId: user.id,
-    barbershopId: user.current_barbershop_id,
+    barbershopId: user.current_barbershop_id ?? null,
     role: user.role as "admin" | "barber" | "client" | "receptionist" | "super_admin",
     isAdmin: user.is_admin,
   };
