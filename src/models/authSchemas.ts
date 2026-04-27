@@ -51,15 +51,17 @@ export const RegisterBarbershopSchema = joi
   .object({
     barbershopName: joi.string().trim().min(2).required(),
 
-    // slug: slug.optional(),
+    slug: slug.optional(),
     cnpj: joi.string().trim().allow("", null).optional(),
 
     phone: joi.string().trim().allow("", null).optional(),
 
     adminName: joi.string().trim().min(2).required(),
     adminEmail: email.required(),
+    adminPhone: joi.string().trim().allow("", null).optional(),
 
     password: password.required(),
+    selectedPlan: joi.string().trim().valid("basic", "premium").optional(),
   })
   .options({ abortEarly: false, stripUnknown: true });
 
