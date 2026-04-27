@@ -3,7 +3,7 @@ import Stripe from "stripe";
 import prisma from "../database/database.js";
 import { signToken, signRefreshToken, verifyRefreshToken } from "../utils/jwt.js";
 import { slugify, normalizeEmail } from "../utils/slugify.js";
-import { conflict, notFound, unauthorized } from "../errors/index.js";
+import { conflict, forbidden, notFound, unauthorized } from "../errors/index.js";
 import {
   createBarberProfile,
   createBarbershop,
@@ -324,6 +324,67 @@ export async function registerBarberService(params: {
       specialty: result.barber.specialty,
       photoUrl: result.barber.photo_url,
       commissionPercent: result.barber.commission_percent,
+    },
+  };
+}
+
+export async function registerSuperAdminService(params: {
+  setupKey: string;
+  name: string;
+  email: string;
+  password: string;
+}) {
+  const expectedSetupKey = String(process.env.SUPER_ADMIN_SETUP_KEY || "").trim();
+  if (!expectedSetupKey) {
+    throw forbidden("Cadastro de super admin desabilitado no servidor");
+  }
+
+  if (params.setupKey.trim() !== expectedSetupKey) {
+    throw forbidden("Chave de setup inválida");
+  }
+
+  const email = normalizeEmail(params.email);
+  const existing = await findUserByEmail(email);
+  if (existing) throw conflict("E-mail já cadastrado");
+
+  const passwordHash = await bcrypt.hash(params.password, rounds());
+
+  const user = await prisma.users.create({
+    data: {
+      name: params.name.trim(),
+      email,
+      role: "super_admin",
+      is_admin: true,
+      password_hash: passwordHash,
+      current_barbershop_id: null,
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      role: true,
+      is_admin: true,
+    },
+  });
+
+  const token = signToken({
+    userId: user.id,
+    barbershopId: null,
+    role: user.role as any,
+    isAdmin: user.is_admin,
+  });
+
+  return {
+    token,
+    barbershop: null,
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      isAdmin: user.is_admin,
     },
   };
 }
