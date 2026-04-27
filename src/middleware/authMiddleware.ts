@@ -45,14 +45,19 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
   });
 
   if (!user) return next(unauthorized("Usuário inválido"));
-  if (!user.current_barbershop_id) {
-    return next(unauthorized("Usuário sem barbearia ativa"));
+  const isSuperAdmin = isSuperAdminRole(user.role) || isSuperAdminRole(payload.role);
+
+  if (!isSuperAdmin) {
+    if (!user.current_barbershop_id) {
+      return next(unauthorized("Usuário sem barbearia ativa"));
+    }
+
+    // evita token trocado entre barbearias
+    if (!payload.barbershopId || user.current_barbershop_id !== payload.barbershopId) {
+      return next(unauthorized("Token inválido para essa barbearia"));
+    }
   }
 
-  // evita token trocado entre barbearias
-  if (user.current_barbershop_id !== payload.barbershopId) return next(unauthorized("Token inválido para essa barbearia"));
-
-  const isSuperAdmin = isSuperAdminRole(user.role);
   const shopStatus = String(user.current_barbershop?.status || "");
 
   if (!isSuperAdmin && (shopStatus === "blocked" || shopStatus === "inactive")) {
@@ -61,7 +66,7 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
 
   req.user = {
     id: user.id,
-    barbershopId: user.current_barbershop_id,
+    barbershopId: user.current_barbershop_id || "",
     role: user.role as any,
     isAdmin: user.is_admin,
     name: user.name,
@@ -150,14 +155,15 @@ export async function optionalAuth(req: Request, _res: Response, next: NextFunct
       },
     });
 
+    const isSuperAdmin = isSuperAdminRole(user?.role) || isSuperAdminRole(payload.role);
+
     if (
       user &&
-      user.current_barbershop_id &&
-      user.current_barbershop_id === payload.barbershopId
+      (isSuperAdmin || (user.current_barbershop_id && user.current_barbershop_id === payload.barbershopId))
     ) {
       req.user = {
         id: user.id,
-        barbershopId: user.current_barbershop_id,
+        barbershopId: user.current_barbershop_id || "",
         role: user.role as any,
         isAdmin: user.is_admin,
         name: user.name,
