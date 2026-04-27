@@ -376,6 +376,10 @@ model barbershops {
   cnpj       String?  @unique
   phone      String?
   email      String?
+  status     barbershop_status @default(active)
+  blocked_reason String?
+  blocked_at DateTime? @db.Timestamptz(6)
+  deactivated_at DateTime? @db.Timestamptz(6)
   stripe_connect_account_id String? @unique
   stripe_connect_charges_enabled Boolean @default(false)
   stripe_connect_payouts_enabled Boolean @default(false)
@@ -409,6 +413,8 @@ model barbershops {
   saved_cards   saved_cards[]
   employee_vales    employee_vales[]
   employee_payments employee_payments[]
+
+  @@index([status], map: "idx_barbershops_status")
 }
 
 model barbershop_settings {
@@ -609,4 +615,12 @@ enum user_role {
   barber
   client
   receptionist // ✅ mock
+  super_admin
+}
+
+enum barbershop_status {
+  active
+  inactive
+  blocked
+  pending
 }

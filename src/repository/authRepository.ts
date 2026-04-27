@@ -79,7 +79,7 @@ export async function createUser(
     cpf?: string | null;
     phone?: string | null;
     birthDate?: string | Date | null;
-    role: "admin" | "barber" | "client";
+    role: "admin" | "barber" | "client" | "receptionist" | "super_admin";
     isAdmin: boolean;
     passwordHash: string;
   },

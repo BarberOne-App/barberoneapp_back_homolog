@@ -374,7 +374,7 @@ export async function refreshTokenService(refreshToken: string) {
   const tokenPayload = {
     userId: user.id,
     barbershopId: user.current_barbershop_id,
-    role: user.role as "admin" | "barber" | "client",
+    role: user.role as "admin" | "barber" | "client" | "receptionist" | "super_admin",
     isAdmin: user.is_admin,
   };
 
