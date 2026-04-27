@@ -79,6 +79,15 @@ export const RegisterBarberSchema = joi
   })
   .options({ abortEarly: false, stripUnknown: true });
 
+export const RegisterSuperAdminSchema = joi
+  .object({
+    setupKey: joi.string().trim().min(8).required(),
+    name: joi.string().trim().min(2).required(),
+    email: email.required(),
+    password: password.required(),
+  })
+  .options({ abortEarly: false, stripUnknown: true });
+
 export const RefreshTokenSchema = joi
   .object({
     refreshToken: joi.string().required(),

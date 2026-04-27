@@ -6,7 +6,8 @@ import {
   RegisterBarbershopSchema,
   RegisterClientSchema,
   RefreshTokenSchema,
-  RegisterClientGoogleSchema
+  RegisterClientGoogleSchema,
+  RegisterSuperAdminSchema
 } from "../models/authSchemas.js";
 import {
   loginService,
@@ -15,6 +16,7 @@ import {
   registerBarberService,
   registerBarbershopService,
   registerClientService,
+  registerSuperAdminService,
 } from "../services/authService.js";
 
 function joiErrors(error: any) {
@@ -64,6 +66,14 @@ export async function registerBarber(req: Request, res: Response) {
     ...req.body,
   });
 
+  return res.status(201).send(result);
+}
+
+export async function registerSuperAdmin(req: Request, res: Response) {
+  const { error } = RegisterSuperAdminSchema.validate(req.body);
+  if (error) return res.status(422).send(joiErrors(error));
+
+  const result = await registerSuperAdminService(req.body);
   return res.status(201).send(result);
 }
 

@@ -1,6 +1,6 @@
 
 import { Router } from "express";
-import { login, logout, me, refresh, registerBarber, registerBarbershop, registerClient, registerClientGoogle } from "../controllers/authController.js";
+import { login, logout, me, refresh, registerBarber, registerBarbershop, registerClient, registerClientGoogle, registerSuperAdmin } from "../controllers/authController.js";
 import { requireAdmin, requireAuth } from "../middleware/authMiddleware.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 
@@ -11,6 +11,7 @@ router.post("/auth/register/barbershop", asyncHandler(registerBarbershop));
 router.post("/barbershops/register", asyncHandler(registerBarbershop));
 router.post("/auth/register/client", asyncHandler(registerClient));
 router.post("/auth/register/client-google", asyncHandler(registerClientGoogle));
+router.post("/auth/setup/super-admin", asyncHandler(registerSuperAdmin));
 router.post("/auth/register/barber", requireAuth, requireAdmin, asyncHandler(registerBarber));
 
 router.get("/auth/me", requireAuth, asyncHandler(me));
