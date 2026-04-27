@@ -36,6 +36,9 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
   });
 
   if (!user) return next(unauthorized("Usuário inválido"));
+  if (!user.current_barbershop_id) {
+    return next(unauthorized("Usuário sem barbearia ativa"));
+  }
 
   // evita token trocado entre barbearias
   if (user.current_barbershop_id !== payload.barbershopId) return next(unauthorized("Token inválido para essa barbearia"));
@@ -121,7 +124,11 @@ export async function optionalAuth(req: Request, _res: Response, next: NextFunct
       },
     });
 
-    if (user && user.current_barbershop_id === payload.barbershopId) {
+    if (
+      user &&
+      user.current_barbershop_id &&
+      user.current_barbershop_id === payload.barbershopId
+    ) {
       req.user = {
         id: user.id,
         barbershopId: user.current_barbershop_id,
