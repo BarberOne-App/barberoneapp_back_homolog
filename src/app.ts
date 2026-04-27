@@ -42,8 +42,10 @@ const prisma = new PrismaClient();
 const MP_TOKEN = process.env.MP_ACCESS_TOKEN ?? "";
 const MP_NOTIFICATION_URL = process.env.MERCADO_PAGO_NOTIFICATION_URL ?? "";
 
+const corsOptions: cors.CorsOptions = { origin: true };
 
-app.use(cors({ origin: true }));
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 app.use(express.json({ limit: "10mb" }));
 
 app.get("/health", (_req, res) => res.send({ ok: true }));
