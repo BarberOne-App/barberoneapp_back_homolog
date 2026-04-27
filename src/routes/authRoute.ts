@@ -8,6 +8,7 @@ const router = Router();
 
 router.post("/auth/login", asyncHandler(login));
 router.post("/auth/register/barbershop", asyncHandler(registerBarbershop));
+router.post("/barbershops/register", asyncHandler(registerBarbershop));
 router.post("/auth/register/client", asyncHandler(registerClient));
 router.post("/auth/register/client-google", asyncHandler(registerClientGoogle));
 router.post("/auth/register/barber", requireAuth, requireAdmin, asyncHandler(registerBarber));
