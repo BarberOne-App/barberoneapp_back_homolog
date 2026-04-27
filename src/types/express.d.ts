@@ -26,7 +26,7 @@ declare global {
     interface User {
       id: string; // uuid
       barbershopId: string; // uuid
-      role: "admin" | "barber" | "client";
+      role: string;
       isAdmin: boolean;
       name: string;
       email: string;

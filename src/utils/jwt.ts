@@ -30,7 +30,7 @@ const refreshSecret = process.env.JWT_REFRESH_SECRET || "dev-refresh-secret";
 export type TokenPayload = {
   userId: string;
   barbershopId: string;
-  role: "admin" | "barber" | "client";
+  role: "admin" | "barber" | "client" | "receptionist" | "super_admin";
   isAdmin: boolean;
   iat?: number;
   exp?: number;

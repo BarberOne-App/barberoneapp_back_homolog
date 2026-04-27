@@ -4,6 +4,10 @@ import prisma from "../database/database.js";
 import { verifyToken } from "../utils/jwt.js";
 import { unauthorized, forbidden } from "../errors/index.js";
 
+function isSuperAdminRole(role: unknown) {
+  return String(role || "") === "super_admin";
+}
+
 function getBearerToken(req: Request) {
   const auth = req.header("authorization") || "";
   const [scheme, token] = auth.split(" ");
@@ -32,6 +36,11 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
       name: true,
       email: true,
       permissions: true,
+      current_barbershop: {
+        select: {
+          status: true,
+        },
+      },
     },
   });
 
@@ -42,6 +51,13 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
 
   // evita token trocado entre barbearias
   if (user.current_barbershop_id !== payload.barbershopId) return next(unauthorized("Token inválido para essa barbearia"));
+
+  const isSuperAdmin = isSuperAdminRole(user.role);
+  const shopStatus = String(user.current_barbershop?.status || "");
+
+  if (!isSuperAdmin && (shopStatus === "blocked" || shopStatus === "inactive")) {
+    return next(forbidden("Acesso indisponível para esta barbearia"));
+  }
 
   req.user = {
     id: user.id,
@@ -59,14 +75,24 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
 export function requireRole(...roles: Array<"admin" | "barber" | "client">) {
   return (req: Request, _res: Response, next: NextFunction) => {
     if (!req.user) return next(unauthorized("Não autenticado"));
-    if (!roles.includes(req.user.role)) return next(forbidden("Sem permissão"));
+    if (!roles.includes(req.user.role as any)) return next(forbidden("Sem permissão"));
     next();
   };
 }
 
 export function requireAdmin(req: Request, _res: Response, next: NextFunction) {
   if (!req.user) return next(unauthorized("Não autenticado"));
-  if (req.user.role !== "admin" && !req.user.isAdmin) return next(forbidden("Apenas admin"));
+  if (req.user.role !== "admin" && !req.user.isAdmin && !isSuperAdminRole(req.user.role)) {
+    return next(forbidden("Apenas admin"));
+  }
+  next();
+}
+
+export function requireSuperAdmin(req: Request, _res: Response, next: NextFunction) {
+  if (!req.user) return next(unauthorized("Não autenticado"));
+  if (!isSuperAdminRole(req.user.role)) {
+    return next(forbidden("Apenas Super Admin"));
+  }
   next();
 }
 
@@ -88,7 +114,7 @@ export function requirePermission(permission: string) {
   return (req: Request, _res: Response, next: NextFunction) => {
     if (!req.user) return next(unauthorized("Não autenticado"));
     
-    const isAdmin = req.user.role === "admin" || req.user.isAdmin;
+    const isAdmin = req.user.role === "admin" || req.user.isAdmin || isSuperAdminRole(req.user.role);
     if (isAdmin) return next(); // admin tem todas as permissões
     
     const permissions = req.user.permissions || {};

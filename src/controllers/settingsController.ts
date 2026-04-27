@@ -31,7 +31,7 @@ export async function getHomeInfo(req: Request, res: Response) {
 export async function upsertHomeInfo(req: Request, res: Response) {
     const result = await upsertHomeInfoService({
         barbershopId: req.user!.barbershopId,
-        actorRole: req.user!.role,
+        actorRole: req.user!.role as "admin" | "barber" | "client",
         data: req.body,
     });
     return res.status(200).send(result);

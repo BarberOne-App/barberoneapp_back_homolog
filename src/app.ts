@@ -23,6 +23,7 @@ import savedCardRouter from "./routes/savedCardRouter.js";
 import employeeValeRouter from "./routes/employeeValeRouter.js";
 import stripeWebhookRoutes from "./routes/stripeWebhookRoutes.js";
 import employeePaymentRouter from "./routes/employeePaymentRouter.js";
+import superAdminRouter from "./routes/superAdminRouter.js";
 import { waitPaymentFinal, isFinalForYourFront, mapToFrontStatus, resolveWaiter } from "./middleware/waiters.js";
 import open from "open";
 import path from "path";
@@ -1136,6 +1137,7 @@ app.use(dependentRouter);
 app.use(savedCardRouter);
 app.use(employeeValeRouter);
 app.use(employeePaymentRouter);
+app.use(superAdminRouter);
 app.use(errorHandler);
 
 

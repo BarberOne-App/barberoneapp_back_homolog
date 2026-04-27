@@ -28,7 +28,7 @@ export async function createProduct(req: Request, res: Response) {
 
   const result = await createProductService({
     barbershopId: req.user!.barbershopId,
-    actorRole: req.user!.role,
+    actorRole: req.user!.role as "admin" | "barber" | "client",
     data: req.body,
   });
 
@@ -44,7 +44,7 @@ export async function importProducts(req: Request, res: Response) {
 
   const result = await importProductsService({
     barbershopId: req.user!.barbershopId,
-    actorRole: req.user!.role,
+    actorRole: req.user!.role as "admin" | "barber" | "client",
     rows: value.rows,
   });
 
@@ -69,9 +69,8 @@ export async function listProducts(req: Request, res: Response) {
   const q = typeof req.query.q === "string" ? req.query.q : undefined;
 
   const result = await listProductsService({
-    // barbershopId: "29f85580-2fb7-497d-b331-67bcc4da25e1",
     barbershopId: req.user!.barbershopId,
-    actorRole: req.user!.role,
+    actorRole: req.user!.role as "admin" | "barber" | "client",
     query: { active, category, q },
   });
 
@@ -83,7 +82,7 @@ export async function getProductById(req: Request, res: Response) {
 
   const result = await getProductByIdService({
     barbershopId: req.user!.barbershopId,
-    actorRole: req.user!.role,
+    actorRole: req.user!.role as "admin" | "barber" | "client",
     productId: id,
   });
 
@@ -101,7 +100,7 @@ export async function updateProduct(req: Request, res: Response) {
 
   const result = await updateProductService({
     barbershopId: req.user!.barbershopId,
-    actorRole: req.user!.role,
+    actorRole: req.user!.role as "admin" | "barber" | "client",
     productId: id,
     data: req.body,
   });
@@ -114,7 +113,7 @@ export async function deleteProduct(req: Request, res: Response) {
 
   const result = await deleteProductService({
     barbershopId: req.user!.barbershopId,
-    actorRole: req.user!.role,
+    actorRole: req.user!.role as "admin" | "barber" | "client",
     productId: id,
   });
 
@@ -126,7 +125,7 @@ export async function reactivateProduct(req: Request, res: Response) {
 
   const result = await reactivateProductService({
     barbershopId: req.user!.barbershopId,
-    actorRole: req.user!.role,
+    actorRole: req.user!.role as "admin" | "barber" | "client",
     productId: id,
   });
 
