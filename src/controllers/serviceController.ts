@@ -50,6 +50,8 @@ export async function importServices(req: Request, res: Response) {
   });
   if (error) return res.status(422).send(joiErrors(error));
 
+  console.log("REQUISIÇÃO AQUI", req.user);
+
   const barbershopId = req.user!.barbershopId;
 
   const created = await importServicesService({
