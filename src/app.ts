@@ -829,6 +829,86 @@ app.get('/stripe/subscriptions/by-email', optionalAuth, async (req, res) => {
     }
 });
 
+app.get('/stripe/platform-subscriptions/by-email', optionalAuth, async (req, res) => {
+    try {
+        const { email } = req.query;
+
+        if (!email) {
+            return res.status(400).json({ error: 'Email é obrigatório.' });
+        }
+
+        const customers = await stripe.customers.list({
+            email: String(email).trim(),
+            limit: 100,
+        });
+
+        if (!customers.data.length) {
+            return res.json({
+                found: false,
+                total: 0,
+                subscriptions: [],
+            });
+        }
+
+        const allSubscriptions = [];
+
+        for (const customer of customers.data) {
+            const subs = await stripe.subscriptions.list({
+                customer: customer.id,
+                status: 'all',
+                limit: 100,
+                expand: ['data.items.data.price.product'],
+            });
+
+            for (const sub of subs.data) {
+                const firstItem = sub.items?.data?.[0] || null;
+                const price = firstItem?.price || null;
+                const product = price?.product as any;
+
+                allSubscriptions.push({
+                    customerId: customer.id,
+                    customerEmail: customer.email,
+                    customerName: customer.name,
+
+                    subscriptionId: sub.id,
+                    status: sub.status,
+                    created: sub.created,
+
+                    currentPeriodStart: (sub as any).current_period_start ?? null,
+                    currentPeriodEnd: (sub as any).current_period_end ?? null,
+                    cancelAtPeriodEnd: sub.cancel_at_period_end,
+
+                    priceId: price?.id || null,
+                    productId: typeof product === 'string' ? product : product?.id || null,
+
+                    plan: {
+                        name: typeof product === 'string' ? null : product?.name || null,
+                        description: typeof product === 'string' ? null : product?.description || null,
+                        amount: price?.unit_amount ? price.unit_amount / 100 : null,
+                        currency: price?.currency || null,
+                        interval: price?.recurring?.interval || null,
+                        intervalCount: price?.recurring?.interval_count || null,
+                    },
+                });
+            }
+        }
+
+        const subscriptions = allSubscriptions.sort((a, b) => b.created - a.created);
+
+        return res.json({
+            found: subscriptions.length > 0,
+            total: subscriptions.length,
+            subscriptions,
+        });
+    } catch (error) {
+        console.error(error);
+
+        return res.status(500).json({
+            error: 'Erro ao buscar assinatura da plataforma na Stripe.',
+        });
+    }
+});
+
 app.get('/stripe/subscriptions', optionalAuth, async (req, res) => {
 
     try {
