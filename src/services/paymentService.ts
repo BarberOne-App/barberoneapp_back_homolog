@@ -1,5 +1,4 @@
 import { notFound } from "../errors/index.js";
-import { syncEmployeeCommissionFromAppointmentPayment } from "./employeePaymentService.js";
 import {
   createPaymentInBarbershop,
   findPaymentByIdInBarbershop,
@@ -52,11 +51,6 @@ function serialize(p: any) {
     createdAt: p.created_at,
     updatedAt: p.updated_at,
   };
-}
-
-function isSettledPaymentStatus(status: string | undefined | null) {
-  const normalized = String(status ?? "").trim().toLowerCase();
-  return normalized === "paid" || normalized === "approved";
 }
 
 export async function listPaymentsService(params: {
@@ -208,18 +202,6 @@ export async function updatePaymentService(params: {
     updateData
   );
   if (!updated) throw notFound("Pagamento nÃ£o encontrado");
-
-  const becameSettled =
-    !isSettledPaymentStatus(existing.status) && isSettledPaymentStatus(updated.status);
-
-  if (becameSettled && updated.appointment_id) {
-    await syncEmployeeCommissionFromAppointmentPayment({
-      barbershopId: params.barbershopId,
-      appointmentId: updated.appointment_id,
-      paidAt: updated.paid_at,
-      actorId: params.actorId,
-    });
-  }
 
   return serialize(updated);
 }
