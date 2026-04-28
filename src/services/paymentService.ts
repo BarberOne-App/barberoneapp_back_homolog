@@ -1,4 +1,5 @@
 import { notFound } from "../errors/index.js";
+import { syncEmployeeCommissionFromAppointmentPayment } from "./employeePaymentService.js";
 import {
   createPaymentInBarbershop,
   findPaymentByIdInBarbershop,
@@ -10,97 +11,17 @@ function decimalToNumber(v: any): number {
   if (v == null) return 0;
   if (typeof v === "number") return v;
   if (typeof v?.toNumber === "function") return v.toNumber();
-  return Number(v) || 0;
-}
-
-function getAppointmentServices(appointment: any) {
-  const appointmentServices = appointment?.appointment_services ?? [];
-
-  return appointmentServices.map((item: any) => {
-    const service = item.services ?? {};
-
-    const unitPrice = decimalToNumber(
-      item.unit_price ?? service.price ?? service.base_price ?? 0
-    );
-
-    const quantity = decimalToNumber(item.quantity ?? 1) || 1;
-
-    const commissionPercent = decimalToNumber(
-      service.comission_percent ??
-        service.commission_percent ??
-        service.commissionPercent ??
-        appointment?.barbers?.commission_percent ??
-        0
-    );
-
-    const total = unitPrice * quantity;
-    const commissionAmount = (total * commissionPercent) / 100;
-
-    return {
-      id: service.id ?? item.id,
-      appointmentServiceId: item.id,
-      name: service.name ?? "",
-      unitPrice,
-      quantity,
-      total,
-      commissionPercent,
-      commissionAmount,
-    };
-  });
-}
-
-function getAppointmentFinancials(appointment: any, paymentAmount: number) {
-  const services = getAppointmentServices(appointment);
-
-  const servicesTotal = services.reduce(
-    (sum: number, service: any) => sum + decimalToNumber(service.total),
-    0
-  );
-
-  const commissionAmount = services.reduce(
-    (sum: number, service: any) => sum + decimalToNumber(service.commissionAmount),
-    0
-  );
-
-  const totalAmount = decimalToNumber(
-    appointment?.total_amount ?? paymentAmount ?? servicesTotal
-  );
-
-  return {
-    services,
-    servicesTotal,
-    productsTotal: 0,
-    commissionAmount,
-    totalAmount,
-  };
+  return Number(v);
 }
 
 function serialize(p: any) {
-  const amount = decimalToNumber(p.amount);
-  const appointmentFinancials = p.appointments
-    ? getAppointmentFinancials(p.appointments, amount)
-    : {
-        services: [],
-        servicesTotal: 0,
-        productsTotal: 0,
-        commissionAmount: 0,
-        totalAmount: amount,
-      };
-
   return {
     id: p.id,
     barbershopId: p.barbershop_id,
-
     userId: p.user_id,
     user: p.users
-      ? {
-          id: p.users.id,
-          name: p.users.name,
-          email: p.users.email,
-          phone: p.users.phone,
-        }
+      ? { id: p.users.id, name: p.users.name, email: p.users.email, phone: p.users.phone }
       : null,
-
     appointmentId: p.appointment_id,
     appointment: p.appointments
       ? {
@@ -108,48 +29,22 @@ function serialize(p: any) {
           startAt: p.appointments.start_at,
           endAt: p.appointments.end_at,
           status: p.appointments.status,
-
-          barberId: p.appointments.barbers?.id ?? null,
-          barberName: p.appointments.barbers?.display_name ?? null,
-
           barber: p.appointments.barbers
-            ? {
-                id: p.appointments.barbers.id,
-                displayName: p.appointments.barbers.display_name,
-                commissionPercent: decimalToNumber(
-                  p.appointments.barbers.commission_percent
-                ),
-              }
+            ? { id: p.appointments.barbers.id, displayName: p.appointments.barbers.display_name }
             : null,
-
-          services: appointmentFinancials.services,
-          servicesTotal: appointmentFinancials.servicesTotal,
-          productsTotal: appointmentFinancials.productsTotal,
-          commissionAmount: appointmentFinancials.commissionAmount,
-          totalAmount: appointmentFinancials.totalAmount,
         }
       : null,
-
     subscriptionId: p.subscription_id,
     subscription: p.subscriptions
       ? {
           id: p.subscriptions.id,
           status: p.subscriptions.status,
           plan: p.subscriptions.subscription_plans
-            ? {
-                id: p.subscriptions.subscription_plans.id,
-                name: p.subscriptions.subscription_plans.name,
-              }
+            ? { id: p.subscriptions.subscription_plans.id, name: p.subscriptions.subscription_plans.name }
             : null,
         }
       : null,
-
-    amount,
-    servicesTotal: appointmentFinancials.servicesTotal,
-    productsTotal: appointmentFinancials.productsTotal,
-    commissionAmount: appointmentFinancials.commissionAmount,
-    totalAmount: appointmentFinancials.totalAmount,
-
+    amount: decimalToNumber(p.amount),
     method: p.method,
     status: p.status,
     statusRaw: p.status_raw,
@@ -157,6 +52,11 @@ function serialize(p: any) {
     createdAt: p.created_at,
     updatedAt: p.updated_at,
   };
+}
+
+function isSettledPaymentStatus(status: string | undefined | null) {
+  const normalized = String(status ?? "").trim().toLowerCase();
+  return normalized === "paid" || normalized === "approved";
 }
 
 export async function listPaymentsService(params: {
@@ -189,25 +89,15 @@ export async function listPaymentsService(params: {
     limit,
   });
 
-  return {
-    page,
-    limit,
-    total,
-    items: items.map(serialize),
-  };
+  return { page, limit, total, items: items.map(serialize) };
 }
 
 export async function getPaymentByIdService(params: {
   barbershopId: string;
   paymentId: string;
 }) {
-  const p = await findPaymentByIdInBarbershop(
-    params.barbershopId,
-    params.paymentId
-  );
-
-  if (!p) throw notFound("Pagamento não encontrado");
-
+  const p = await findPaymentByIdInBarbershop(params.barbershopId, params.paymentId);
+  if (!p) throw notFound("Pagamento nÃ£o encontrado");
   return serialize(p);
 }
 
@@ -231,7 +121,6 @@ export async function createPaymentService(params: {
     method: params.data.method,
     status: params.data.status,
   });
-
   return serialize(created);
 }
 
@@ -263,12 +152,7 @@ export async function listAppointmentPaymentsService(params: {
     limit,
   });
 
-  return {
-    page,
-    limit,
-    total,
-    items: items.map(serialize),
-  };
+  return { page, limit, total, items: items.map(serialize) };
 }
 
 export async function createAppointmentPaymentService(params: {
@@ -289,7 +173,6 @@ export async function createAppointmentPaymentService(params: {
     method: params.data.method,
     status: params.data.status,
   });
-
   return serialize(created);
 }
 
@@ -304,19 +187,13 @@ export async function updatePaymentService(params: {
     noShow?: boolean;
   };
 }) {
-  const existing = await findPaymentByIdInBarbershop(
-    params.barbershopId,
-    params.paymentId
-  );
-
-  if (!existing) throw notFound("Pagamento não encontrado");
+  const existing = await findPaymentByIdInBarbershop(params.barbershopId, params.paymentId);
+  if (!existing) throw notFound("Pagamento nÃ£o encontrado");
 
   const updateData: any = {};
-
   if (params.data.status !== undefined) updateData.status = params.data.status;
   if (params.data.method !== undefined) updateData.method = params.data.method;
   if (params.data.paidAt !== undefined) updateData.paid_at = params.data.paidAt;
-
   if (params.data.noShow !== undefined) {
     updateData.status_raw = params.data.noShow ? "no_show" : null;
   }
@@ -330,8 +207,19 @@ export async function updatePaymentService(params: {
     params.paymentId,
     updateData
   );
+  if (!updated) throw notFound("Pagamento nÃ£o encontrado");
 
-  if (!updated) throw notFound("Pagamento não encontrado");
+  const becameSettled =
+    !isSettledPaymentStatus(existing.status) && isSettledPaymentStatus(updated.status);
+
+  if (becameSettled && updated.appointment_id) {
+    await syncEmployeeCommissionFromAppointmentPayment({
+      barbershopId: params.barbershopId,
+      appointmentId: updated.appointment_id,
+      paidAt: updated.paid_at,
+      actorId: params.actorId,
+    });
+  }
 
   return serialize(updated);
 }

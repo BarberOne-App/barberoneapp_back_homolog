@@ -74,3 +74,51 @@ export async function createEmployeePayment(data: {
     include: EMPLOYEE_PAYMENT_INCLUDE,
   });
 }
+
+export async function incrementEmployeeCommissionByPeriod(data: {
+  employeeId: string;
+  employeeName: string;
+  period: string;
+  periodStart: string;
+  periodEnd: string;
+  commissionAmount: number;
+  paidBy: string;
+  paidAt: Date;
+  barbershopId: string;
+}) {
+  const existing = await findEmployeePaymentByPeriod({
+    barbershopId: data.barbershopId,
+    employeeId: data.employeeId,
+    period: data.period,
+    periodStart: data.periodStart,
+    periodEnd: data.periodEnd,
+  });
+
+  if (existing) {
+    return prisma.employee_payments.update({
+      where: { id: existing.id },
+      data: {
+        employee_name: data.employeeName,
+        commission: { increment: data.commissionAmount },
+        net_amount: { increment: data.commissionAmount },
+        paid_at: data.paidAt,
+        paid_by: data.paidBy,
+      },
+      include: EMPLOYEE_PAYMENT_INCLUDE,
+    });
+  }
+
+  return createEmployeePayment({
+    employeeId: data.employeeId,
+    employeeName: data.employeeName,
+    period: data.period,
+    periodStart: data.periodStart,
+    periodEnd: data.periodEnd,
+    baseSalary: 0,
+    commission: data.commissionAmount,
+    totalVales: 0,
+    netAmount: data.commissionAmount,
+    paidBy: data.paidBy,
+    barbershopId: data.barbershopId,
+  });
+}
