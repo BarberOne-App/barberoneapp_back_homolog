@@ -1,6 +1,11 @@
 import prisma from "../database/database.js";
 
-/* ───── LIST ───── */
+const EMPLOYEE_PAYMENT_INCLUDE = {
+  employee: { select: { id: true, name: true } },
+  creator: { select: { id: true, name: true } },
+} as const;
+
+/* â”€â”€â”€â”€â”€ LIST â”€â”€â”€â”€â”€ */
 export async function listEmployeePayments(
   barbershopId: string,
   employeeId?: string
@@ -18,49 +23,27 @@ export async function listEmployeePayments(
   });
 }
 
+/* â”€â”€â”€â”€â”€ FIND BY PERIOD â”€â”€â”€â”€â”€ */
 export async function findEmployeePaymentByPeriod(data: {
+  barbershopId: string;
   employeeId: string;
   period: string;
   periodStart: string;
   periodEnd: string;
-  barbershopId: string;
 }) {
   return prisma.employee_payments.findFirst({
     where: {
+      barbershop_id: data.barbershopId,
       employee_id: data.employeeId,
       period: data.period,
       period_start: data.periodStart,
       period_end: data.periodEnd,
-      barbershop_id: data.barbershopId,
     },
     include: EMPLOYEE_PAYMENT_INCLUDE,
   });
 }
 
-/* ───── FIND BY PERIOD ───── */
-export async function findEmployeePaymentByPeriod(data: {
-  barbershopId: string;
-  employeeId: string;
-  period: string;
-  periodStart: string;
-  periodEnd: string;
-}) {
-  return prisma.employee_payments.findFirst({
-    where: {
-      barbershop_id: data.barbershopId,
-      employee_id: data.employeeId,
-      period: data.period,
-      period_start: data.periodStart,
-      period_end: data.periodEnd,
-    },
-    include: {
-      employee: { select: { id: true, name: true } },
-      creator: { select: { id: true, name: true } },
-    },
-  });
-}
-
-/* ───── CREATE ───── */
+/* â”€â”€â”€â”€â”€ CREATE â”€â”€â”€â”€â”€ */
 export async function createEmployeePayment(data: {
   employeeId: string;
   employeeName: string;
@@ -104,11 +87,11 @@ export async function incrementEmployeeCommissionByPeriod(data: {
   barbershopId: string;
 }) {
   const existing = await findEmployeePaymentByPeriod({
+    barbershopId: data.barbershopId,
     employeeId: data.employeeId,
     period: data.period,
     periodStart: data.periodStart,
     periodEnd: data.periodEnd,
-    barbershopId: data.barbershopId,
   });
 
   if (existing) {
