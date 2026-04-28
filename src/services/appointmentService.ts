@@ -77,14 +77,18 @@ function serializeAppointment(a: any) {
     const quantity = Number(s.quantity ?? 1);
     const safeQuantity = Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
     const totalPrice = unitPrice * safeQuantity;
+    const rawCommissionPercent = decimalToNumber(
+      s.services?.comission_percent ?? s.services?.commission_percent,
+    );
     const commissionType = resolveServiceCommissionType({
       coveredByPlan: s.services?.covered_by_plan,
-      commissionPercent: decimalToNumber(s.services?.comission_percent),
+      commissionPercent: rawCommissionPercent,
       serviceName: s.service_name,
     });
     const commissionAmount = calculateCommission({
       amount: totalPrice,
       type: commissionType,
+      commissionPercent: rawCommissionPercent,
     });
 
     return {
@@ -96,7 +100,8 @@ function serializeAppointment(a: any) {
       quantity: safeQuantity,
       totalPrice,
       commissionType,
-      commissionPercent: getCommissionPercentByType(commissionType),
+      commissionPercent: rawCommissionPercent || getCommissionPercentByType(commissionType),
+      commission_percent: rawCommissionPercent || getCommissionPercentByType(commissionType),
       commissionAmount,
     };
   });
@@ -166,6 +171,8 @@ function serializeAppointment(a: any) {
     servicesTotal: Math.round(servicesTotal * 100) / 100,
     productsTotal: Math.round(productsTotal * 100) / 100,
     totalAmount: Math.round((servicesTotal + productsTotal) * 100) / 100,
+    commissionPercent:
+      services.length === 1 ? services[0].commissionPercent : null,
     commissionAmount: Math.round(commissionAmount * 100) / 100,
   };
 }
@@ -428,6 +435,10 @@ async function getNormalizedAppointmentServices(params: {
       serviceName: dbService.name,
       unitPrice: decimalToNumber(dbService.base_price),
       durationMinutes: getServiceDurationMinutes(dbService),
+      commissionPercent: decimalToNumber(
+        dbService.comission_percent ?? dbService.commission_percent,
+      ),
+      coveredByPlan: !!dbService.covered_by_plan,
       quantity: safeQuantity,
     };
   });

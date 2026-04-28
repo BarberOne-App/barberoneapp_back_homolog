@@ -36,17 +36,23 @@ export function resolveServiceCommissionType(service: {
 export function calculateCommission(params: {
   amount: number;
   type: CommissionType;
+  commissionPercent?: number | null;
 }) {
   const amount = Number(params.amount) || 0;
+  const commissionPercent = Number(params.commissionPercent);
+
+  const effectivePercent = Number.isFinite(commissionPercent)
+    ? commissionPercent
+    : getCommissionPercentByType(params.type);
 
   switch (params.type) {
     case "subscription":
-      return roundMoney((amount * 0.5) / 4);
+      return roundMoney(((amount * effectivePercent) / 100) / 4);
     case "chemistry":
-      return roundMoney(amount * 0.4);
+      return roundMoney((amount * effectivePercent) / 100);
     case "single":
     default:
-      return roundMoney(amount * 0.5);
+      return roundMoney((amount * effectivePercent) / 100);
   }
 }
 
