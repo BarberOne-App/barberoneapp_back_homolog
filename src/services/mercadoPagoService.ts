@@ -3,7 +3,6 @@ import { mpPayment, mpPreference, MP_NOTIFICATION_URL } from "../config/mercadop
 import prisma from "../database/database.js";
 import { badRequest, notFound } from "../errors/index.js";
 import { AppError } from "../errors/AppError.js";
-import { syncEmployeeCommissionFromAppointmentPayment } from "./employeePaymentService.js";
 
 /** Extrair mensagem útil de erro do SDK do Mercado Pago */
 function mpError(err: any): never {
@@ -259,13 +258,6 @@ export async function processPayment(input: ProcessPaymentInput) {
 
       // Se aprovado e tem appointment, confirmar agendamento
       if (payment.status === "approved" && tx.appointment_id) {
-        await syncEmployeeCommissionFromAppointmentPayment({
-          barbershopId: input.barbershopId,
-          appointmentId: tx.appointment_id,
-          paidAt: new Date(),
-          actorId: isValidUuid(input.userId) ? input.userId : null,
-        });
-
         await prisma.appointments.update({
           where: { id: tx.appointment_id },
           data: { status: "confirmed", updated_at: new Date() },
@@ -333,13 +325,6 @@ export async function processPayment(input: ProcessPaymentInput) {
             });
 
             if (checkedStatus === "approved" && tx.appointment_id) {
-              await syncEmployeeCommissionFromAppointmentPayment({
-                barbershopId: input.barbershopId,
-                appointmentId: tx.appointment_id,
-                paidAt: new Date(),
-                actorId: isValidUuid(input.userId) ? input.userId : null,
-              });
-
               await prisma.appointments.update({
                 where: { id: tx.appointment_id },
                 data: { status: "confirmed", updated_at: new Date() },
@@ -529,7 +514,6 @@ export async function processWebhookNotification(data: {
       if (!tx) return { processed: false, reason: "transaction_not_found" };
 
       const newStatus = mapMpStatus(mpPay.status ?? "");
-      const becameApproved = tx.status !== newStatus && mpPay.status === "approved";
       const approvedAt = mpPay.status === "approved" ? new Date() : tx.paid_at;
 
       await prisma.payment_transactions.update({
@@ -546,15 +530,6 @@ export async function processWebhookNotification(data: {
 
       // Se pagamento aprovado e tem appointment_id, atualizar status do agendamento
       if (mpPay.status === "approved" && tx.appointment_id) {
-        if (becameApproved) {
-          await syncEmployeeCommissionFromAppointmentPayment({
-            barbershopId: tx.barbershop_id,
-            appointmentId: tx.appointment_id,
-            paidAt: approvedAt,
-            actorId: tx.user_id,
-          });
-        }
-
         await prisma.appointments.update({
           where: { id: tx.appointment_id },
           data: { status: "confirmed", updated_at: new Date() },
