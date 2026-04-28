@@ -182,30 +182,13 @@ export async function listSuperAdminBarbershopsService(params: ListParams) {
         blocked_reason: true,
         blocked_at: true,
         deactivated_at: true,
-        subscriptions: {
-          orderBy: { created_at: "desc" },
-          take: 1,
-          select: {
-            id: true,
-            status: true,
-            created_at: true,
-            next_billing_at: true,
-            subscription_plans: {
-              select: {
-                id: true,
-                name: true,
-                price: true,
-              },
-            },
-          },
-        },
       },
     }),
   ]);
 
   const items = await Promise.all(
     barbershops.map(async (shop) => {
-      const [adminUser, metrics] = await Promise.all([
+      const [adminUser, adminSubscription, metrics] = await Promise.all([
         prisma.users.findFirst({
           where: {
             role: "admin",
@@ -218,6 +201,29 @@ export async function listSuperAdminBarbershopsService(params: ListParams) {
             email: true,
             phone: true,
             created_at: true,
+          },
+        }),
+        // Busca a subscription do admin da barbearia (responsável)
+        prisma.subscriptions.findFirst({
+          where: {
+            barbershop_id: shop.id,
+            users: {
+              role: "admin",
+            },
+          },
+          orderBy: { created_at: "desc" },
+          select: {
+            id: true,
+            status: true,
+            created_at: true,
+            next_billing_at: true,
+            subscription_plans: {
+              select: {
+                id: true,
+                name: true,
+                price: true,
+              },
+            },
           },
         }),
         buildBarbershopMetrics(shop.id),
@@ -236,7 +242,7 @@ export async function listSuperAdminBarbershopsService(params: ListParams) {
         blockedAt: shop.blocked_at,
         deactivatedAt: shop.deactivated_at,
         admin: adminUser,
-        subscription: shop.subscriptions[0] || null,
+        subscription: adminSubscription || null,
         metrics,
       };
     })
@@ -300,7 +306,7 @@ export async function getSuperAdminBarbershopByIdService(barbershopId: string) {
 
   if (!shop) throw notFound("Barbearia não encontrada");
 
-  const [adminUser, metrics] = await Promise.all([
+  const [adminUser, adminSubscription, metrics] = await Promise.all([
     prisma.users.findFirst({
       where: {
         role: "admin",
@@ -315,12 +321,39 @@ export async function getSuperAdminBarbershopByIdService(barbershopId: string) {
         created_at: true,
       },
     }),
+    // Busca a subscription do admin (responsável) da barbearia
+    prisma.subscriptions.findFirst({
+      where: {
+        barbershop_id: barbershopId,
+        users: {
+          role: "admin",
+        },
+      },
+      orderBy: { created_at: "desc" },
+      select: {
+        id: true,
+        status: true,
+        started_at: true,
+        next_billing_at: true,
+        ended_at: true,
+        created_at: true,
+        subscription_plans: {
+          select: {
+            id: true,
+            name: true,
+            price: true,
+            cuts_per_month: true,
+          },
+        },
+      },
+    }),
     buildBarbershopMetrics(barbershopId),
   ]);
 
   return {
     ...shop,
     admin: adminUser,
+    subscription: adminSubscription || null,
     metrics,
   };
 }
