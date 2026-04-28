@@ -6,6 +6,8 @@ import {
     upsertHomeInfoByBarbershop,
 } from "../repository/settingRepository.js";
 
+type PayrollFrequency = "weekly" | "biweekly" | "monthly";
+
 function normalizeHiddenBookingPaymentMethods(value: unknown) {
     if (!Array.isArray(value)) return [];
 
@@ -32,6 +34,33 @@ function normalizeHeroImages(value: unknown): string[] {
     );
 }
 
+function normalizePayrollFrequency(value: unknown): PayrollFrequency | null {
+    const normalized = String(value || "").trim().toLowerCase();
+
+    if (
+        normalized === "weekly" ||
+        normalized === "semanal"
+    ) {
+        return "weekly";
+    }
+
+    if (
+        normalized === "biweekly" ||
+        normalized === "quinzenal"
+    ) {
+        return "biweekly";
+    }
+
+    if (
+        normalized === "monthly" ||
+        normalized === "mensal"
+    ) {
+        return "monthly";
+    }
+
+    return null;
+}
+
 export async function getSettingsService(barbershopId: string) {
     const row = await getSettingsByBarbershop(barbershopId);
     const hiddenBookingPaymentMethods = normalizeHiddenBookingPaymentMethods(
@@ -54,7 +83,9 @@ export async function upsertSettingsService(params: {
     termsDocumentName?: string;
     hiddenBookingPaymentMethods?: string[];
 }) {
-    if (params.actorRole !== "admin") throw forbidden("Apenas admin pode alterar configurações");
+    if (params.actorRole !== "admin") {
+        throw forbidden("Apenas admin pode alterar configurações");
+    }
 
     const hiddenBookingPaymentMethods = normalizeHiddenBookingPaymentMethods(
         params.hiddenBookingPaymentMethods,
@@ -82,13 +113,17 @@ export async function getHomeInfoService(barbershopId: string) {
 
     if (row) {
         const heroImages = normalizeHeroImages((row as any)?.hero_images);
+
         return {
             ...row,
             hero_images: heroImages,
+            barber_payment_frequency:
+                normalizePayrollFrequency((row as any)?.barber_payment_frequency) ?? null,
+            employee_payment_frequency:
+                normalizePayrollFrequency((row as any)?.employee_payment_frequency) ?? null,
         };
     }
 
-    // se ainda não existir, você pode devolver defaults aqui
     return {
         hero_title: "",
         hero_subtitle: "",
@@ -106,18 +141,32 @@ export async function getHomeInfoService(barbershopId: string) {
         location_title: "Localização",
         location_address: "Av. val paraíso,1396",
         location_city: "Jangurussu - Fortaleza/CE",
+        barber_payment_frequency: null,
+        employee_payment_frequency: null,
     };
 }
 
 export async function upsertHomeInfoService(params: {
     barbershopId: string;
-    actorRole: "admin" | "barber" | "client";
-    data: any; // se quiser eu te deixo Joi/Types certinho depois
+    actorRole: "admin" | "barber" | "client" | "receptionist";
+    data: any;
 }) {
-    if (params.actorRole !== "admin") throw forbidden("Apenas admin pode alterar home-info");
+    if (params.actorRole !== "admin") {
+        throw forbidden("Apenas admin pode alterar home-info");
+    }
 
     const heroImages = normalizeHeroImages(params.data?.hero_images);
     const heroImage = String(params.data?.hero_image || "").trim();
+
+    const barberPaymentFrequency = normalizePayrollFrequency(
+        params.data?.barber_payment_frequency ??
+            params.data?.barberPaymentFrequency,
+    );
+
+    const employeePaymentFrequency = normalizePayrollFrequency(
+        params.data?.employee_payment_frequency ??
+            params.data?.employeePaymentFrequency,
+    );
 
     const normalizedData = {
         ...params.data,
@@ -125,7 +174,12 @@ export async function upsertHomeInfoService(params: {
         hero_subtitle: params.data?.hero_subtitle ?? null,
         hero_image: heroImage || heroImages[0] || null,
         hero_images: heroImages,
+        barber_payment_frequency: barberPaymentFrequency,
+        employee_payment_frequency: employeePaymentFrequency,
     };
+
+    delete normalizedData.barberPaymentFrequency;
+    delete normalizedData.employeePaymentFrequency;
 
     return upsertHomeInfoByBarbershop(params.barbershopId, {
         barbershop_id: params.barbershopId,

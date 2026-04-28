@@ -1,14 +1,15 @@
 import prisma from "../database/database.js";
 
-const EMPLOYEE_PAYMENT_INCLUDE = {
-  employee: { select: { id: true, name: true } },
-  creator: { select: { id: true, name: true } },
-} as const;
-
-/* â”€â”€â”€â”€â”€ LIST â”€â”€â”€â”€â”€ */
-export async function listEmployeePayments(barbershopId: string, employeeId?: string) {
+/* ───── LIST ───── */
+export async function listEmployeePayments(
+  barbershopId: string,
+  employeeId?: string
+) {
   const where: any = { barbershop_id: barbershopId };
-  if (employeeId) where.employee_id = employeeId;
+
+  if (employeeId) {
+    where.employee_id = employeeId;
+  }
 
   return prisma.employee_payments.findMany({
     where,
@@ -36,7 +37,30 @@ export async function findEmployeePaymentByPeriod(data: {
   });
 }
 
-/* â”€â”€â”€â”€â”€ CREATE â”€â”€â”€â”€â”€ */
+/* ───── FIND BY PERIOD ───── */
+export async function findEmployeePaymentByPeriod(data: {
+  barbershopId: string;
+  employeeId: string;
+  period: string;
+  periodStart: string;
+  periodEnd: string;
+}) {
+  return prisma.employee_payments.findFirst({
+    where: {
+      barbershop_id: data.barbershopId,
+      employee_id: data.employeeId,
+      period: data.period,
+      period_start: data.periodStart,
+      period_end: data.periodEnd,
+    },
+    include: {
+      employee: { select: { id: true, name: true } },
+      creator: { select: { id: true, name: true } },
+    },
+  });
+}
+
+/* ───── CREATE ───── */
 export async function createEmployeePayment(data: {
   employeeId: string;
   employeeName: string;

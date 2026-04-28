@@ -100,12 +100,18 @@ export async function listEmployeePaymentsService(params: {
   actorRole: string;
   actorId: string;
 }) {
-  if (params.actorRole !== "admin" && params.actorRole !== "barber" && params.actorRole !== "receptionist") {
-    throw forbidden("Sem permissÃ£o para listar pagamentos de funcionÃ¡rios");
+  if (
+    params.actorRole !== "admin" &&
+    params.actorRole !== "barber" &&
+    params.actorRole !== "receptionist"
+  ) {
+    throw forbidden("Sem permissão para listar pagamentos de funcionários");
   }
 
   const employeeId = params.actorRole === "barber" ? params.actorId : undefined;
+
   const items = await listEmployeePayments(params.barbershopId, employeeId);
+
   return items.map(serialize);
 }
 
@@ -134,7 +140,7 @@ export async function createEmployeePaymentService(params: {
 
   if (existingPayment) {
     throw badRequest(
-      "Este funcionÃ¡rio jÃ¡ possui pagamento registrado para este perÃ­odo. NÃ£o Ã© permitido pagar salÃ¡rio e comissÃ£o novamente."
+      "Este funcionário já possui pagamento registrado para este período. Não é permitido pagar salário e comissão novamente."
     );
   }
 
