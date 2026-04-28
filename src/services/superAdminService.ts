@@ -188,35 +188,41 @@ export async function listSuperAdminBarbershopsService(params: ListParams) {
 
   const items = await Promise.all(
     barbershops.map(async (shop) => {
-      const [adminUser, adminSubscription, metrics] = await Promise.all([
-        prisma.users.findFirst({
-          where: {
-            role: "admin",
-            barbershop_links: { some: { barbershop_id: shop.id } },
-          },
-          orderBy: { created_at: "asc" },
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-            created_at: true,
-          },
-        }),
-        // Busca a subscription do admin da barbearia (responsável)
-        prisma.subscriptions.findFirst({
+      // Busca o admin user da barbearia
+      const adminUser = await prisma.users.findFirst({
+        where: {
+          role: "admin",
+          barbershop_links: { some: { barbershop_id: shop.id } },
+        },
+        orderBy: { created_at: "asc" },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          created_at: true,
+        },
+      });
+
+      // Busca a subscription do admin (usando seu user_id) na barbearia
+      let adminSubscription = null;
+      if (adminUser) {
+        adminSubscription = await prisma.subscriptions.findFirst({
           where: {
             barbershop_id: shop.id,
-            users: {
-              role: "admin",
-            },
+            user_id: adminUser.id,
+            status: { in: ["active", "paused"] },
           },
-          orderBy: { created_at: "desc" },
+          orderBy: [
+            { last_billing_at: "desc" },
+            { created_at: "desc" },
+          ],
           select: {
             id: true,
             status: true,
             created_at: true,
             next_billing_at: true,
+            last_billing_at: true,
             subscription_plans: {
               select: {
                 id: true,
@@ -225,9 +231,10 @@ export async function listSuperAdminBarbershopsService(params: ListParams) {
               },
             },
           },
-        }),
-        buildBarbershopMetrics(shop.id),
-      ]);
+        });
+      }
+
+      const metrics = await buildBarbershopMetrics(shop.id);
 
       return {
         id: shop.id,
@@ -306,30 +313,35 @@ export async function getSuperAdminBarbershopByIdService(barbershopId: string) {
 
   if (!shop) throw notFound("Barbearia não encontrada");
 
-  const [adminUser, adminSubscription, metrics] = await Promise.all([
-    prisma.users.findFirst({
-      where: {
-        role: "admin",
-        barbershop_links: { some: { barbershop_id: barbershopId } },
-      },
-      orderBy: { created_at: "asc" },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        created_at: true,
-      },
-    }),
-    // Busca a subscription do admin (responsável) da barbearia
-    prisma.subscriptions.findFirst({
+  // Busca o admin user da barbearia
+  const adminUser = await prisma.users.findFirst({
+    where: {
+      role: "admin",
+      barbershop_links: { some: { barbershop_id: barbershopId } },
+    },
+    orderBy: { created_at: "asc" },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      created_at: true,
+    },
+  });
+
+  // Busca a subscription do admin (usando seu user_id) na barbearia
+  let adminSubscription = null;
+  if (adminUser) {
+    adminSubscription = await prisma.subscriptions.findFirst({
       where: {
         barbershop_id: barbershopId,
-        users: {
-          role: "admin",
-        },
+        user_id: adminUser.id,
+        status: { in: ["active", "paused"] },
       },
-      orderBy: { created_at: "desc" },
+      orderBy: [
+        { last_billing_at: "desc" },
+        { created_at: "desc" },
+      ],
       select: {
         id: true,
         status: true,
@@ -346,9 +358,10 @@ export async function getSuperAdminBarbershopByIdService(barbershopId: string) {
           },
         },
       },
-    }),
-    buildBarbershopMetrics(barbershopId),
-  ]);
+    });
+  }
+
+  const metrics = await buildBarbershopMetrics(barbershopId);
 
   return {
     ...shop,
