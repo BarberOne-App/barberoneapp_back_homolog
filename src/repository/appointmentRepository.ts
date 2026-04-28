@@ -33,6 +33,8 @@ const appointmentSelect = {
       quantity: true,
       services: {
         select: {
+          comission_percent: true,
+          covered_by_plan: true,
           covered_by_plan: true,
           comission_percent: true,
         },

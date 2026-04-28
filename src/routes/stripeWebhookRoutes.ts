@@ -6,6 +6,7 @@ import prisma from "../database/database.js";
 import { requireAuth } from "../middleware/authMiddleware.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { getMyActiveSubscription } from "../controllers/stripeController.js";
+import { syncEmployeeCommissionFromAppointmentPayment } from "../services/employeePaymentService.js";
 
 const router = Router();
 
@@ -292,10 +293,21 @@ async function upsertAppointmentPaymentFromIntent(intent: Stripe.PaymentIntent, 
     };
 
     if (existing) {
+        const becamePaid = existing.status !== "paid" && status === "paid";
+
         await prisma.payment_transactions.update({
             where: { id: existing.id },
             data,
         });
+
+        if (becamePaid) {
+            await syncEmployeeCommissionFromAppointmentPayment({
+                barbershopId,
+                appointmentId,
+                paidAt: status === "paid" ? new Date() : null,
+                actorId: userId || null,
+            });
+        }
         return;
     }
 
@@ -317,6 +329,15 @@ async function upsertAppointmentPaymentFromIntent(intent: Stripe.PaymentIntent, 
     };
 
     await prisma.payment_transactions.create({ data: createData });
+
+    if (status === "paid") {
+        await syncEmployeeCommissionFromAppointmentPayment({
+            barbershopId,
+            appointmentId,
+            paidAt: new Date(),
+            actorId: userId || null,
+        });
+    }
 }
 
 router.post(

@@ -1,12 +1,11 @@
 import { notFound } from "../errors/index.js";
+import { syncEmployeeCommissionFromAppointmentPayment } from "./employeePaymentService.js";
 import {
   createPaymentInBarbershop,
   findPaymentByIdInBarbershop,
   listPaymentsInBarbershop,
   updatePaymentInBarbershop,
 } from "../repository/paymentRepository.js";
-
-/* ────────── helpers ────────── */
 
 function decimalToNumber(v: any): number {
   if (v == null) return 0;
@@ -55,7 +54,10 @@ function serialize(p: any) {
   };
 }
 
-/* ═══════════ PAYMENTS (subscription) ═══════════ */
+function isSettledPaymentStatus(status: string | undefined | null) {
+  const normalized = String(status ?? "").trim().toLowerCase();
+  return normalized === "paid" || normalized === "approved";
+}
 
 export async function listPaymentsService(params: {
   barbershopId: string;
@@ -95,7 +97,7 @@ export async function getPaymentByIdService(params: {
   paymentId: string;
 }) {
   const p = await findPaymentByIdInBarbershop(params.barbershopId, params.paymentId);
-  if (!p) throw notFound("Pagamento não encontrado");
+  if (!p) throw notFound("Pagamento nÃ£o encontrado");
   return serialize(p);
 }
 
@@ -121,8 +123,6 @@ export async function createPaymentService(params: {
   });
   return serialize(created);
 }
-
-/* ═══════════ APPOINTMENT PAYMENTS ═══════════ */
 
 export async function listAppointmentPaymentsService(params: {
   barbershopId: string;
@@ -179,6 +179,7 @@ export async function createAppointmentPaymentService(params: {
 export async function updatePaymentService(params: {
   barbershopId: string;
   paymentId: string;
+  actorId: string;
   data: {
     status?: string;
     method?: string;
@@ -186,6 +187,9 @@ export async function updatePaymentService(params: {
     noShow?: boolean;
   };
 }) {
+  const existing = await findPaymentByIdInBarbershop(params.barbershopId, params.paymentId);
+  if (!existing) throw notFound("Pagamento nÃ£o encontrado");
+
   const updateData: any = {};
   if (params.data.status !== undefined) updateData.status = params.data.status;
   if (params.data.method !== undefined) updateData.method = params.data.method;
@@ -194,7 +198,6 @@ export async function updatePaymentService(params: {
     updateData.status_raw = params.data.noShow ? "no_show" : null;
   }
 
-  // Se marcado como "paid" e não tem paidAt, setar agora
   if (params.data.status === "paid" && !params.data.paidAt) {
     updateData.paid_at = new Date();
   }
@@ -204,6 +207,19 @@ export async function updatePaymentService(params: {
     params.paymentId,
     updateData
   );
-  if (!updated) throw notFound("Pagamento não encontrado");
+  if (!updated) throw notFound("Pagamento nÃ£o encontrado");
+
+  const becameSettled =
+    !isSettledPaymentStatus(existing.status) && isSettledPaymentStatus(updated.status);
+
+  if (becameSettled && updated.appointment_id) {
+    await syncEmployeeCommissionFromAppointmentPayment({
+      barbershopId: params.barbershopId,
+      appointmentId: updated.appointment_id,
+      paidAt: updated.paid_at,
+      actorId: params.actorId,
+    });
+  }
+
   return serialize(updated);
 }

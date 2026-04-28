@@ -115,6 +115,7 @@ export async function updatePayment(req: Request, res: Response) {
   const result = await updatePaymentService({
     barbershopId: req.user!.barbershopId,
     paymentId: req.params.id,
+    actorId: req.user!.id,
     data: b.value,
   });
 
