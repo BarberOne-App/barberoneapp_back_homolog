@@ -31,6 +31,12 @@ const appointmentSelect = {
       unit_price: true,
       duration_minutes: true,
       quantity: true,
+      services: {
+        select: {
+          covered_by_plan: true,
+          comission_percent: true,
+        },
+      },
     },
   },
   appointment_products: {

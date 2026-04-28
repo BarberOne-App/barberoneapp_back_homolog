@@ -15,6 +15,11 @@ import {
 } from "../repository/barberRepository.js";
 import { getHomeInfoByBarbershop } from "../repository/settingRepository.js";
 import { findActiveSubscriptionByUser } from "../repository/subscriptionRepository.js";
+import {
+  calculateCommission,
+  getCommissionPercentByType,
+  resolveServiceCommissionType,
+} from "./commissionService.js";
 import { sendAppointmentConfirmedEmail } from "./emailService.js";
 
 /* ─────────────────── helpers ─────────────────── */
@@ -67,6 +72,61 @@ function buildSaoPauloDateTime(date: string, time: string) {
 }
 
 function serializeAppointment(a: any) {
+  const services = (a.appointment_services ?? []).map((s: any) => {
+    const unitPrice = decimalToNumber(s.unit_price);
+    const quantity = Number(s.quantity ?? 1);
+    const safeQuantity = Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
+    const totalPrice = unitPrice * safeQuantity;
+    const commissionType = resolveServiceCommissionType({
+      coveredByPlan: s.services?.covered_by_plan,
+      commissionPercent: decimalToNumber(s.services?.comission_percent),
+      serviceName: s.service_name,
+    });
+    const commissionAmount = calculateCommission({
+      amount: totalPrice,
+      type: commissionType,
+    });
+
+    return {
+      id: s.id,
+      serviceId: s.service_id,
+      serviceName: s.service_name,
+      unitPrice,
+      durationMinutes: s.duration_minutes,
+      quantity: safeQuantity,
+      totalPrice,
+      commissionType,
+      commissionPercent: getCommissionPercentByType(commissionType),
+      commissionAmount,
+    };
+  });
+
+  const products = (a.appointment_products ?? []).map((p: any) => {
+    const unitPrice = decimalToNumber(p.unit_price);
+    const quantity = Number(p.quantity ?? 1);
+    const safeQuantity = Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
+    const discountPercent = Number(p.discount_percent ?? 0);
+    const grossTotal = unitPrice * safeQuantity;
+    const netTotal = grossTotal - grossTotal * (discountPercent / 100);
+
+    return {
+      id: p.id,
+      productId: p.product_id,
+      productName: p.product_name,
+      unitPrice,
+      discountPercent,
+      quantity: safeQuantity,
+      totalPrice: Math.round(netTotal * 100) / 100,
+    };
+  });
+
+  const servicesTotal = services.reduce((sum: number, service: any) => sum + service.totalPrice, 0);
+  const productsTotal = products.reduce((sum: number, product: any) => sum + product.totalPrice, 0);
+  const commissionAmount = services.reduce(
+    (sum: number, service: any) => sum + service.commissionAmount,
+    0,
+  );
+
   return {
     id: a.id,
     barberId: a.barber_id,
@@ -101,22 +161,12 @@ function serializeAppointment(a: any) {
           age: a.dependents.age,
         }
       : null,
-    services: (a.appointment_services ?? []).map((s: any) => ({
-      id: s.id,
-      serviceId: s.service_id,
-      serviceName: s.service_name,
-      unitPrice: decimalToNumber(s.unit_price),
-      durationMinutes: s.duration_minutes,
-      quantity: s.quantity,
-    })),
-    products: (a.appointment_products ?? []).map((p: any) => ({
-      id: p.id,
-      productId: p.product_id,
-      productName: p.product_name,
-      unitPrice: decimalToNumber(p.unit_price),
-      discountPercent: p.discount_percent,
-      quantity: p.quantity,
-    })),
+    services,
+    products,
+    servicesTotal: Math.round(servicesTotal * 100) / 100,
+    productsTotal: Math.round(productsTotal * 100) / 100,
+    totalAmount: Math.round((servicesTotal + productsTotal) * 100) / 100,
+    commissionAmount: Math.round(commissionAmount * 100) / 100,
   };
 }
 
