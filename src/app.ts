@@ -857,7 +857,7 @@ app.get('/stripe/platform-subscriptions/by-email', optionalAuth, async (req, res
                 customer: customer.id,
                 status: 'all',
                 limit: 100,
-                expand: ['data.items.data.price.product'],
+                expand: ['data.items'],
             });
 
             for (const sub of subs.data) {
