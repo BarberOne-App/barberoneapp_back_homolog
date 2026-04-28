@@ -1,10 +1,10 @@
+import { badRequest, forbidden } from "../errors/index.js";
 import {
   createEmployeePayment,
+  findEmployeePaymentByPeriod,
   listEmployeePayments,
 } from "../repository/employeePaymentRepository.js";
-import { forbidden } from "../errors/index.js";
 
-/* ─────────────── helpers ─────────────── */
 function serialize(payment: any) {
   return {
     id: payment.id,
@@ -24,22 +24,26 @@ function serialize(payment: any) {
   };
 }
 
-/* ───────── LIST ───────── */
 export async function listEmployeePaymentsService(params: {
   barbershopId: string;
   actorRole: string;
   actorId: string;
 }) {
-  if (params.actorRole !== "admin" && params.actorRole !== "barber" && params.actorRole !== "receptionist") {
+  if (
+    params.actorRole !== "admin" &&
+    params.actorRole !== "barber" &&
+    params.actorRole !== "receptionist"
+  ) {
     throw forbidden("Sem permissão para listar pagamentos de funcionários");
   }
 
   const employeeId = params.actorRole === "barber" ? params.actorId : undefined;
+
   const items = await listEmployeePayments(params.barbershopId, employeeId);
+
   return items.map(serialize);
 }
 
-/* ───────── CREATE ───────── */
 export async function createEmployeePaymentService(params: {
   barbershopId: string;
   actorId: string;
@@ -55,6 +59,20 @@ export async function createEmployeePaymentService(params: {
     liquido: number;
   };
 }) {
+  const existingPayment = await findEmployeePaymentByPeriod({
+    barbershopId: params.barbershopId,
+    employeeId: params.data.employeeId,
+    period: params.data.period,
+    periodStart: params.data.periodStart,
+    periodEnd: params.data.periodEnd,
+  });
+
+  if (existingPayment) {
+    throw badRequest(
+      "Este funcionário já possui pagamento registrado para este período. Não é permitido pagar salário e comissão novamente."
+    );
+  }
+
   const created = await createEmployeePayment({
     employeeId: params.data.employeeId,
     employeeName: params.data.employeeName,

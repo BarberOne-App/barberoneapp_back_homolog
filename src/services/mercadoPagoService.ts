@@ -243,10 +243,10 @@ export async function processPayment(input: ProcessPaymentInput) {
   // Atualizar registro local (se existir) com dados do MP
   const newStatus = mapMpStatus(payment.status ?? "");
 
-  if (tx) {
-    await prisma.payment_transactions.update({
-      where: { id: tx.id },
-      data: {
+    if (tx) {
+      await prisma.payment_transactions.update({
+        where: { id: tx.id },
+        data: {
         mp_payment_id: String(payment.id),
         status: newStatus as any,
         status_raw: payment.status,
@@ -256,13 +256,13 @@ export async function processPayment(input: ProcessPaymentInput) {
       },
     });
 
-    // Se aprovado e tem appointment, confirmar agendamento
-    if (payment.status === "approved" && tx.appointment_id) {
-      await prisma.appointments.update({
-        where: { id: tx.appointment_id },
-        data: { status: "confirmed", updated_at: new Date() },
-      }).catch(() => {});
-    }
+      // Se aprovado e tem appointment, confirmar agendamento
+      if (payment.status === "approved" && tx.appointment_id) {
+        await prisma.appointments.update({
+          where: { id: tx.appointment_id },
+          data: { status: "confirmed", updated_at: new Date() },
+        }).catch(() => {});
+      }
   }
 
   // Montar resposta baseada no tipo de pagamento
@@ -514,6 +514,7 @@ export async function processWebhookNotification(data: {
       if (!tx) return { processed: false, reason: "transaction_not_found" };
 
       const newStatus = mapMpStatus(mpPay.status ?? "");
+      const approvedAt = mpPay.status === "approved" ? new Date() : tx.paid_at;
 
       await prisma.payment_transactions.update({
         where: { id: tx.id },
@@ -522,7 +523,7 @@ export async function processWebhookNotification(data: {
           status: newStatus as any,
           status_raw: mpPay.status,
           method: mapMpPaymentMethod(mpPay.payment_method_id ?? ""),
-          paid_at: mpPay.status === "approved" ? new Date() : tx.paid_at,
+          paid_at: approvedAt,
           updated_at: new Date(),
         },
       });

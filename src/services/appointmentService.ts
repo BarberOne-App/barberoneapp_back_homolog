@@ -1,3 +1,4 @@
+﻿import prisma from "../database/database.js";
 import { badRequest, forbidden, notFound } from "../errors/index.js";
 import {
   cancelAppointmentInBarbershop,
@@ -14,6 +15,11 @@ import {
 } from "../repository/barberRepository.js";
 import { getHomeInfoByBarbershop } from "../repository/settingRepository.js";
 import { findActiveSubscriptionByUser } from "../repository/subscriptionRepository.js";
+import {
+  calculateCommission,
+  getCommissionPercentByType,
+  resolveServiceCommissionType,
+} from "./commissionService.js";
 import { sendAppointmentConfirmedEmail } from "./emailService.js";
 
 /* ─────────────────── helpers ─────────────────── */
@@ -54,6 +60,7 @@ function getSaoPauloTimeParts(date: Date | string) {
   });
 
   const [hourStr, minuteStr] = formatter.format(value).split(":");
+
   return {
     hour: Number(hourStr),
     minute: Number(minuteStr),
@@ -65,6 +72,66 @@ function buildSaoPauloDateTime(date: string, time: string) {
 }
 
 function serializeAppointment(a: any) {
+  const services = (a.appointment_services ?? []).map((s: any) => {
+    const unitPrice = decimalToNumber(s.unit_price);
+    const quantity = Number(s.quantity ?? 1);
+    const safeQuantity = Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
+    const totalPrice = unitPrice * safeQuantity;
+    const rawCommissionPercent = decimalToNumber(
+      s.services?.comission_percent ?? s.services?.commission_percent,
+    );
+    const commissionType = resolveServiceCommissionType({
+      coveredByPlan: s.services?.covered_by_plan,
+      commissionPercent: rawCommissionPercent,
+      serviceName: s.service_name,
+    });
+    const commissionAmount = calculateCommission({
+      amount: totalPrice,
+      type: commissionType,
+      commissionPercent: rawCommissionPercent,
+    });
+
+    return {
+      id: s.id,
+      serviceId: s.service_id,
+      serviceName: s.service_name,
+      unitPrice,
+      durationMinutes: s.duration_minutes,
+      quantity: safeQuantity,
+      totalPrice,
+      commissionType,
+      commissionPercent: rawCommissionPercent || getCommissionPercentByType(commissionType),
+      commission_percent: rawCommissionPercent || getCommissionPercentByType(commissionType),
+      commissionAmount,
+    };
+  });
+
+  const products = (a.appointment_products ?? []).map((p: any) => {
+    const unitPrice = decimalToNumber(p.unit_price);
+    const quantity = Number(p.quantity ?? 1);
+    const safeQuantity = Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
+    const discountPercent = Number(p.discount_percent ?? 0);
+    const grossTotal = unitPrice * safeQuantity;
+    const netTotal = grossTotal - grossTotal * (discountPercent / 100);
+
+    return {
+      id: p.id,
+      productId: p.product_id,
+      productName: p.product_name,
+      unitPrice,
+      discountPercent,
+      quantity: safeQuantity,
+      totalPrice: Math.round(netTotal * 100) / 100,
+    };
+  });
+
+  const servicesTotal = services.reduce((sum: number, service: any) => sum + service.totalPrice, 0);
+  const productsTotal = products.reduce((sum: number, product: any) => sum + product.totalPrice, 0);
+  const commissionAmount = services.reduce(
+    (sum: number, service: any) => sum + service.commissionAmount,
+    0,
+  );
+
   return {
     id: a.id,
     barberId: a.barber_id,
@@ -78,37 +145,43 @@ function serializeAppointment(a: any) {
     createdAt: a.created_at,
     updatedAt: a.updated_at,
     barber: a.barbers
-      ? { id: a.barbers.id, displayName: a.barbers.display_name, photoUrl: a.barbers.photo_url }
+      ? {
+          id: a.barbers.id,
+          displayName: a.barbers.display_name,
+          photoUrl: a.barbers.photo_url,
+        }
       : null,
     client: a.users
-      ? { id: a.users.id, name: a.users.name, email: a.users.email, phone: a.users.phone }
+      ? {
+          id: a.users.id,
+          name: a.users.name,
+          email: a.users.email,
+          phone: a.users.phone,
+        }
       : null,
     dependent: a.dependents
-      ? { id: a.dependents.id, name: a.dependents.name, age: a.dependents.age }
+      ? {
+          id: a.dependents.id,
+          name: a.dependents.name,
+          age: a.dependents.age,
+        }
       : null,
-    services: (a.appointment_services ?? []).map((s: any) => ({
-      id: s.id,
-      serviceId: s.service_id,
-      serviceName: s.service_name,
-      unitPrice: decimalToNumber(s.unit_price),
-      durationMinutes: s.duration_minutes,
-      quantity: s.quantity,
-    })),
-    products: (a.appointment_products ?? []).map((p: any) => ({
-      id: p.id,
-      productId: p.product_id,
-      productName: p.product_name,
-      unitPrice: decimalToNumber(p.unit_price),
-      discountPercent: p.discount_percent,
-      quantity: p.quantity,
-    })),
+    services,
+    products,
+    servicesTotal: Math.round(servicesTotal * 100) / 100,
+    productsTotal: Math.round(productsTotal * 100) / 100,
+    totalAmount: Math.round((servicesTotal + productsTotal) * 100) / 100,
+    commissionPercent:
+      services.length === 1 ? services[0].commissionPercent : null,
+    commissionAmount: Math.round(commissionAmount * 100) / 100,
   };
 }
 
-/* ── Horário de funcionamento padrão (configurável futuramente) ── */
-const OPEN_HOUR = 9; // 09:00
-const CLOSE_HOUR = 20; // 20:00
-const SLOT_STEP = 30; // agenda trabalha em blocos de 30 minutos
+/* ── Horário de funcionamento padrão ── */
+
+const OPEN_HOUR = 9;
+const CLOSE_HOUR = 20;
+const SLOT_STEP = 30;
 
 function normalizeText(value: string) {
   return String(value || "")
@@ -120,10 +193,12 @@ function normalizeText(value: string) {
 function parseTimeToMinutes(raw: string) {
   const value = normalizeText(raw).replace(/\s+/g, "");
   const match = value.match(/^(\d{1,2})(?::?(\d{2}))?h?$/);
+
   if (!match) return null;
 
   const hour = Number(match[1]);
   const minute = match[2] ? Number(match[2]) : 0;
+
   if (Number.isNaN(hour) || Number.isNaN(minute)) return null;
   if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
 
@@ -134,14 +209,14 @@ function getSaoPauloNow() {
   const now = new Date();
 
   const dateFormatter = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Sao_Paulo",
+    timeZone: SAO_PAULO_TIME_ZONE,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
   });
 
   const timeFormatter = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "America/Sao_Paulo",
+    timeZone: SAO_PAULO_TIME_ZONE,
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
@@ -157,11 +232,15 @@ function getSaoPauloNow() {
 function extractTimeRangeFromLine(line: string) {
   const normalized = normalizeText(line);
   const timeRegex = /(\d{1,2}(?::\d{2})?\s*h?)/g;
-  const times = [...normalized.matchAll(timeRegex)].map((m) => m[1]).filter(Boolean);
+  const times = [...normalized.matchAll(timeRegex)]
+    .map((m) => m[1])
+    .filter(Boolean);
+
   if (times.length < 2) return null;
 
   const start = parseTimeToMinutes(times[0]);
   const end = parseTimeToMinutes(times[1]);
+
   if (start == null || end == null || end <= start) return null;
 
   return { start, end };
@@ -169,6 +248,7 @@ function extractTimeRangeFromLine(line: string) {
 
 function dayTokenToWeekday(token: string): number | null {
   const t = normalizeText(token);
+
   if (t.startsWith("dom")) return 0;
   if (t.startsWith("seg")) return 1;
   if (t.startsWith("ter")) return 2;
@@ -176,14 +256,18 @@ function dayTokenToWeekday(token: string): number | null {
   if (t.startsWith("qui")) return 4;
   if (t.startsWith("sex")) return 5;
   if (t.startsWith("sab")) return 6;
+
   return null;
 }
 
 function lineAppliesToWeekday(line: string, weekday: number) {
   const normalized = normalizeText(line);
-  const dayRegex = /(domingo|dom|segunda|seg|terca|ter|quarta|qua|quinta|qui|sexta|sex|sabado|sab)/g;
+  const dayRegex =
+    /(domingo|dom|segunda|seg|terca|ter|quarta|qua|quinta|qui|sexta|sex|sabado|sab)/g;
+
   const tokens = [...normalized.matchAll(dayRegex)].map((m) => m[1]);
   const days: number[] = [];
+
   for (const token of tokens) {
     const day = dayTokenToWeekday(token);
     if (day !== null) days.push(day);
@@ -194,7 +278,9 @@ function lineAppliesToWeekday(line: string, weekday: number) {
   if (days.length >= 2 && /(\sa\s|ate)/.test(normalized)) {
     const start = days[0]!;
     const end = days[1]!;
+
     if (start <= end) return weekday >= start && weekday <= end;
+
     return weekday >= start || weekday <= end;
   }
 
@@ -206,20 +292,23 @@ async function getOpeningWindowFromHomeInfo(barbershopId: string, date: string) 
   const target = new Date(`${date}T12:00:00`);
   const weekday = target.getUTCDay();
 
-  const lines = [row?.schedule_line1, row?.schedule_line2, row?.schedule_line3].filter(Boolean) as string[];
+  const lines = [
+    row?.schedule_line1,
+    row?.schedule_line2,
+    row?.schedule_line3,
+  ].filter(Boolean) as string[];
 
   for (const line of lines) {
     if (!lineAppliesToWeekday(line, weekday)) continue;
 
     const normalized = normalizeText(line);
+
     if (normalized.includes("fechado") || normalized.includes("closed")) {
       return null;
     }
 
     const range = extractTimeRangeFromLine(line);
-    if (range) {
-      return range;
-    }
+    if (range) return range;
   }
 
   return { start: OPEN_HOUR * 60, end: CLOSE_HOUR * 60 };
@@ -227,6 +316,7 @@ async function getOpeningWindowFromHomeInfo(barbershopId: string, date: string) 
 
 function isCompletedStatus(status: string | undefined | null) {
   const normalized = normalizeText(String(status ?? ""));
+
   return [
     "completed",
     "complete",
@@ -241,7 +331,9 @@ function isCompletedStatus(status: string | undefined | null) {
 
 function toValidDate(value: any): Date | null {
   if (!value) return null;
+
   const date = value instanceof Date ? value : new Date(value);
+
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
@@ -279,17 +371,81 @@ function canChangeMonthlyBarber(subscription: any, appointmentStartAt: Date) {
   }
 
   const renewalDate = getSubscriptionRenewalDate(subscription);
+
   if (renewalDate && renewalDate.getTime() > lockDate.getTime()) {
     return { allowed: true, reason: null as string | null };
   }
 
   return {
     allowed: false,
-    reason: "Só é possível trocar de barbeiro após 30 dias da vinculação ou após a renovação do plano",
+    reason:
+      "Só é possível trocar de barbeiro após 30 dias da vinculação ou após a renovação do plano",
   };
 }
 
+async function getNormalizedAppointmentServices(params: {
+  barbershopId: string;
+  services: {
+    id: string;
+    name?: string;
+    basePrice?: number;
+    duration?: number;
+    durationMinutes?: number;
+    duration_minutes?: number;
+    quantity?: number;
+  }[];
+}) {
+  if (!Array.isArray(params.services) || params.services.length === 0) {
+    throw badRequest("Selecione pelo menos um serviço");
+  }
+
+  const serviceIds = params.services.map((service) => service.id).filter(Boolean);
+
+  if (serviceIds.length !== params.services.length) {
+    throw badRequest("Um ou mais serviços selecionados são inválidos");
+  }
+
+  const dbServices = await prisma.services.findMany({
+    where: {
+      id: {
+        in: serviceIds,
+      },
+      barbershop_id: params.barbershopId,
+    },
+  });
+
+  if (dbServices.length !== new Set(serviceIds).size) {
+    throw badRequest("Um ou mais serviços selecionados são inválidos");
+  }
+
+  const servicesById = new Map(dbServices.map((service: any) => [service.id, service]));
+
+  return params.services.map((service) => {
+    const dbService: any = servicesById.get(service.id);
+
+    if (!dbService) {
+      throw badRequest("Serviço inválido");
+    }
+
+    const quantity = Number(service.quantity ?? 1);
+    const safeQuantity = Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
+
+    return {
+      serviceId: dbService.id,
+      serviceName: dbService.name,
+      unitPrice: decimalToNumber(dbService.base_price),
+      durationMinutes: getServiceDurationMinutes(dbService),
+      commissionPercent: decimalToNumber(
+        dbService.comission_percent ?? dbService.commission_percent,
+      ),
+      coveredByPlan: !!dbService.covered_by_plan,
+      quantity: safeQuantity,
+    };
+  });
+}
+
 /* ─────────────────────────── LIST ─────────────────────────── */
+
 export async function listAppointmentsService(params: {
   barbershopId: string;
   actorRole: string;
@@ -306,6 +462,7 @@ export async function listAppointmentsService(params: {
   };
 }) {
   const shouldReturnAll = String(params.query.allAppointments).toLowerCase() === "true";
+
   if (shouldReturnAll) {
     const page = params.query.page ?? 1;
     const limit = params.query.limit ?? 100;
@@ -330,18 +487,17 @@ export async function listAppointmentsService(params: {
   }
 
   let clientId = params.query.clientId;
+
   if (params.actorRole === "client") {
     clientId = params.actorId;
   }
-
-  const barberId = params.query.barberId;
 
   const page = params.query.page ?? 1;
   const limit = params.query.limit ?? 100;
 
   const { items, total } = await listAppointmentsInBarbershop({
     barbershopId: params.barbershopId,
-    barberId,
+    barberId: params.query.barberId,
     clientId,
     status: params.query.status,
     dateFrom: params.query.dateFrom,
@@ -359,16 +515,23 @@ export async function listAppointmentsService(params: {
 }
 
 /* ────────────────────────── GET BY ID ────────────────────────── */
+
 export async function getAppointmentByIdService(params: {
   barbershopId: string;
   appointmentId: string;
 }) {
-  const appt = await findAppointmentByIdInBarbershop(params.barbershopId, params.appointmentId);
+  const appt = await findAppointmentByIdInBarbershop(
+    params.barbershopId,
+    params.appointmentId,
+  );
+
   if (!appt) throw notFound("Agendamento não encontrado");
+
   return serializeAppointment(appt);
 }
 
 /* ────────────────────────── CREATE ────────────────────────── */
+
 export async function createAppointmentService(params: {
   barbershopId: string;
   data: {
@@ -380,24 +543,36 @@ export async function createAppointmentService(params: {
     notes?: string | null;
     services: {
       id: string;
-      name: string;
-      basePrice: number;
+      name?: string;
+      basePrice?: number;
       duration?: number;
       durationMinutes?: number;
       duration_minutes?: number;
       quantity?: number;
     }[];
-    products: { id: string; name: string; price: number; quantity?: number; discount?: number }[];
+    products: {
+      id: string;
+      name: string;
+      price: number;
+      quantity?: number;
+      discount?: number;
+    }[];
   };
 }) {
   const { barberId, clientId, dependentId, date, time, services, products } = params.data;
 
   const barber = await findBarberByIdInBarbershop(params.barbershopId, barberId);
+
   if (!barber) throw notFound("Barbeiro não encontrado");
 
-  const totalDuration = services.reduce(
-    (sum, s) => sum + getServiceDurationMinutes(s) * (s.quantity ?? 1),
-    0
+  const normalizedServices = await getNormalizedAppointmentServices({
+    barbershopId: params.barbershopId,
+    services,
+  });
+
+  const totalDuration = normalizedServices.reduce(
+    (sum, service) => sum + service.durationMinutes * service.quantity,
+    0,
   );
 
   if (!Number.isFinite(totalDuration) || totalDuration <= 0) {
@@ -407,6 +582,7 @@ export async function createAppointmentService(params: {
   const blockedDuration = roundUpToScheduleBlock(totalDuration);
 
   const startAt = buildSaoPauloDateTime(date, time);
+
   if (Number.isNaN(startAt.getTime())) {
     throw badRequest("Data ou horário inválidos");
   }
@@ -415,14 +591,19 @@ export async function createAppointmentService(params: {
 
   const startMinutes = parseTimeToMinutes(time);
   const { todayStr, nowMinutes } = getSaoPauloNow();
+
   const isPastDate = date < todayStr;
-  const isPastTimeToday = date === todayStr && startMinutes != null && startMinutes <= nowMinutes;
+  const isPastTimeToday =
+    date === todayStr && startMinutes != null && startMinutes <= nowMinutes;
 
   if (isPastDate || isPastTimeToday) {
     throw badRequest("Não é possível agendar no passado");
   }
 
-  const activeSubscription = await findActiveSubscriptionByUser(params.barbershopId, clientId);
+  const activeSubscription = await findActiveSubscriptionByUser(
+    params.barbershopId,
+    clientId,
+  );
 
   if (
     activeSubscription?.monthly_barber_id &&
@@ -435,10 +616,16 @@ export async function createAppointmentService(params: {
     }
   }
 
-  const existing = await getBarberAppointmentsForDate(params.barbershopId, barberId, date);
+  const existing = await getBarberAppointmentsForDate(
+    params.barbershopId,
+    barberId,
+    date,
+  );
+
   const hasConflict = existing.some((appt) => {
     const existStart = new Date(appt.start_at).getTime();
     const existEnd = new Date(appt.end_at).getTime();
+
     const newStart = startAt.getTime();
     const newEnd = endAt.getTime();
 
@@ -468,19 +655,13 @@ export async function createAppointmentService(params: {
     startAt,
     endAt,
     notes: params.data.notes,
-    services: services.map((s) => ({
-      serviceId: s.id,
-      serviceName: s.name,
-      unitPrice: s.basePrice,
-      durationMinutes: getServiceDurationMinutes(s),
-      quantity: s.quantity ?? 1,
-    })),
-    products: (products ?? []).map((p) => ({
-      productId: p.id,
-      productName: p.name,
-      unitPrice: p.price,
-      discountPercent: p.discount ?? 0,
-      quantity: p.quantity ?? 1,
+    services: normalizedServices,
+    products: (products ?? []).map((product) => ({
+      productId: product.id,
+      productName: product.name,
+      unitPrice: product.price,
+      discountPercent: product.discount ?? 0,
+      quantity: product.quantity ?? 1,
     })),
   });
 
@@ -488,6 +669,7 @@ export async function createAppointmentService(params: {
 }
 
 /* ────────────────────────── UPDATE ────────────────────────── */
+
 export async function updateAppointmentService(params: {
   barbershopId: string;
   actorRole: string;
@@ -502,12 +684,17 @@ export async function updateAppointmentService(params: {
 }) {
   const isAdmin = params.actorRole === "admin" || !!params.actorIsAdmin;
   const isReceptionist = params.actorRole === "receptionist";
-  const actorBarber = await findBarberByUserIdInBarbershop(params.barbershopId, params.actorId);
+
+  const actorBarber = await findBarberByUserIdInBarbershop(
+    params.barbershopId,
+    params.actorId,
+  );
 
   const existingAppointment = await findAppointmentByIdInBarbershop(
     params.barbershopId,
-    params.appointmentId
+    params.appointmentId,
   );
+
   if (!existingAppointment) throw notFound("Agendamento não encontrado");
 
   const isOwnBarberAppointment =
@@ -525,11 +712,13 @@ export async function updateAppointmentService(params: {
 
     if (!currentStatusIsCompleted && nextStatusIsCompleted) {
       const appointmentStartAt = new Date(existingAppointment.start_at);
+
       if (Number.isNaN(appointmentStartAt.getTime())) {
         throw badRequest("Data do agendamento inválida para finalização");
       }
 
       const now = new Date();
+
       if (now.getTime() < appointmentStartAt.getTime()) {
         throw badRequest("Não é permitido finalizar antes da data e horário do agendamento");
       }
@@ -543,24 +732,31 @@ export async function updateAppointmentService(params: {
   }
 
   if (params.data.barberId !== undefined) {
-    const barber = await findBarberByIdInBarbershop(params.barbershopId, params.data.barberId);
+    const barber = await findBarberByIdInBarbershop(
+      params.barbershopId,
+      params.data.barberId,
+    );
+
     if (!barber) throw notFound("Barbeiro não encontrado");
 
     const appointmentClientId = existingAppointment.client_id;
+
     if (appointmentClientId && params.data.barberId !== existingAppointment.barber_id) {
       const activeSubscription = await findActiveSubscriptionByUser(
         params.barbershopId,
-        appointmentClientId
+        appointmentClientId,
       );
 
       if (
         activeSubscription?.monthly_barber_id &&
         activeSubscription.monthly_barber_id !== params.data.barberId
       ) {
-        const currentAppointmentStartAt = toValidDate(existingAppointment.start_at) ?? new Date();
+        const currentAppointmentStartAt =
+          toValidDate(existingAppointment.start_at) ?? new Date();
+
         const barberChangeValidation = canChangeMonthlyBarber(
           activeSubscription,
-          currentAppointmentStartAt
+          currentAppointmentStartAt,
         );
 
         if (!barberChangeValidation.allowed) {
@@ -575,8 +771,9 @@ export async function updateAppointmentService(params: {
   const updated = await updateAppointmentInBarbershop(
     params.barbershopId,
     params.appointmentId,
-    updateData
+    updateData,
   );
+
   if (!updated) throw notFound("Agendamento não encontrado");
 
   const statusWillBeConfirmed = String(params.data.status || "").toLowerCase() === "confirmed";
@@ -604,18 +801,116 @@ export async function updateAppointmentService(params: {
 }
 
 /* ────────────────────────── CANCEL (DELETE soft) ────────────────────────── */
+
 export async function cancelAppointmentService(params: {
   barbershopId: string;
   appointmentId: string;
+  actorRole: string;
+  actorIsAdmin?: boolean;
+  actorId: string;
 }) {
-  const cancelled = await cancelAppointmentInBarbershop(params.barbershopId, params.appointmentId);
-  if (!cancelled) throw notFound("Agendamento não encontrado");
+  const appointment = await findAppointmentByIdInBarbershop(
+    params.barbershopId,
+    params.appointmentId,
+  );
+
+  if (!appointment) {
+    throw notFound("Agendamento não encontrado");
+  }
+
+  if (normalizeText(appointment.status) === "cancelled") {
+    throw badRequest("Este agendamento já está cancelado");
+  }
+
+  const isAdmin = params.actorRole === "admin" || !!params.actorIsAdmin;
+
+  if (!isAdmin) {
+    if (params.actorRole !== "client") {
+      throw forbidden("Apenas admin pode cancelar este agendamento");
+    }
+
+    if (String(appointment.client_id) !== String(params.actorId)) {
+      throw forbidden("Cliente sem permissão para cancelar este agendamento");
+    }
+
+    const appointmentStartAt = new Date(appointment.start_at);
+
+    if (Number.isNaN(appointmentStartAt.getTime())) {
+      throw badRequest("Data do agendamento inválida para cancelamento");
+    }
+
+    const minutesUntilAppointment =
+      (appointmentStartAt.getTime() - Date.now()) / (60 * 1000);
+
+    if (minutesUntilAppointment <= 15) {
+      throw forbidden(
+        "O cliente só pode cancelar até 15 minutos antes do horário do agendamento. Depois disso, somente o admin pode cancelar.",
+      );
+    }
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const appointmentProducts = await tx.appointment_products.findMany({
+      where: {
+        appointment_id: params.appointmentId,
+      },
+      select: {
+        product_id: true,
+        quantity: true,
+      },
+    });
+
+    for (const item of appointmentProducts) {
+      if (!item.product_id) continue;
+
+      const quantityToReturn = Number(item.quantity ?? 0);
+
+      if (!Number.isFinite(quantityToReturn) || quantityToReturn <= 0) {
+        continue;
+      }
+
+      await tx.products.updateMany({
+        where: {
+          id: item.product_id,
+          barbershop_id: params.barbershopId,
+        },
+        data: {
+          stock: {
+            increment: quantityToReturn,
+          },
+        },
+      });
+    }
+
+    await tx.appointments.updateMany({
+      where: {
+        id: params.appointmentId,
+        barbershop_id: params.barbershopId,
+        status: {
+          not: "cancelled",
+        },
+      },
+      data: {
+        status: "cancelled",
+        updated_at: new Date(),
+      },
+    });
+  });
+
+  const cancelled = await findAppointmentByIdInBarbershop(
+    params.barbershopId,
+    params.appointmentId,
+  );
+
+  if (!cancelled) {
+    throw notFound("Agendamento não encontrado");
+  }
+
   return serializeAppointment(cancelled);
 }
 
-/* ═══════════════════════════════════════════════════════════
-   AVAILABLE SLOTS — Lógica Crítica
-   ═══════════════════════════════════════════════════════════ */
+/* ────────────────────────── AVAILABLE SLOTS ────────────────────────── */
+
 export async function getAvailableSlotsService(params: {
   barbershopId: string;
   barberId: string;
@@ -623,6 +918,7 @@ export async function getAvailableSlotsService(params: {
   duration: number;
 }) {
   const barber = await findBarberByIdInBarbershop(params.barbershopId, params.barberId);
+
   if (!barber) throw notFound("Barbeiro não encontrado");
 
   const duration = Number(params.duration);
@@ -636,19 +932,24 @@ export async function getAvailableSlotsService(params: {
   const appointments = await getBarberAppointmentsForDate(
     params.barbershopId,
     params.barberId,
-    params.date
+    params.date,
   );
 
-  const busy = appointments.map((a) => {
-    const s = getSaoPauloTimeParts(a.start_at);
-    const e = getSaoPauloTimeParts(a.end_at);
+  const busy = appointments.map((appointment) => {
+    const start = getSaoPauloTimeParts(appointment.start_at);
+    const end = getSaoPauloTimeParts(appointment.end_at);
+
     return {
-      start: s.hour * 60 + s.minute,
-      end: e.hour * 60 + e.minute,
+      start: start.hour * 60 + start.minute,
+      end: end.hour * 60 + end.minute,
     };
   });
 
-  const openingWindow = await getOpeningWindowFromHomeInfo(params.barbershopId, params.date);
+  const openingWindow = await getOpeningWindowFromHomeInfo(
+    params.barbershopId,
+    params.date,
+  );
+
   if (!openingWindow) return [];
 
   const openMin = openingWindow.start;
@@ -662,20 +963,24 @@ export async function getAvailableSlotsService(params: {
   ) {
     const slotEnd = slotStart + blockedDuration;
 
-    const collision = busy.some((b) => slotStart < b.end && slotEnd > b.start);
+    const collision = busy.some(
+      (busySlot) => slotStart < busySlot.end && slotEnd > busySlot.start,
+    );
 
     if (!collision) {
       const hh = String(Math.floor(slotStart / 60)).padStart(2, "0");
       const mm = String(slotStart % 60).padStart(2, "0");
+
       slots.push(`${hh}:${mm}`);
     }
   }
 
   const { todayStr, nowMinutes } = getSaoPauloNow();
+
   if (params.date === todayStr) {
-    return slots.filter((s) => {
-      const [h, m] = s.split(":").map(Number);
-      return h * 60 + m > nowMinutes;
+    return slots.filter((slot) => {
+      const [hour, minute] = slot.split(":").map(Number);
+      return hour * 60 + minute > nowMinutes;
     });
   }
 

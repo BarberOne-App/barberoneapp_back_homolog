@@ -1,21 +1,57 @@
 import prisma from "../database/database.js";
 
 const PAYMENT_INCLUDE = {
-  users: { select: { id: true, name: true, email: true, phone: true } },
+  users: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+    },
+  },
+
   appointments: {
     select: {
       id: true,
       start_at: true,
       end_at: true,
       status: true,
-      barbers: { select: { id: true, display_name: true } },
+      total_amount: true,
+      barbers: {
+        select: {
+          id: true,
+          display_name: true,
+          commission_percent: true,
+        },
+      },
+      appointment_services: {
+        select: {
+          id: true,
+          unit_price: true,
+          quantity: true,
+          services: {
+            select: {
+              id: true,
+              name: true,
+              price: true,
+              comission_percent: true,
+            },
+          },
+        },
+      },
     },
   },
+
   subscriptions: {
     select: {
       id: true,
       status: true,
-      subscription_plans: { select: { id: true, name: true } },
+      subscription_plans: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
     },
   },
 } as const;
@@ -40,7 +76,6 @@ export async function listPaymentsInBarbershop(params: {
   if (params.status) where.status = params.status;
   if (params.method) where.method = params.method;
 
-  // Filtrar por tipo: subscription (tem subscription_id) ou appointment (tem appointment_id)
   if (params.type === "subscription") {
     where.subscription_id = { not: null };
   } else if (params.type === "appointment") {
@@ -70,7 +105,10 @@ export async function findPaymentByIdInBarbershop(
   id: string
 ) {
   return prisma.payment_transactions.findFirst({
-    where: { id, barbershop_id: barbershopId },
+    where: {
+      id,
+      barbershop_id: barbershopId,
+    },
     include: PAYMENT_INCLUDE,
   });
 }
@@ -87,21 +125,25 @@ export async function createPaymentInBarbershop(data: {
   statusRaw?: string;
   paidAt?: Date;
 }) {
-  // Para agendamentos, atualiza o registro existente quando houver.
-  // Isso evita depender de alias de constraint no tipo gerado do Prisma Client.
   if (data.appointmentId) {
     const existing = await prisma.payment_transactions.findFirst({
       where: {
         barbershop_id: data.barbershopId,
         appointment_id: data.appointmentId,
       },
-      orderBy: { created_at: "desc" },
-      select: { id: true },
+      orderBy: {
+        created_at: "desc",
+      },
+      select: {
+        id: true,
+      },
     });
 
     if (existing) {
       return prisma.payment_transactions.update({
-        where: { id: existing.id },
+        where: {
+          id: existing.id,
+        },
         data: {
           user_id: data.userId ?? null,
           amount: data.amount,
@@ -131,7 +173,6 @@ export async function createPaymentInBarbershop(data: {
     });
   }
 
-  // Para assinaturas, sempre cria novo registro (pode ter múltiplos)
   return prisma.payment_transactions.create({
     data: {
       barbershop_id: data.barbershopId,
@@ -155,14 +196,20 @@ export async function updatePaymentInBarbershop(
   data: Record<string, any>
 ) {
   const existing = await prisma.payment_transactions.findFirst({
-    where: { id, barbershop_id: barbershopId },
+    where: {
+      id,
+      barbershop_id: barbershopId,
+    },
   });
+
   if (!existing) return null;
 
   data.updated_at = new Date();
 
   return prisma.payment_transactions.update({
-    where: { id },
+    where: {
+      id,
+    },
     data,
     include: PAYMENT_INCLUDE,
   });
