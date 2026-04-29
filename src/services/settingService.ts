@@ -61,6 +61,29 @@ function normalizePayrollFrequency(value: unknown): PayrollFrequency | null {
     return null;
 }
 
+function getDefaultHomeInfo() {
+    return {
+        hero_title: "",
+        hero_subtitle: "",
+        hero_image: "",
+        hero_images: [],
+        about_title: "Barbearia Rodrigues",
+        about_text1: "A Barbearia Rodrigues é referência em cortes masculinos há mais de 10 anos.",
+        about_text2: "Combinamos técnicas tradicionais com tendências modernas para garantir o melhor atendimento.",
+        about_text3: "Nosso ambiente proporciona conforto e uma experiência única.",
+        schedule_title: "Horário de Funcionamento",
+        schedule_line1: "Seg - 14h as 20h",
+        schedule_line2: "Terça a Sab. - 09h as 20h",
+        schedule_line3: "Domingo: Fechado",
+        whatsapp_number: "",
+        location_title: "Localização",
+        location_address: "Av. val paraíso,1396",
+        location_city: "Jangurussu - Fortaleza/CE",
+        barber_payment_frequency: null,
+        employee_payment_frequency: null,
+    };
+}
+
 export async function getSettingsService(barbershopId: string) {
     const row = await getSettingsByBarbershop(barbershopId);
     const hiddenBookingPaymentMethods = normalizeHiddenBookingPaymentMethods(
@@ -109,6 +132,10 @@ export async function upsertSettingsService(params: {
 }
 
 export async function getHomeInfoService(barbershopId: string) {
+    if (!String(barbershopId || "").trim()) {
+        return getDefaultHomeInfo();
+    }
+
     const row = await getHomeInfoByBarbershop(barbershopId);
 
     if (row) {
@@ -124,26 +151,7 @@ export async function getHomeInfoService(barbershopId: string) {
         };
     }
 
-    return {
-        hero_title: "",
-        hero_subtitle: "",
-        hero_image: "",
-        hero_images: [],
-        about_title: "Barbearia Rodrigues",
-        about_text1: "A Barbearia Rodrigues é referência em cortes masculinos há mais de 10 anos.",
-        about_text2: "Combinamos técnicas tradicionais com tendências modernas para garantir o melhor atendimento.",
-        about_text3: "Nosso ambiente proporciona conforto e uma experiência única.",
-        schedule_title: "Horário de Funcionamento",
-        schedule_line1: "Seg - 14h as 20h",
-        schedule_line2: "Terça a Sab. - 09h as 20h",
-        schedule_line3: "Domingo: Fechado",
-        whatsapp_number: "",
-        location_title: "Localização",
-        location_address: "Av. val paraíso,1396",
-        location_city: "Jangurussu - Fortaleza/CE",
-        barber_payment_frequency: null,
-        employee_payment_frequency: null,
-    };
+    return getDefaultHomeInfo();
 }
 
 export async function upsertHomeInfoService(params: {
