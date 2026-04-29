@@ -296,7 +296,6 @@ app.post('/stripe/connect/account-link', requireAuth, requireAdmin, async (req, 
 });
 
 app.get('/stripe/connect/status', requireAuth, async (req, res) => {
-
     try {
         const barbershopId = req.user!.barbershopId;
         console.log("Barbershop ID:", barbershopId);
@@ -305,26 +304,31 @@ app.get('/stripe/connect/status', requireAuth, async (req, res) => {
             where: { id: barbershopId },
         });
 
-        if (!shop) return res.status(404).json({ message: 'Barbearia não encontrada.' });
+        if (!shop) {
+            return res.status(404).json({ message: 'Barbearia não encontrada.' });
+        }
+
+        if (!shop.stripe_connect_account_id) {
+            return res.status(200).json({
+                connected: false,
+                accountId: null,
+                chargesEnabled: false,
+                payoutsEnabled: false,
+                detailsSubmitted: false,
+            });
+        }
 
         const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
-        const account = await stripe.accounts.retrieve(shop.stripe_connect_account_id!);
+
+        const account = await stripe.accounts.retrieve(shop.stripe_connect_account_id);
+
         return res.status(200).json({
+            connected: true,
             accountId: account.id,
             chargesEnabled: account.charges_enabled,
             payoutsEnabled: account.payouts_enabled,
             detailsSubmitted: account.details_submitted,
         });
-
-
-        // return res.status(200).json({
-        //     accountId: shop.stripe_connect_account_id,
-        //     chargesEnabled: shop.stripe_connect_charges_enabled,
-        //     payoutsEnabled: shop.stripe_connect_payouts_enabled,
-        //     detailsSubmitted: shop.stripe_connect_details_submitted,
-        //     onboardingCompletedAt: shop.stripe_connect_onboarding_completed_at,
-        //     isReady: isConnectReady(shop),
-        // });
 
     } catch (error: any) {
         return res.status(500).json({
