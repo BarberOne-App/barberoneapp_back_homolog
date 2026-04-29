@@ -23,7 +23,10 @@ function joiErrors(error: any) {
 /* ═══════════ PAYMENTS (subscription) ═══════════ */
 
 export async function listPayments(req: Request, res: Response) {
-  const { error, value } = ListPaymentsQuerySchema.validate(req.query, { abortEarly: false });
+  const { error, value } = ListPaymentsQuerySchema.validate(req.query, {
+    abortEarly: false,
+  });
+
   if (error) return res.status(422).send(joiErrors(error));
 
   const result = await listPaymentsService({
@@ -45,6 +48,7 @@ export async function listPayments(req: Request, res: Response) {
 
 export async function getPaymentById(req: Request, res: Response) {
   const { error } = PaymentIdParamSchema.validate(req.params);
+
   if (error) return res.status(422).send(joiErrors(error));
 
   const result = await getPaymentByIdService({
@@ -56,10 +60,11 @@ export async function getPaymentById(req: Request, res: Response) {
 }
 
 export async function createPayment(req: Request, res: Response) {
-  const { error, value } = CreatePaymentSchema.validate(req.body);
-  if (error) return res.status(422).send(joiErrors(error));
+  const { error, value } = CreatePaymentSchema.validate(req.body, {
+    abortEarly: false,
+  });
 
-  // const { value } = req.body;
+  if (error) return res.status(422).send(joiErrors(error));
 
   const result = await createPaymentService({
     barbershopId: req.user!.barbershopId,
@@ -72,7 +77,11 @@ export async function createPayment(req: Request, res: Response) {
 /* ═══════════ APPOINTMENT PAYMENTS ═══════════ */
 
 export async function listAppointmentPayments(req: Request, res: Response) {
-  const { error, value } = ListAppointmentPaymentsQuerySchema.validate(req.query, { abortEarly: false });
+  const { error, value } = ListAppointmentPaymentsQuerySchema.validate(
+    req.query,
+    { abortEarly: false }
+  );
+
   if (error) return res.status(422).send(joiErrors(error));
 
   const result = await listAppointmentPaymentsService({
@@ -92,7 +101,10 @@ export async function listAppointmentPayments(req: Request, res: Response) {
 }
 
 export async function createAppointmentPayment(req: Request, res: Response) {
-  const { error, value } = CreateAppointmentPaymentSchema.validate(req.body);
+  const { error, value } = CreateAppointmentPaymentSchema.validate(req.body, {
+    abortEarly: false,
+  });
+
   if (error) return res.status(422).send(joiErrors(error));
 
   const result = await createAppointmentPaymentService({
@@ -106,17 +118,23 @@ export async function createAppointmentPayment(req: Request, res: Response) {
 /* ═══════════ UPDATE (shared) ═══════════ */
 
 export async function updatePayment(req: Request, res: Response) {
-  const p = PaymentIdParamSchema.validate(req.params);
-  if (p.error) return res.status(422).send(joiErrors(p.error));
+  const { error: paramError } = PaymentIdParamSchema.validate(req.params, {
+    abortEarly: false,
+  });
 
-  const b = UpdatePaymentSchema.validate(req.body, { abortEarly: false });
-  if (b.error) return res.status(422).send(joiErrors(b.error));
+  if (paramError) return res.status(422).send(joiErrors(paramError));
+
+  const { error: bodyError, value } = UpdatePaymentSchema.validate(req.body, {
+    abortEarly: false,
+  });
+
+  if (bodyError) return res.status(422).send(joiErrors(bodyError));
 
   const result = await updatePaymentService({
     barbershopId: req.user!.barbershopId,
     paymentId: req.params.id,
     actorId: req.user!.id,
-    data: b.value,
+    data: value,
   });
 
   return res.status(200).send(result);

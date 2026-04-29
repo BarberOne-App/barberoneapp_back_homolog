@@ -16,17 +16,22 @@ export function resolveServiceCommissionType(service: {
   commissionPercent?: number | null;
   serviceName?: string | null;
 }): CommissionType {
-  if (service.coveredByPlan) {
+  if (service.coveredByPlan === true) {
     return "subscription";
   }
 
-  if (Number(service.commissionPercent) === 40) {
+  const commissionPercent = Number(service.commissionPercent);
+
+  if (Number.isFinite(commissionPercent) && commissionPercent === 40) {
     return "chemistry";
   }
 
   const normalizedServiceName = normalizeText(service.serviceName);
 
-  if (normalizedServiceName.includes("quimic") || normalizedServiceName.includes("quimica")) {
+  if (
+    normalizedServiceName.includes("quimic") ||
+    normalizedServiceName.includes("quimica")
+  ) {
     return "chemistry";
   }
 
@@ -48,8 +53,10 @@ export function calculateCommission(params: {
   switch (params.type) {
     case "subscription":
       return roundMoney(((amount * effectivePercent) / 100) / 4);
+
     case "chemistry":
       return roundMoney((amount * effectivePercent) / 100);
+
     case "single":
     default:
       return roundMoney((amount * effectivePercent) / 100);
@@ -59,9 +66,11 @@ export function calculateCommission(params: {
 export function getCommissionPercentByType(type: CommissionType) {
   switch (type) {
     case "subscription":
-      return 12.5;
+      return 50;
+
     case "chemistry":
       return 40;
+
     case "single":
     default:
       return 50;

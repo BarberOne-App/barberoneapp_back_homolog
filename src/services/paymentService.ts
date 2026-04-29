@@ -1,5 +1,4 @@
 import { notFound } from "../errors/index.js";
-import { syncEmployeeCommissionFromAppointmentPayment } from "./employeePaymentService.js";
 import {
   createPaymentInBarbershop,
   findPaymentByIdInBarbershop,
@@ -20,7 +19,12 @@ function serialize(p: any) {
     barbershopId: p.barbershop_id,
     userId: p.user_id,
     user: p.users
-      ? { id: p.users.id, name: p.users.name, email: p.users.email, phone: p.users.phone }
+      ? {
+          id: p.users.id,
+          name: p.users.name,
+          email: p.users.email,
+          phone: p.users.phone,
+        }
       : null,
     appointmentId: p.appointment_id,
     appointment: p.appointments
@@ -30,7 +34,10 @@ function serialize(p: any) {
           endAt: p.appointments.end_at,
           status: p.appointments.status,
           barber: p.appointments.barbers
-            ? { id: p.appointments.barbers.id, displayName: p.appointments.barbers.display_name }
+            ? {
+                id: p.appointments.barbers.id,
+                displayName: p.appointments.barbers.display_name,
+              }
             : null,
         }
       : null,
@@ -40,7 +47,10 @@ function serialize(p: any) {
           id: p.subscriptions.id,
           status: p.subscriptions.status,
           plan: p.subscriptions.subscription_plans
-            ? { id: p.subscriptions.subscription_plans.id, name: p.subscriptions.subscription_plans.name }
+            ? {
+                id: p.subscriptions.subscription_plans.id,
+                name: p.subscriptions.subscription_plans.name,
+              }
             : null,
         }
       : null,
@@ -52,11 +62,6 @@ function serialize(p: any) {
     createdAt: p.created_at,
     updatedAt: p.updated_at,
   };
-}
-
-function isSettledPaymentStatus(status: string | undefined | null) {
-  const normalized = String(status ?? "").trim().toLowerCase();
-  return normalized === "paid" || normalized === "approved";
 }
 
 export async function listPaymentsService(params: {
@@ -96,8 +101,13 @@ export async function getPaymentByIdService(params: {
   barbershopId: string;
   paymentId: string;
 }) {
-  const p = await findPaymentByIdInBarbershop(params.barbershopId, params.paymentId);
-  if (!p) throw notFound("Pagamento nÃ£o encontrado");
+  const p = await findPaymentByIdInBarbershop(
+    params.barbershopId,
+    params.paymentId
+  );
+
+  if (!p) throw notFound("Pagamento não encontrado");
+
   return serialize(p);
 }
 
@@ -121,6 +131,7 @@ export async function createPaymentService(params: {
     method: params.data.method,
     status: params.data.status,
   });
+
   return serialize(created);
 }
 
@@ -173,6 +184,7 @@ export async function createAppointmentPaymentService(params: {
     method: params.data.method,
     status: params.data.status,
   });
+
   return serialize(created);
 }
 
@@ -187,13 +199,19 @@ export async function updatePaymentService(params: {
     noShow?: boolean;
   };
 }) {
-  const existing = await findPaymentByIdInBarbershop(params.barbershopId, params.paymentId);
-  if (!existing) throw notFound("Pagamento nÃ£o encontrado");
+  const existing = await findPaymentByIdInBarbershop(
+    params.barbershopId,
+    params.paymentId
+  );
+
+  if (!existing) throw notFound("Pagamento não encontrado");
 
   const updateData: any = {};
+
   if (params.data.status !== undefined) updateData.status = params.data.status;
   if (params.data.method !== undefined) updateData.method = params.data.method;
   if (params.data.paidAt !== undefined) updateData.paid_at = params.data.paidAt;
+
   if (params.data.noShow !== undefined) {
     updateData.status_raw = params.data.noShow ? "no_show" : null;
   }
@@ -207,19 +225,8 @@ export async function updatePaymentService(params: {
     params.paymentId,
     updateData
   );
-  if (!updated) throw notFound("Pagamento nÃ£o encontrado");
 
-  const becameSettled =
-    !isSettledPaymentStatus(existing.status) && isSettledPaymentStatus(updated.status);
-
-  if (becameSettled && updated.appointment_id) {
-    await syncEmployeeCommissionFromAppointmentPayment({
-      barbershopId: params.barbershopId,
-      appointmentId: updated.appointment_id,
-      paidAt: updated.paid_at,
-      actorId: params.actorId,
-    });
-  }
+  if (!updated) throw notFound("Pagamento não encontrado");
 
   return serialize(updated);
 }
