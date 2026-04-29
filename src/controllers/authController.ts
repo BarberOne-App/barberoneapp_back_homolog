@@ -12,6 +12,7 @@ import {
 import {
   loginService,
   meService,
+  switchBarbershopService,
   refreshTokenService,
   registerBarberService,
   registerBarbershopService,
@@ -87,6 +88,20 @@ export async function refresh(req: Request, res: Response) {
   if (error) return res.status(422).send(joiErrors(error));
 
   const result = await refreshTokenService(req.body.refreshToken);
+  return res.status(200).send(result);
+}
+
+export async function switchBarbershop(req: Request, res: Response) {
+  const barbershopId = String(req.body?.barbershopId || "").trim();
+  if (!barbershopId) {
+    return res.status(422).send(["Barbearia inválida"]);
+  }
+
+  const result = await switchBarbershopService({
+    userId: req.user!.id,
+    barbershopId,
+  });
+
   return res.status(200).send(result);
 }
 

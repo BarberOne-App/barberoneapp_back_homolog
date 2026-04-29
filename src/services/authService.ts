@@ -450,3 +450,77 @@ export async function refreshTokenService(refreshToken: string) {
 
   return generateTokenPair(tokenPayload);
 }
+
+export async function switchBarbershopService(params: {
+  userId: string;
+  barbershopId: string;
+}) {
+  const targetBarbershopId = String(params.barbershopId || "").trim();
+  if (!targetBarbershopId) {
+    throw forbidden("Barbearia inválida");
+  }
+
+  const user = await findUserById(params.userId);
+  if (!user) {
+    throw notFound("Usuário não encontrado");
+  }
+
+  const isSuperAdmin = String(user.role) === "super_admin";
+  if (!isSuperAdmin) {
+    const hasAccess = await prisma.users.findFirst({
+      where: {
+        id: params.userId,
+        barbershop_links: {
+          some: {
+            barbershop_id: targetBarbershopId,
+          },
+        },
+      },
+      select: { id: true },
+    });
+
+    if (!hasAccess) {
+      throw forbidden("Usuário sem acesso a esta barbearia");
+    }
+  }
+
+  await prisma.users.update({
+    where: { id: params.userId },
+    data: { current_barbershop_id: targetBarbershopId },
+  });
+
+  const updatedUser = await findUserById(params.userId);
+  if (!updatedUser) {
+    throw notFound("Usuário não encontrado");
+  }
+
+  const token = signToken({
+    userId: updatedUser.id,
+    barbershopId: targetBarbershopId,
+    role: updatedUser.role as any,
+    isAdmin: updatedUser.is_admin,
+  });
+
+  const refreshToken = signRefreshToken({
+    userId: updatedUser.id,
+    barbershopId: targetBarbershopId,
+    role: updatedUser.role as any,
+    isAdmin: updatedUser.is_admin,
+  });
+
+  return {
+    token,
+    refreshToken,
+    barbershop: updatedUser.current_barbershop,
+    user: {
+      id: updatedUser.id,
+      name: updatedUser.name,
+      email: updatedUser.email,
+      phone: updatedUser.phone,
+      role: updatedUser.role,
+      isAdmin: updatedUser.is_admin,
+      permissions: updatedUser.permissions,
+      photoUrl: updatedUser.photo_url,
+    },
+  };
+}
