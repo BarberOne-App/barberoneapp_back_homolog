@@ -70,6 +70,7 @@ export async function importServicesService(params: {
     name: string;
     basePrice: number;
     durationMinutes: number;
+    commissionPercent?: number | null;
     comissionPercent?: number | null;
     promotionalPrice?: number;
     covered_by_plan?: boolean;
@@ -93,7 +94,7 @@ export async function importServicesService(params: {
         name: row.name,
         basePrice: row.basePrice,
         durationMinutes: row.durationMinutes,
-        comissionPercent: row.comissionPercent ?? null,
+        comissionPercent: row.comissionPercent ?? row.commissionPercent ?? null,
         promotionalPrice: row.promotionalPrice ?? 0,
         covered_by_plan: row.covered_by_plan ?? false,
         imageUrl: row.imageUrl ?? null,

@@ -77,9 +77,10 @@ function serializeAppointment(a: any) {
     const quantity = Number(s.quantity ?? 1);
     const safeQuantity = Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
     const totalPrice = unitPrice * safeQuantity;
-    const rawCommissionPercent = decimalToNumber(
-      s.services?.comission_percent ?? s.services?.commission_percent,
-    );
+    const dbCommissionPercent =
+      s.services?.comission_percent ?? s.services?.commission_percent;
+    const rawCommissionPercent =
+      dbCommissionPercent == null ? null : decimalToNumber(dbCommissionPercent);
     const commissionType = resolveServiceCommissionType({
       coveredByPlan: s.services?.covered_by_plan,
       commissionPercent: rawCommissionPercent,
@@ -100,8 +101,8 @@ function serializeAppointment(a: any) {
       quantity: safeQuantity,
       totalPrice,
       commissionType,
-      commissionPercent: rawCommissionPercent || getCommissionPercentByType(commissionType),
-      commission_percent: rawCommissionPercent || getCommissionPercentByType(commissionType),
+      commissionPercent: rawCommissionPercent ?? getCommissionPercentByType(commissionType),
+      commission_percent: rawCommissionPercent ?? getCommissionPercentByType(commissionType),
       commissionAmount,
     };
   });
@@ -435,9 +436,10 @@ async function getNormalizedAppointmentServices(params: {
       serviceName: dbService.name,
       unitPrice: decimalToNumber(dbService.base_price),
       durationMinutes: getServiceDurationMinutes(dbService),
-      commissionPercent: decimalToNumber(
-        dbService.comission_percent ?? dbService.commission_percent,
-      ),
+      commissionPercent:
+        dbService.comission_percent == null && dbService.commission_percent == null
+          ? null
+          : decimalToNumber(dbService.comission_percent ?? dbService.commission_percent),
       coveredByPlan: !!dbService.covered_by_plan,
       quantity: safeQuantity,
     };
