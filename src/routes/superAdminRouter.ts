@@ -7,6 +7,7 @@ import {
   listSuperAdminBarbershops,
   listSuperAdminBarbershopUsers,
   updateSuperAdminBarbershopStatus,
+  resetUserPassword,
 } from "../controllers/superAdminController.js";
 
 const router = Router();
@@ -44,6 +45,13 @@ router.patch(
   requireAuth,
   requireSuperAdmin,
   asyncHandler(updateSuperAdminBarbershopStatus)
+);
+
+router.patch(
+  '/super-admin/users/:id/password',
+  requireAuth,
+  requireSuperAdmin,
+  asyncHandler(resetUserPassword)
 );
 
 export default router;

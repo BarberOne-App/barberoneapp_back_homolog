@@ -1,6 +1,12 @@
 import { Prisma } from "@prisma/client";
 import prisma from "../database/database.js";
 import { notFound } from "../errors/index.js";
+import bcrypt from "bcrypt";
+import crypto from "crypto";
+
+function rounds() {
+  return Number(process.env.BCRYPT_SALT_ROUNDS || 10);
+}
 
 type ListParams = {
   q?: string;
@@ -443,4 +449,20 @@ export async function updateSuperAdminBarbershopStatusService(params: {
   });
 
   return updated;
+}
+
+export async function resetUserPasswordService(params: { userId: string; newPassword?: string }) {
+  const user = await prisma.users.findUnique({ where: { id: params.userId }, select: { id: true, email: true, name: true } });
+  if (!user) throw notFound("Usuário não encontrado");
+
+  const password = params.newPassword && String(params.newPassword).trim().length > 0
+    ? String(params.newPassword)
+    : crypto.randomBytes(6).toString("hex");
+
+  const passwordHash = await bcrypt.hash(password, rounds());
+
+  await prisma.users.update({ where: { id: params.userId }, data: { password_hash: passwordHash, updated_at: new Date() } });
+
+  // Return plain temporary password so Super Admin can communicate it to the user securely
+  return { id: params.userId, password };
 }

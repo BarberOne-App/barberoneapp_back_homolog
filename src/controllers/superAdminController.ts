@@ -10,6 +10,7 @@ import {
   listSuperAdminBarbershopsService,
   listSuperAdminBarbershopUsersService,
   updateSuperAdminBarbershopStatusService,
+  resetUserPasswordService,
 } from "../services/superAdminService.js";
 
 function joiErrors(error: any) {
@@ -18,6 +19,14 @@ function joiErrors(error: any) {
 
 export async function getSuperAdminDashboard(_req: Request, res: Response) {
   const result = await getSuperAdminDashboardService();
+  return res.status(200).send(result);
+}
+
+export async function resetUserPassword(req: Request, res: Response) {
+  const userId = String(req.params.id);
+  const newPassword = req.body?.newPassword;
+
+  const result = await resetUserPasswordService({ userId, newPassword });
   return res.status(200).send(result);
 }
 
