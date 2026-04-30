@@ -60,6 +60,8 @@ export async function createSubscription(req: Request, res: Response) {
 
   const result = await createSubscriptionService({
     barbershopId: req.user!.barbershopId,
+    actorId: req.user!.id,
+    actorRole: req.user!.role,
     data: value,
   });
 

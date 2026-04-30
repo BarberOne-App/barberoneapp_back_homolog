@@ -47,6 +47,7 @@ const corsOptions: cors.CorsOptions = { origin: true };
 
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
+app.use("/stripe", stripeWebhookRoutes);
 app.use(express.json({ limit: "10mb" }));
 
 app.get("/health", (_req, res) => res.send({ ok: true }));
@@ -463,7 +464,7 @@ app.post('/stripe/subscriptions', async (req, res) => {
 
 app.post('/stripe/subscription-checkout-session', requireAuth, async (req, res) => {
     try {
-        const { planId, email } = req.body;
+        const { planId } = req.body;
         if (!planId) {
             return res.status(400).json({ message: 'ID do plano é obrigatório.' });
         }
@@ -491,17 +492,20 @@ app.post('/stripe/subscription-checkout-session', requireAuth, async (req, res) 
             {
                 mode: 'subscription',
                 line_items: [{ price: stripePriceId, quantity: 1 }],
-                customer_email: String(email || req.user?.email || '').trim() || undefined,
+                customer_email: String(req.user?.email || '').trim() || undefined,
+                client_reference_id: String(req.user!.id),
                 success_url: `${frontendBaseUrl}/profile`,
                 cancel_url: `${frontendBaseUrl}/profile`,
                 allow_promotion_codes: true,
                 subscription_data: {
                     metadata: {
+                        userId: String(req.user!.id),
                         planId: String(plan.id),
                         barbershopId: String(req.user!.barbershopId),
                     },
                 },
                 metadata: {
+                    userId: String(req.user!.id),
                     planId: String(plan.id),
                     barbershopId: String(req.user!.barbershopId),
                 },
@@ -1208,7 +1212,6 @@ app.use(appointmentRouter);
 app.use(blockedDateRouter);
 app.use(subscriptionPlanRouter);
 app.use(subscriptionRouter);
-app.use("/stripe", stripeWebhookRoutes);
 app.use(paymentRouter);
 app.use(paymentMethodRouter);
 app.use(galleryRouter);
