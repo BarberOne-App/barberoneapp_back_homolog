@@ -2,12 +2,12 @@ import joi from "joi";
 
 export const CreateSubscriptionSchema = joi
   .object({
-    userId: joi.string().uuid().required(),
+    userId: joi.string().uuid().optional(),
     planId: joi.string().uuid().required(),
     amount: joi.number().min(0).required(),
     paymentMethod: joi
       .string()
-      .valid("pix", "debito", "credito", "dinheiro")
+      .valid("pix", "debito", "credito", "dinheiro", "local", "subscription")
       .optional(),
     isRecurring: joi.boolean().optional().default(true),
     autoRenewal: joi.boolean().optional().default(true),
@@ -22,7 +22,7 @@ export const UpdateSubscriptionSchema = joi
     isRecurring: joi.boolean().optional(),
     paymentMethod: joi
       .string()
-      .valid("pix", "debito", "credito", "dinheiro")
+      .valid("pix", "debito", "credito", "dinheiro", "local", "subscription")
       .optional(),
     notes: joi.string().trim().allow("", null).optional(),
   })

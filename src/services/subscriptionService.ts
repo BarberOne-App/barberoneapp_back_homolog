@@ -137,8 +137,10 @@ export async function getSubscriptionByIdService(params: {
 /* ─────────── CREATE ─────────── */
 export async function createSubscriptionService(params: {
   barbershopId: string;
+  actorId: string;
+  actorRole: string;
   data: {
-    userId: string;
+    userId?: string;
     planId: string;
     amount: number;
     paymentMethod?: string;
@@ -147,7 +149,12 @@ export async function createSubscriptionService(params: {
   };
 }) {
   // 1. Verificar se já existe assinatura ativa para o user
-  const existing = await findActiveSubscriptionByUser(params.barbershopId, params.data.userId);
+  const userId =
+    params.actorRole === "client"
+      ? params.actorId
+      : params.data.userId ?? params.actorId;
+
+  const existing = await findActiveSubscriptionByUser(params.barbershopId, userId);
   if (existing) {
     throw conflict("Usuário já possui uma assinatura ativa nesta barbearia");
   }
@@ -159,7 +166,7 @@ export async function createSubscriptionService(params: {
   // 3. Criar subscription + primeiro ciclo
   const created = await createSubscriptionTx({
     barbershopId: params.barbershopId,
-    userId: params.data.userId,
+    userId,
     planId: params.data.planId,
     amount: params.data.amount,
     paymentMethod: params.data.paymentMethod,

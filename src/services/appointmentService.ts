@@ -643,7 +643,7 @@ export async function createAppointmentService(params: {
     date,
   });
 
-  if (existingForClient.length > 0) {
+  if (activeSubscription && existingForClient.length > 0) {
     throw badRequest("Cliente/dependente já possui agendamento neste dia");
   }
 

@@ -61,14 +61,18 @@ async function syncSubscriptionFromStripe(stripeSubscriptionId: string, userIdFr
             ? (price.product as Stripe.Product).name
             : null;
 
-    const existing = await prisma.subscriptions.findFirst({
+    let existing = await prisma.subscriptions.findFirst({
         where: { legacy_id: stripeSub.id },
         include: {
             subscription_plans: true,
         },
     });
 
-    const userId = userIdFromSession ?? existing?.user_id ?? null;
+    const metadataUserId = String(stripeSub.metadata?.userId || "").trim() || null;
+    const metadataPlanId = String(stripeSub.metadata?.planId || "").trim() || null;
+    const metadataBarbershopId = String(stripeSub.metadata?.barbershopId || "").trim() || null;
+
+    const userId = userIdFromSession ?? metadataUserId ?? existing?.user_id ?? null;
     if (!userId) return null;
 
     const user = await prisma.users.findFirst({
@@ -86,17 +90,31 @@ async function syncSubscriptionFromStripe(stripeSubscriptionId: string, userIdFr
 
     if (!user) return null;
 
-    const barbershopId = user.barbershop_links[0]?.barbershop_id ?? existing?.barbershop_id ?? null;
+    const barbershopId = metadataBarbershopId ?? user.barbershop_links[0]?.barbershop_id ?? existing?.barbershop_id ?? null;
     if (!barbershopId) return null;
 
-    const planWhere: Prisma.subscription_plansWhereInput = {};
-    if (productName) {
-        planWhere.name = productName;
-        planWhere.barbershop_id = barbershopId;
+    if (!existing) {
+        existing = await prisma.subscriptions.findFirst({
+            where: { user_id: user.id, barbershop_id: barbershopId },
+            include: {
+                subscription_plans: true,
+            },
+        });
     }
 
-    const localPlan = productName
-        ? await prisma.subscription_plans.findFirst({ where: planWhere })
+    const planMatchers: Prisma.subscription_plansWhereInput[] = [
+        ...(metadataPlanId ? [{ id: metadataPlanId }] : []),
+        ...(priceId ? [{ stripe_price_id: priceId }] : []),
+        ...(productName ? [{ name: productName }] : []),
+    ];
+
+    const localPlan = planMatchers.length
+        ? await prisma.subscription_plans.findFirst({
+            where: {
+                barbershop_id: barbershopId,
+                OR: planMatchers,
+            },
+        })
         : null;
 
     const nextBillingDate =
@@ -164,9 +182,29 @@ async function syncSubscriptionFromStripe(stripeSubscriptionId: string, userIdFr
         updated_at: new Date(),
     };
 
-    return prisma.subscriptions.create({
+    const created = await prisma.subscriptions.create({
         data: createData,
     });
+
+    const periodStart = new Date(created.started_at);
+    periodStart.setUTCDate(1);
+    periodStart.setUTCHours(0, 0, 0, 0);
+
+    const periodEnd = new Date(periodStart);
+    periodEnd.setUTCMonth(periodEnd.getUTCMonth() + 1);
+    periodEnd.setUTCMilliseconds(-1);
+
+    await prisma.subscription_cycles.create({
+        data: {
+            subscription_id: created.id,
+            period_start: periodStart,
+            period_end: periodEnd,
+            cuts_included: localPlan?.cuts_per_month ?? 0,
+            cuts_used: 0,
+        },
+    });
+
+    return created;
 }
 
 async function registerPaymentTransactionFromInvoice(invoice: Stripe.Invoice) {
