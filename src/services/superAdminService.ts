@@ -8,6 +8,41 @@ function rounds() {
   return Number(process.env.BCRYPT_SALT_ROUNDS || 10);
 }
 
+function normalizeEmail(email?: string | null) {
+  const value = String(email || "")
+    .trim()
+    .toLowerCase();
+
+  return value.length ? value : null;
+}
+
+function normalizePhone(phone?: string | null) {
+  const digits = String(phone || "").replace(/\D/g, "");
+  return digits.length ? digits : null;
+}
+
+function serializeUser(user: any) {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    phone: user.phone,
+    role: user.role,
+    isAdmin: user.is_admin,
+    createdAt: user.created_at,
+    updatedAt: user.updated_at,
+    barbershopId: user.current_barbershop_id,
+    barbershop: user.current_barbershop
+      ? {
+          id: user.current_barbershop.id,
+          name: user.current_barbershop.name,
+          slug: user.current_barbershop.slug,
+          status: user.current_barbershop.status,
+        }
+      : null,
+  };
+}
+
 type ListParams = {
   q?: string;
   status?: "active" | "inactive" | "blocked" | "pending";
@@ -160,6 +195,68 @@ export async function getSuperAdminDashboardService() {
     pendingBarbershops,
     activeSubscriptions,
     newBarbershopsThisMonth,
+  };
+}
+
+export async function listSuperAdminUsersService(params: {
+  q?: string;
+  role?: string;
+  page: number;
+  limit: number;
+}) {
+  const where: Prisma.usersWhereInput = {};
+
+  const q = String(params.q || "").trim();
+  if (q) {
+    where.OR = [
+      { name: { contains: q, mode: "insensitive" } },
+      { email: { contains: q, mode: "insensitive" } },
+      { phone: { contains: q, mode: "insensitive" } },
+      { cpf: { contains: q, mode: "insensitive" } },
+    ];
+  }
+
+  if (params.role) {
+    where.role = params.role as any;
+  }
+
+  const skip = (params.page - 1) * params.limit;
+
+  const [total, users] = await Promise.all([
+    prisma.users.count({ where }),
+    prisma.users.findMany({
+      where,
+      skip,
+      take: params.limit,
+      orderBy: { created_at: "desc" },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        is_admin: true,
+        created_at: true,
+        updated_at: true,
+        current_barbershop_id: true,
+        current_barbershop: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            status: true,
+          },
+        },
+      },
+    }),
+  ]);
+
+  return {
+    items: users.map(serializeUser),
+    total,
+    page: params.page,
+    limit: params.limit,
+    totalPages: Math.max(1, Math.ceil(total / params.limit)),
   };
 }
 
@@ -465,4 +562,62 @@ export async function resetUserPasswordService(params: { userId: string; newPass
 
   // Return plain temporary password so Super Admin can communicate it to the user securely
   return { id: params.userId, password };
+}
+
+export async function updateSuperAdminUserService(params: {
+  userId: string;
+  data: {
+    email?: string;
+    phone?: string | null;
+    newPassword?: string;
+  };
+}) {
+  const current = await prisma.users.findUnique({
+    where: { id: params.userId },
+    select: { id: true },
+  });
+
+  if (!current) throw notFound("Usuário não encontrado");
+
+  const updateData: Prisma.usersUpdateInput = {
+    updated_at: new Date(),
+  };
+
+  if (params.data.email !== undefined) {
+    updateData.email = normalizeEmail(params.data.email);
+  }
+
+  if (params.data.phone !== undefined) {
+    updateData.phone = normalizePhone(params.data.phone);
+  }
+
+  if (params.data.newPassword !== undefined) {
+    updateData.password_hash = await bcrypt.hash(String(params.data.newPassword), rounds());
+  }
+
+  const updated = await prisma.users.update({
+    where: { id: params.userId },
+    data: updateData,
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      role: true,
+      is_admin: true,
+      created_at: true,
+      updated_at: true,
+      current_barbershop_id: true,
+      current_barbershop: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          status: true,
+        },
+      },
+    },
+  });
+
+  return serializeUser(updated);
 }

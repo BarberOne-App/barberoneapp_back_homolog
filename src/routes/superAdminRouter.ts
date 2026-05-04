@@ -5,7 +5,9 @@ import {
   getSuperAdminBarbershopById,
   getSuperAdminDashboard,
   listSuperAdminBarbershops,
+  listSuperAdminUsers,
   listSuperAdminBarbershopUsers,
+  updateSuperAdminUser,
   updateSuperAdminBarbershopStatus,
   resetUserPassword,
 } from "../controllers/superAdminController.js";
@@ -45,6 +47,20 @@ router.patch(
   requireAuth,
   requireSuperAdmin,
   asyncHandler(updateSuperAdminBarbershopStatus)
+);
+
+router.get(
+  "/super-admin/users",
+  requireAuth,
+  requireSuperAdmin,
+  asyncHandler(listSuperAdminUsers)
+);
+
+router.patch(
+  "/super-admin/users/:id",
+  requireAuth,
+  requireSuperAdmin,
+  asyncHandler(updateSuperAdminUser)
 );
 
 router.patch(
