@@ -157,3 +157,22 @@ export async function deleteUserFromBarbershop(barbershopId: string, userId: str
   await prisma.users.delete({ where: { id: userId } });
   return true;
 }
+
+/* ── GLOBAL GET / UPDATE HELPERS (for Super Admin) ── */
+export async function findUserById(userId: string) {
+  return prisma.users.findUnique({
+    where: { id: userId },
+    select: userSelect,
+  });
+}
+
+export async function updateUserPassword(userId: string, passwordHash: string) {
+  const existing = await prisma.users.findUnique({ where: { id: userId }, select: { id: true } });
+  if (!existing) return null;
+
+  return prisma.users.update({
+    where: { id: userId },
+    data: { password_hash: passwordHash, updated_at: new Date() },
+    select: userSelect,
+  });
+}
