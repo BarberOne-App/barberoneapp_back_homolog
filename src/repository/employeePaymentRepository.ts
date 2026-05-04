@@ -5,7 +5,7 @@ const EMPLOYEE_PAYMENT_INCLUDE = {
   creator: { select: { id: true, name: true } },
 } as const;
 
-/* â”€â”€â”€â”€â”€ LIST â”€â”€â”€â”€â”€ */
+/* ───── LIST ───── */
 export async function listEmployeePayments(
   barbershopId: string,
   employeeId?: string
@@ -23,7 +23,6 @@ export async function listEmployeePayments(
   });
 }
 
-/* â”€â”€â”€â”€â”€ FIND BY PERIOD â”€â”€â”€â”€â”€ */
 export async function findEmployeePaymentByPeriod(data: {
   barbershopId: string;
   employeeId: string;
@@ -43,7 +42,23 @@ export async function findEmployeePaymentByPeriod(data: {
   });
 }
 
-/* â”€â”€â”€â”€â”€ CREATE â”€â”€â”€â”€â”€ */
+export async function findLastEmployeePayment(data: {
+  barbershopId: string;
+  employeeId: string;
+}) {
+  return prisma.employee_payments.findFirst({
+    where: {
+      barbershop_id: data.barbershopId,
+      employee_id: data.employeeId,
+    },
+    orderBy: {
+      period_end: "desc",
+    },
+    include: EMPLOYEE_PAYMENT_INCLUDE,
+  });
+}
+
+/* ───── CREATE ───── */
 export async function createEmployeePayment(data: {
   employeeId: string;
   employeeName: string;
@@ -75,6 +90,7 @@ export async function createEmployeePayment(data: {
   });
 }
 
+/* ───── INCREMENT COMMISSION ───── */
 export async function incrementEmployeeCommissionByPeriod(data: {
   employeeId: string;
   employeeName: string;
