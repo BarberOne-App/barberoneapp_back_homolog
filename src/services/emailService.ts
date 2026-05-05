@@ -71,6 +71,10 @@ export async function sendAppointmentConfirmedEmail(params: {
 }) {
 
   const TOKEN = process.env.MAILTRAP_TOKEN;
+  const { date, time } = formatDateTime(params.startAt);
+  const displayName = params.dependentName || params.clientName || "cliente";
+  const services = params.serviceNames.length ? params.serviceNames.join(", ") : "Serviço";
+  const barber = params.barberName || "seu barbeiro";
 
   if (!TOKEN) {
     throw new Error("[email][mailtrap] MAILTRAP_TOKEN não definido");
@@ -81,7 +85,7 @@ export async function sendAppointmentConfirmedEmail(params: {
   });
 
   const sender = {
-    email: "hello@demomailtrap.co",
+    email: "admin@barberone.com",
     name: "Mailtrap Test",
   };
   const recipients = [
@@ -90,13 +94,25 @@ export async function sendAppointmentConfirmedEmail(params: {
     }
   ];
 
+  const text = [
+    `Olá, ${displayName}!`,
+    "",
+    "Seu agendamento foi confirmado com sucesso.",
+    `Data: ${date}`,
+    `Horário: ${time}`,
+    `Barbeiro: ${barber}`,
+    `Serviços: ${services}`,
+    "",
+    "Se precisar remarcar, entre em contato com a barbearia.",
+  ].join("\n");
+
   client
     .send({
       from: sender,
       to: recipients,
-      subject: "You are awesome!",
-      text: "Congrats for sending test email with Mailtrap!",
-      category: "Integration Test",
+      subject: "Agendamento Confirmado - Teste de Integração",
+      text: text,
+      category: "Agendamento Confirmado",
     })
     .then(console.log, console.error);
   // const mailtrapToken = process.env.MAILTRAP_TOKEN;
