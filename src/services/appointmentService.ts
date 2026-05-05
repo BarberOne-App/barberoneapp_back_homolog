@@ -38,7 +38,7 @@ function getServiceDurationMinutes(service: any): number {
 }
 
 const SAO_PAULO_TIME_ZONE = "America/Sao_Paulo";
-const APPOINTMENT_CONFIRMATION_TEST_EMAIL = "rodolphopbuettel@outlook.com";
+const APPOINTMENT_CONFIRMATION_TEST_EMAIL = "rodolpho05buettel@gmail.com";
 const THIRTY_DAYS_IN_MS = 30 * 24 * 60 * 60 * 1000;
 const SCHEDULE_BLOCK_MINUTES = 30;
 
@@ -780,6 +780,7 @@ export async function updateAppointmentService(params: {
 
   const statusWillBeConfirmed = String(params.data.status || "").toLowerCase() === "confirmed";
   const wasAlreadyConfirmed = String(existingAppointment.status || "").toLowerCase() === "confirmed";
+  // Durante testes, forçamos o envio para o email de teste para evitar envios reais.
   const recipientEmail = APPOINTMENT_CONFIRMATION_TEST_EMAIL;
 
   if (statusWillBeConfirmed && !wasAlreadyConfirmed && recipientEmail) {
@@ -787,6 +788,7 @@ export async function updateAppointmentService(params: {
       .map((service: any) => String(service.service_name || "").trim())
       .filter(Boolean);
 
+    console.log(`[email] Preparando envio de confirmação para ${recipientEmail} (agendamento ${updated.id})`);
     sendAppointmentConfirmedEmail({
       to: recipientEmail,
       clientName: updated.users?.name,

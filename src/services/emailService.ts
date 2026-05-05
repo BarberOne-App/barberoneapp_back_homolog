@@ -81,10 +81,14 @@ export async function sendAppointmentConfirmedEmail(params: {
     "Se precisar remarcar, entre em contato com a barbearia.",
   ].join("\n");
 
-  await transporter.sendMail({
+  console.log(`[email] Enviando e-mail de confirmação -> from=${from} to=${params.to} subject=${subject}`);
+
+  const info = await transporter.sendMail({
     from,
     to: params.to,
     subject,
     text,
   });
+
+  console.log(`[email] Envio concluído: ${info?.messageId ?? JSON.stringify(info)}`);
 }
