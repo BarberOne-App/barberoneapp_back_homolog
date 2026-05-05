@@ -339,6 +339,9 @@ model users {
   role          user_role @default(client)
   is_admin      Boolean   @default(false)
   password_hash String
+  google_id     String?   @unique
+  auth_provider String    @default("local")
+  email_verified Boolean  @default(false)
 
   cpf         String? @unique
   permissions Json?   @db.JsonB

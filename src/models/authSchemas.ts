@@ -37,13 +37,16 @@ export const RegisterClientSchema = joi
 
 export const RegisterClientGoogleSchema = joi
   .object({
-    slug: slug.optional(),
-    name: joi.string().trim().min(2).required(),
-    email: email.required(),
-    cpf: joi.string().trim().allow("", null).optional(),
-    phone,
-    birthDate: joi.date().max('now').optional(),
-    password: password.required(),
+    slug: slug.allow("", null).optional(),
+    accessToken: joi.string().trim().required(),
+    profileData: joi
+      .object({
+        cpf: joi.string().trim().allow("", null).optional(),
+        phone,
+        birthDate: joi.date().max('now').optional(),
+        password: password.allow("", null).optional(),
+      })
+      .optional(),
   })
   .options({ abortEarly: false, stripUnknown: true });
 
