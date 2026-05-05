@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+const { MailtrapClient } = require("mailtrap");
 
 const SAO_PAULO_TIME_ZONE = "America/Sao_Paulo";
 
@@ -7,25 +8,35 @@ function toNumber(value: string | undefined, fallback: number) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function buildTransporter() {
-  const host = process.env.EMAIL_HOST;
-  const user = process.env.EMAIL_USER;
-  const pass = process.env.EMAIL_PASSWORD;
+// async function buildTransporter() {
+//   const host = process.env.EMAIL_HOST;
+//   const user = process.env.EMAIL_USER;
+//   const pass = process.env.EMAIL_PASSWORD;
 
-  if (!host || !user || !pass) {
-    throw new Error("SMTP não configurado. Defina EMAIL_HOST, EMAIL_USER e EMAIL_PASSWORD no backend.");
-  }
+//   if (!host || !user || !pass) {
+//     console.warn("[email] SMTP não configurado. Usando modo de teste (Ethereal). Configure EMAIL_HOST, EMAIL_USER e EMAIL_PASSWORD para envio real.");
+//     const testAccount = await nodemailer.createTestAccount();
+//     return nodemailer.createTransport({
+//       host: "smtp.ethereal.email",
+//       port: 587,
+//       secure: false,
+//       auth: {
+//         user: testAccount.user,
+//         pass: testAccount.pass,
+//       },
+//     });
+//   }
 
-  return nodemailer.createTransport({
-    host,
-    port: toNumber(process.env.EMAIL_PORT, 587),
-    secure: String(process.env.EMAIL_SECURE || "false").toLowerCase() === "true",
-    auth: {
-      user,
-      pass,
-    },
-  });
-}
+//   return nodemailer.createTransport({
+//     host,
+//     port: toNumber(process.env.EMAIL_PORT, 587),
+//     secure: String(process.env.EMAIL_SECURE || "false").toLowerCase() === "true",
+//     auth: {
+//       user,
+//       pass,
+//     },
+//   });
+// }
 
 function formatDateTime(date: Date | string) {
   const value = date instanceof Date ? date : new Date(date);
@@ -58,11 +69,8 @@ export async function sendAppointmentConfirmedEmail(params: {
   startAt: Date | string;
   serviceNames: string[];
 }) {
-  const transporter = buildTransporter();
-
-  const from = process.env.EMAIL_FROM || process.env.EMAIL_USER;
-  if (!from) return;
-
+  // Se variável MAILTRAP_TOKEN estiver definida, usar API do Mailtrap
+  const mailtrapToken = process.env.MAILTRAP_TOKEN;
   const { date, time } = formatDateTime(params.startAt);
   const displayName = params.dependentName || params.clientName || "cliente";
   const services = params.serviceNames.length ? params.serviceNames.join(", ") : "Serviço";
@@ -81,14 +89,55 @@ export async function sendAppointmentConfirmedEmail(params: {
     "Se precisar remarcar, entre em contato com a barbearia.",
   ].join("\n");
 
-  console.log(`[email] Enviando e-mail de confirmação -> from=${from} to=${params.to} subject=${subject}`);
+  if (mailtrapToken) {
+    try {
+      const client = new MailtrapClient({ token: mailtrapToken });
 
-  const info = await transporter.sendMail({
-    from,
-    to: params.to,
-    subject,
-    text,
-  });
+      const sender = {
+        email: process.env.EMAIL_FROM || process.env.EMAIL_USER || "noreply@barbearia.com",
+        name: process.env.EMAIL_FROM_NAME || "BarberOne",
+      };
 
-  console.log(`[email] Envio concluído: ${info?.messageId ?? JSON.stringify(info)}`);
+      const recipients = [{ email: params.to }];
+
+      console.log(`[email][mailtrap] Enviando via Mailtrap -> to=${params.to} subject=${subject}`);
+
+      const result = await client.send({
+        from: sender,
+        to: recipients,
+        subject,
+        text,
+        category: "Appointment Confirmation",
+      });
+
+      console.log(`[email][mailtrap] Envio concluído: ${JSON.stringify(result)}`);
+      return result;
+    } catch (err) {
+      console.error("[email][mailtrap] Falha ao enviar via Mailtrap, fallback para SMTP:", err);
+      // continua para fallback nodemailer
+    }
+  }
+
+  // Fallback: usar Nodemailer (Ethereal ou SMTP configurado)
+  // const transporter = await buildTransporter();
+  // const from = process.env.EMAIL_FROM || process.env.EMAIL_USER || "noreply@barbearia.com";
+
+  // console.log(`[email] Enviando e-mail de confirmação -> from=${from} to=${params.to} subject=${subject}`);
+
+  // const info = await transporter.sendMail({
+  //   from,
+  //   to: params.to,
+  //   subject,
+  //   text,
+  // });
+
+  // console.log(`[email] Envio concluído: ${info?.messageId ?? JSON.stringify(info)}`);
+
+  // Se em modo teste (Ethereal), exibe URL para visualizar o email
+  // if (process.env.NODE_ENV !== "production" && !process.env.EMAIL_HOST) {
+  //   const testUrl = nodemailer.getTestMessageUrl(info);
+  //   if (testUrl) {
+  //     console.log(`[email] Visualizar e-mail de teste: ${testUrl}`);
+  //   }
+  // }
 }
