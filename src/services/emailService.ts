@@ -85,7 +85,7 @@ export async function sendAppointmentConfirmedEmail(params: {
   });
 
   const sender = {
-    email: "admin@barberone.com",
+    email: "admin@adtechsolutions-softwares.com",
     name: "Mailtrap Test",
   };
   const recipients = [
@@ -115,74 +115,4 @@ export async function sendAppointmentConfirmedEmail(params: {
       category: "Agendamento Confirmado",
     })
     .then(console.log, console.error);
-  // const mailtrapToken = process.env.MAILTRAP_TOKEN;
-  // const { date, time } = formatDateTime(params.startAt);
-  // const displayName = params.dependentName || params.clientName || "cliente";
-  // const services = params.serviceNames.length ? params.serviceNames.join(", ") : "Serviço";
-  // const barber = params.barberName || "seu barbeiro";
-
-  // const subject = "Seu agendamento foi confirmado";
-  // const text = [
-  //   `Olá, ${displayName}!`,
-  //   "",
-  //   "Seu agendamento foi confirmado com sucesso.",
-  //   `Data: ${date}`,
-  //   `Horário: ${time}`,
-  //   `Barbeiro: ${barber}`,
-  //   `Serviços: ${services}`,
-  //   "",
-  //   "Se precisar remarcar, entre em contato com a barbearia.",
-  // ].join("\n");
-
-  // if (mailtrapToken) {
-  //   try {
-  //     const client = new MailtrapClient({ token: mailtrapToken });
-
-  //     const sender = {
-  //       email: process.env.EMAIL_FROM || process.env.EMAIL_USER || "noreply@barbearia.com",
-  //       name: process.env.EMAIL_FROM_NAME || "BarberOne",
-  //     };
-
-  //     const recipients = [{ email: params.to }];
-
-  //     console.log(`[email][mailtrap] Enviando via Mailtrap -> to=${params.to} subject=${subject}`);
-
-  //     const result = await client.send({
-  //       from: sender,
-  //       to: recipients,
-  //       subject,
-  //       text,
-  //       category: "Appointment Confirmation",
-  //     });
-
-  //     console.log(`[email][mailtrap] Envio concluído: ${JSON.stringify(result)}`);
-  //     return result;
-  //   } catch (err) {
-  //     console.error("[email][mailtrap] Falha ao enviar via Mailtrap, fallback para SMTP:", err);
-  //     // continua para fallback nodemailer
-  //   }
-  // }
-
-  // Fallback: usar Nodemailer (Ethereal ou SMTP configurado)
-  // const transporter = await buildTransporter();
-  // const from = process.env.EMAIL_FROM || process.env.EMAIL_USER || "noreply@barbearia.com";
-
-  // console.log(`[email] Enviando e-mail de confirmação -> from=${from} to=${params.to} subject=${subject}`);
-
-  // const info = await transporter.sendMail({
-  //   from,
-  //   to: params.to,
-  //   subject,
-  //   text,
-  // });
-
-  // console.log(`[email] Envio concluído: ${info?.messageId ?? JSON.stringify(info)}`);
-
-  // Se em modo teste (Ethereal), exibe URL para visualizar o email
-  // if (process.env.NODE_ENV !== "production" && !process.env.EMAIL_HOST) {
-  //   const testUrl = nodemailer.getTestMessageUrl(info);
-  //   if (testUrl) {
-  //     console.log(`[email] Visualizar e-mail de teste: ${testUrl}`);
-  //   }
-  // }
 }
