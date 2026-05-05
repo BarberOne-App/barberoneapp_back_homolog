@@ -69,54 +69,83 @@ export async function sendAppointmentConfirmedEmail(params: {
   startAt: Date | string;
   serviceNames: string[];
 }) {
-  // Se variável MAILTRAP_TOKEN estiver definida, usar API do Mailtrap
-  const mailtrapToken = process.env.MAILTRAP_TOKEN;
-  const { date, time } = formatDateTime(params.startAt);
-  const displayName = params.dependentName || params.clientName || "cliente";
-  const services = params.serviceNames.length ? params.serviceNames.join(", ") : "Serviço";
-  const barber = params.barberName || "seu barbeiro";
 
-  const subject = "Seu agendamento foi confirmado";
-  const text = [
-    `Olá, ${displayName}!`,
-    "",
-    "Seu agendamento foi confirmado com sucesso.",
-    `Data: ${date}`,
-    `Horário: ${time}`,
-    `Barbeiro: ${barber}`,
-    `Serviços: ${services}`,
-    "",
-    "Se precisar remarcar, entre em contato com a barbearia.",
-  ].join("\n");
+  const TOKEN = process.env.MAILTRAP_TOKEN;
 
-  if (mailtrapToken) {
-    try {
-      const client = new MailtrapClient({ token: mailtrapToken });
-
-      const sender = {
-        email: process.env.EMAIL_FROM || process.env.EMAIL_USER || "noreply@barbearia.com",
-        name: process.env.EMAIL_FROM_NAME || "BarberOne",
-      };
-
-      const recipients = [{ email: params.to }];
-
-      console.log(`[email][mailtrap] Enviando via Mailtrap -> to=${params.to} subject=${subject}`);
-
-      const result = await client.send({
-        from: sender,
-        to: recipients,
-        subject,
-        text,
-        category: "Appointment Confirmation",
-      });
-
-      console.log(`[email][mailtrap] Envio concluído: ${JSON.stringify(result)}`);
-      return result;
-    } catch (err) {
-      console.error("[email][mailtrap] Falha ao enviar via Mailtrap, fallback para SMTP:", err);
-      // continua para fallback nodemailer
-    }
+  if (!TOKEN) {
+    throw new Error("[email][mailtrap] MAILTRAP_TOKEN não definido");
   }
+
+  const client = new MailtrapClient({
+    token: TOKEN,
+  });
+
+  const sender = {
+    email: "hello@demomailtrap.co",
+    name: "Mailtrap Test",
+  };
+  const recipients = [
+    {
+      email: "rodolphopbuettel@outlook.com",
+    }
+  ];
+
+  client
+    .send({
+      from: sender,
+      to: recipients,
+      subject: "You are awesome!",
+      text: "Congrats for sending test email with Mailtrap!",
+      category: "Integration Test",
+    })
+    .then(console.log, console.error);
+  // const mailtrapToken = process.env.MAILTRAP_TOKEN;
+  // const { date, time } = formatDateTime(params.startAt);
+  // const displayName = params.dependentName || params.clientName || "cliente";
+  // const services = params.serviceNames.length ? params.serviceNames.join(", ") : "Serviço";
+  // const barber = params.barberName || "seu barbeiro";
+
+  // const subject = "Seu agendamento foi confirmado";
+  // const text = [
+  //   `Olá, ${displayName}!`,
+  //   "",
+  //   "Seu agendamento foi confirmado com sucesso.",
+  //   `Data: ${date}`,
+  //   `Horário: ${time}`,
+  //   `Barbeiro: ${barber}`,
+  //   `Serviços: ${services}`,
+  //   "",
+  //   "Se precisar remarcar, entre em contato com a barbearia.",
+  // ].join("\n");
+
+  // if (mailtrapToken) {
+  //   try {
+  //     const client = new MailtrapClient({ token: mailtrapToken });
+
+  //     const sender = {
+  //       email: process.env.EMAIL_FROM || process.env.EMAIL_USER || "noreply@barbearia.com",
+  //       name: process.env.EMAIL_FROM_NAME || "BarberOne",
+  //     };
+
+  //     const recipients = [{ email: params.to }];
+
+  //     console.log(`[email][mailtrap] Enviando via Mailtrap -> to=${params.to} subject=${subject}`);
+
+  //     const result = await client.send({
+  //       from: sender,
+  //       to: recipients,
+  //       subject,
+  //       text,
+  //       category: "Appointment Confirmation",
+  //     });
+
+  //     console.log(`[email][mailtrap] Envio concluído: ${JSON.stringify(result)}`);
+  //     return result;
+  //   } catch (err) {
+  //     console.error("[email][mailtrap] Falha ao enviar via Mailtrap, fallback para SMTP:", err);
+  //     // continua para fallback nodemailer
+  //   }
+  // }
 
   // Fallback: usar Nodemailer (Ethereal ou SMTP configurado)
   // const transporter = await buildTransporter();
