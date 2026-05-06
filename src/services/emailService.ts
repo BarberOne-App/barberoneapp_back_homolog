@@ -75,6 +75,7 @@ export async function sendAppointmentConfirmedEmail(params: {
   const displayName = params.dependentName || params.clientName || "cliente";
   const services = params.serviceNames.length ? params.serviceNames.join(", ") : "Serviço";
   const barber = params.barberName || "seu barbeiro";
+  const to = params.to;
 
   if (!TOKEN) {
     throw new Error("[email][mailtrap] MAILTRAP_TOKEN não definido");
@@ -85,12 +86,12 @@ export async function sendAppointmentConfirmedEmail(params: {
   });
 
   const sender = {
-    email: "contato@barberoneapp.com",
-    name: "Contato - BarberOneApp",
+    email: "admin@adtechsolutions-softwares.com",
+    name: "Mailtrap Test",
   };
   const recipients = [
     {
-      email: "rodolphopbuettel@outlook.com",
+      email: to,
     }
   ];
 
