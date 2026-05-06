@@ -85,8 +85,8 @@ export async function sendAppointmentConfirmedEmail(params: {
   });
 
   const sender = {
-    email: "admin@adtechsolutions-softwares.com",
-    name: "Mailtrap Test",
+    email: "contato@barberoneapp.com",
+    name: "Contato - BarberOneApp",
   };
   const recipients = [
     {
