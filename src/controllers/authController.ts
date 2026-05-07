@@ -11,6 +11,7 @@ import {
 } from "../models/authSchemas.js";
 import {
   loginService,
+  googleAuthService,
   meService,
   switchBarbershopService,
   refreshTokenService,
@@ -48,12 +49,12 @@ export async function registerClient(req: Request, res: Response) {
   return res.status(201).send(result);
 }
 
-export async function registerClientGoogle(req: Request, res: Response) {
-  const { error } = RegisterClientGoogleSchema.validate(req.body);
+export async function googleAuth(req: Request, res: Response) {
+  const { error, value } = RegisterClientGoogleSchema.validate(req.body);
   if (error) return res.status(422).send(joiErrors(error));
 
-  const result = await registerClientService(req.body);
-  return res.status(201).send(result);
+  const result = await googleAuthService(value);
+  return res.status(result.created ? 201 : 200).send(result);
 }
 
 export async function registerBarber(req: Request, res: Response) {

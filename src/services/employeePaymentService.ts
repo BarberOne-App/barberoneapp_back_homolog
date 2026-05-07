@@ -3,7 +3,20 @@ import {
   createEmployeePayment,
   findEmployeePaymentByPeriod,
   listEmployeePayments,
+  findLastEmployeePayment, 
 } from "../repository/employeePaymentRepository.js";
+
+function addDays(date: Date, days: number) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+function addMonths(date: Date, months: number) {
+  const d = new Date(date);
+  d.setMonth(d.getMonth() + months);
+  return d;
+}
 
 function serialize(payment: any) {
   return {
@@ -59,7 +72,7 @@ export async function createEmployeePaymentService(params: {
   data: {
     employeeId: string;
     employeeName: string;
-    period: string;
+    period: string; 
     periodStart: string;
     periodEnd: string;
     salarioFixo: number;
@@ -78,8 +91,41 @@ export async function createEmployeePaymentService(params: {
 
   if (existingPayment) {
     throw badRequest(
-      "Este funcionário já possui pagamento registrado para este período. Não é permitido pagar salário e comissão novamente."
+      "Este funcionário já possui pagamento registrado para este período."
     );
+  }
+
+  const lastPayment = await findLastEmployeePayment({
+    barbershopId: params.barbershopId,
+    employeeId: params.data.employeeId,
+  });
+
+  if (lastPayment) {
+    const lastPeriodEnd = new Date(lastPayment.period_end);
+
+    let nextAllowedDate: Date;
+
+    switch (params.data.period) {
+      case "semanal":
+        nextAllowedDate = addDays(lastPeriodEnd, 7);
+        break;
+      case "quinzenal":
+        nextAllowedDate = addDays(lastPeriodEnd, 15);
+        break;
+      case "mensal":
+        nextAllowedDate = addMonths(lastPeriodEnd, 1);
+        break;
+      default:
+        nextAllowedDate = addDays(lastPeriodEnd, 7);
+    }
+
+    const hoje = new Date();
+
+    if (hoje < nextAllowedDate) {
+      throw badRequest(
+        "Ainda não é possível realizar um novo pagamento. Aguarde o próximo período."
+      );
+    }
   }
 
   const created = await createEmployeePayment({

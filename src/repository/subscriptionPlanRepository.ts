@@ -56,6 +56,9 @@ export async function createPlanInBarbershop(data: {
   mpSubscriptionUrl?: string | null;
   mpPreapprovalPlanId?: string | null;
   features?: string[];
+  maxBarbers?: number | null;
+  maxReceptionists?: number | null;
+  maxAdmins?: number | null;
 }) {
   return prisma.$transaction(async (tx) => {
     const plan = await tx.subscription_plans.create({
@@ -66,6 +69,9 @@ export async function createPlanInBarbershop(data: {
         price: data.price,
         color: data.color ?? null,
         cuts_per_month: data.cutsPerMonth,
+        max_barbers: data.maxBarbers ?? null,
+        max_receptionists: data.maxReceptionists ?? null,
+        max_admins: data.maxAdmins ?? null,
         active: data.active ?? true,
         recommended: data.recommended ?? false,
         stripe_product_id: normalizeNullableString(data.stripeProductId),
@@ -113,6 +119,9 @@ export async function updatePlanInBarbershop(
     mpSubscriptionUrl?: string | null;
     mpPreapprovalPlanId?: string | null;
     features?: string[];
+    maxBarbers?: number | null;
+    maxReceptionists?: number | null;
+    maxAdmins?: number | null;
   }
 ) {
   // Verificar que pertence à barbearia
@@ -128,6 +137,9 @@ export async function updatePlanInBarbershop(
     if (data.price !== undefined) updateData.price = data.price;
     if (data.color !== undefined) updateData.color = data.color;
     if (data.cutsPerMonth !== undefined) updateData.cuts_per_month = data.cutsPerMonth;
+    if (data.maxBarbers !== undefined) updateData.max_barbers = data.maxBarbers;
+    if (data.maxReceptionists !== undefined) updateData.max_receptionists = data.maxReceptionists;
+    if (data.maxAdmins !== undefined) updateData.max_admins = data.maxAdmins;
     if (data.active !== undefined) updateData.active = data.active;
     if (data.recommended !== undefined) updateData.recommended = data.recommended;
     if (data.stripeProductId !== undefined) {
