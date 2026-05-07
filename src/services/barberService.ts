@@ -1,4 +1,5 @@
 import { forbidden, notFound } from "../errors/index.js";
+import { ensureCanAddRole } from "./planLimitService.js";
 import {
   createBarberInBarbershop,
   deleteBarberFromBarbershop,
@@ -95,6 +96,9 @@ export async function createBarberService(params: {
     const user = await findUserByIdInBarbershop(params.barbershopId, params.data.userId);
     if (!user) throw notFound("Usuário informado não encontrado nesta barbearia");
   }
+
+  // Verifica limites do plano antes de criar barbeiro
+  await ensureCanAddRole(params.barbershopId, "barber", 1);
 
   if (Array.isArray(params.data.serviceIds) && params.data.serviceIds.length > 0) {
     const count = await prisma.services.count({
