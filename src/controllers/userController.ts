@@ -17,6 +17,7 @@ import {
   updatePermissionsService,
   updateUserService,
 } from "../services/userService.js";
+import { validatePlanUserLimit } from "../services/planLimitService.js";
 
 function joiErrors(error: any) {
   return error.details?.map((d: any) => d.message) ?? ["Dados inválidos"];
@@ -146,6 +147,9 @@ export async function createUser(req: Request, res: Response) {
   if (!barbershopId) {
     return res.status(401).send(["Barbearia do usuário autenticado não encontrada"]);
   }
+
+  // ✅ Validar limite de usuários por plano antes de criar
+  await validatePlanUserLimit(barbershopId, value.role);
 
   const result = await createUserService({
     barbershopId,
