@@ -1,5 +1,6 @@
 import bcrypt from "bcrypt";
 import { conflict, forbidden, notFound } from "../errors/index.js";
+import { ensureCanAddRole } from "./planLimitService.js";
 import {
   createUserInBarbershop,
   deleteUserFromBarbershop,
@@ -216,6 +217,17 @@ export async function createUserService(params: {
 
   const passwordHash = await bcrypt.hash(params.data.password, rounds());
 
+  // valida limites de plano por role
+  if (params.data.role === "barber") {
+    await ensureCanAddRole(params.barbershopId, "barber", 1);
+  }
+  if (params.data.role === "receptionist") {
+    await ensureCanAddRole(params.barbershopId, "receptionist", 1);
+  }
+  if (params.data.isAdmin === true || params.data.role === "admin") {
+    await ensureCanAddRole(params.barbershopId, "admin", 1);
+  }
+
   const user = await createUserInBarbershop({
     barbershopId: params.barbershopId,
     name: params.data.name.trim(),
@@ -400,6 +412,20 @@ export async function importUsersService(params: {
           message: "E-mail já cadastrado nessa barbearia",
         });
         continue;
+      }
+
+      // Antes de criar na importação, valida limites do plano
+      if (!rowIsAdmin) {
+        if (normalized.role === "barber") {
+          await ensureCanAddRole(params.barbershopId, "barber", 1);
+        }
+        if (normalized.role === "receptionist") {
+          await ensureCanAddRole(params.barbershopId, "receptionist", 1);
+        }
+      } else {
+        if (normalized.isAdmin === true || normalized.role === "admin") {
+          await ensureCanAddRole(params.barbershopId, "admin", 1);
+        }
       }
 
       const user = await createUserInBarbershop({

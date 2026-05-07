@@ -26,6 +26,9 @@ function serialize(plan: any) {
     price: decimalToNumber(plan.price),
     color: plan.color,
     cutsPerMonth: plan.cuts_per_month,
+    maxBarbers: plan.max_barbers,
+    maxReceptionists: plan.max_receptionists,
+    maxAdmins: plan.max_admins,
     active: plan.active,
     recommended: plan.recommended,
     stripeProductId: plan.stripe_product_id,
@@ -81,6 +84,9 @@ export async function createPlanService(params: {
     mpSubscriptionUrl?: string | null;
     mpPreapprovalPlanId?: string | null;
     features?: string[];
+    maxBarbers?: number | null;
+    maxReceptionists?: number | null;
+    maxAdmins?: number | null;
   };
 }) {
   const { syncStripe, ...dataToPersist } = params.data;
@@ -104,6 +110,9 @@ export async function createPlanService(params: {
   const created = await createPlanInBarbershop({
     barbershopId: params.barbershopId,
     ...dataToPersist,
+    maxBarbers: dataToPersist.maxBarbers,
+    maxReceptionists: dataToPersist.maxReceptionists,
+    maxAdmins: dataToPersist.maxAdmins,
     stripeProductId: stripeData?.stripeProductId,
     stripePriceId: stripeData?.stripePriceId,
     stripePaymentLinkUrl: stripeData?.stripePaymentLinkUrl,
@@ -130,6 +139,9 @@ export async function updatePlanService(params: {
     mpSubscriptionUrl?: string | null;
     mpPreapprovalPlanId?: string | null;
     features?: string[];
+    maxBarbers?: number | null;
+    maxReceptionists?: number | null;
+    maxAdmins?: number | null;
   };
 }) {
   const { syncStripe, ...dataToPersist } = params.data;
@@ -167,6 +179,9 @@ export async function updatePlanService(params: {
     params.planId,
     {
       ...dataToPersist,
+      maxBarbers: dataToPersist.maxBarbers,
+      maxReceptionists: dataToPersist.maxReceptionists,
+      maxAdmins: dataToPersist.maxAdmins,
       stripeProductId: stripeData?.stripeProductId,
       stripePriceId: stripeData?.stripePriceId,
       stripePaymentLinkUrl: stripeData?.stripePaymentLinkUrl,

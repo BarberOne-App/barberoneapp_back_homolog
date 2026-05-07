@@ -285,3 +285,36 @@ export async function applyOverdueStates(
     )
   );
 }
+
+/* ───── FIND ACTIVE BY BARBERSHOP (any owner) ───── */
+export async function findActiveSubscriptionByBarbershop(barbershopId: string) {
+  const startOfToday = getStartOfToday();
+  const pendingGraceLimit = getPendingGraceLimitDate();
+
+  return prisma.subscriptions.findFirst({
+    where: {
+      barbershop_id: barbershopId,
+      OR: [
+        {
+          status: "active",
+          OR: [
+            { next_billing_at: null },
+            { next_billing_at: { gte: startOfToday } },
+          ],
+        },
+        {
+          status: "paused",
+          next_billing_at: {
+            gte: pendingGraceLimit,
+            lt: startOfToday,
+          },
+        },
+      ],
+    },
+    orderBy: [
+      { last_billing_at: "desc" },
+      { created_at: "desc" },
+    ],
+    include: SUB_INCLUDE,
+  });
+}
