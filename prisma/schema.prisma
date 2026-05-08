@@ -376,6 +376,7 @@ model barbershops {
   cnpj       String?  @unique
   phone      String?
   email      String?
+  selected_plan String
   status     barbershop_status @default(active)
   blocked_reason String?
   blocked_at DateTime? @db.Timestamptz(6)

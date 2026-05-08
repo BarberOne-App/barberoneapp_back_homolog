@@ -133,7 +133,7 @@ export async function registerBarbershopService(params: {
   adminEmail: string;
   adminPhone?: string;
   password: string;
-  selectedPlan?: "basic" | "premium";
+  selectedPlan: "basic" | "premium";
 }) {
   const adminEmail = normalizeEmail(params.adminEmail);
   const slug = slugify(params.slug?.trim() || params.barbershopName);
@@ -149,6 +149,7 @@ export async function registerBarbershopService(params: {
           cnpj: params.cnpj ?? null,
           phone: params.phone ?? null,
           email: adminEmail,
+          // selected_plan: params.selectedPlan,
         },
         tx
       );

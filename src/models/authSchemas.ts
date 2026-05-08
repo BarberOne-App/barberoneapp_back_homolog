@@ -61,7 +61,7 @@ export const RegisterBarbershopSchema = joi
     adminPhone: joi.string().trim().allow("", null).optional(),
 
     password: password.required(),
-    selectedPlan: joi.string().trim().valid("basic", "premium").optional(),
+    selectedPlan: joi.string().trim().valid("basic", "premium").required(),
   })
   .options({ abortEarly: false, stripUnknown: true });
 
