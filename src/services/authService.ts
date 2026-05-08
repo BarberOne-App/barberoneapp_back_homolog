@@ -322,7 +322,7 @@ export async function registerBarbershopService(params: {
   const passwordHash = await bcrypt.hash(params.password, rounds());
 
   console.log("Plano selecionado:", params.selectedPlan);
-  
+
   try {
     const result = await prisma.$transaction(async (tx) => {
       const shop = await createBarbershop(

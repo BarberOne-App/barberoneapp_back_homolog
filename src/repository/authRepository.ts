@@ -23,6 +23,7 @@ export async function createBarbershop(
     cnpj?: string | null;
     phone?: string | null;
     email?: string | null;
+    selectedPlan: "basic" | "premium";
   },
   tx?: Prisma.TransactionClient
 ) {
@@ -34,6 +35,7 @@ export async function createBarbershop(
       cnpj: data.cnpj ?? null,
       phone: data.phone ?? null,
       email: data.email ?? null,
+      selected_plan: data.selectedPlan,
     },
     select: { id: true, name: true, slug: true },
   });
