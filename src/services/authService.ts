@@ -247,18 +247,18 @@ export async function googleAuthService(params: {
         ...updateData,
         ...(shop
           ? {
-              barbershop_links: {
-                connectOrCreate: {
-                  where: {
-                    user_id_barbershop_id: {
-                      user_id: existingUser.id,
-                      barbershop_id: shop.id,
-                    },
+            barbershop_links: {
+              connectOrCreate: {
+                where: {
+                  user_id_barbershop_id: {
+                    user_id: existingUser.id,
+                    barbershop_id: shop.id,
                   },
-                  create: { barbershop_id: shop.id },
                 },
+                create: { barbershop_id: shop.id },
               },
-            }
+            },
+          }
           : {}),
       },
       include: {
@@ -290,10 +290,10 @@ export async function googleAuthService(params: {
       current_barbershop_id: shop?.id ?? null,
       ...(shop
         ? {
-            barbershop_links: {
-              create: { barbershop_id: shop.id },
-            },
-          }
+          barbershop_links: {
+            create: { barbershop_id: shop.id },
+          },
+        }
         : {}),
     },
     include: {
@@ -332,7 +332,7 @@ export async function registerBarbershopService(params: {
           cnpj: params.cnpj ?? null,
           phone: params.phone ?? null,
           email: adminEmail,
-          selected_plan: params.selectedPlan,
+          selectedPlan: params.selectedPlan,
         },
         tx
       );
@@ -410,7 +410,7 @@ export async function registerClientService(params: {
 
   const existingCpf = params.cpf ? await findUserByCpf(params.cpf) : null;
   if (existingCpf) throw conflict("CPF já cadastrado");
-  
+
   const passwordHash = await bcrypt.hash(params.password, rounds());
 
   const user = await createUser({
@@ -596,13 +596,13 @@ export async function meService(userId: string) {
     barberProfile: user.barbers ?? null,
     subscription: activeSubscription
       ? {
-          id: activeSubscription.id,
-          status: activeSubscription.status,
-          startedAt: activeSubscription.started_at,
-          nextBillingAt: activeSubscription.next_billing_at,
-          monthlyBarberId: activeSubscription.monthly_barber_id,
-          plan: activeSubscription.subscription_plans,
-        }
+        id: activeSubscription.id,
+        status: activeSubscription.status,
+        startedAt: activeSubscription.started_at,
+        nextBillingAt: activeSubscription.next_billing_at,
+        monthlyBarberId: activeSubscription.monthly_barber_id,
+        plan: activeSubscription.subscription_plans,
+      }
       : null,
   };
 }
