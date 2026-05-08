@@ -37,6 +37,8 @@ export async function registerBarbershop(req: Request, res: Response) {
   const { error } = RegisterBarbershopSchema.validate(req.body);
   if (error) return res.status(422).send(joiErrors(error));
 
+  console.log("Registering barbershop with data:", req.body);
+
   const result = await registerBarbershopService(req.body);
   return res.status(201).send(result);
 }
