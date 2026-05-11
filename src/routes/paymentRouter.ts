@@ -32,7 +32,7 @@ router.get("/appointmentPayments", requireAuth, asyncHandler(listAppointmentPaym
 router.post("/appointmentPayments", requireAuth, asyncHandler(createAppointmentPayment));
 
 // Atualizar (marcar como pago, etc.) — admin
-router.patch("/appointmentPayments/:id", requireAuth, requireAdmin, asyncHandler(updatePayment));
+router.patch("/appointmentPayments/:id", requireAuth, asyncHandler(updatePayment));
 
 // Também permite atualizar pagamento de assinatura
 router.patch("/payments/:id", requireAuth, requireAdmin, asyncHandler(updatePayment));
