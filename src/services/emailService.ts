@@ -1,4 +1,4 @@
-import nodemailer from "nodemailer";
+// import nodemailer from "nodemailer";
 import { MailtrapClient } from "mailtrap";
 
 const SAO_PAULO_TIME_ZONE = "America/Sao_Paulo";
