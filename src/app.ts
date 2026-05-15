@@ -33,7 +33,6 @@ import { MercadoPagoConfig, Payment, Preference } from "mercadopago";
 import { PrismaClient } from "@prisma/client";
 import axios from "axios";
 import Stripe from "stripe";
-import efiRoutes from './routes/efiRoutes.js';
 import { optionalAuth, requireAdmin, requireAuth } from "./middleware/authMiddleware.js";
 
 
@@ -1226,7 +1225,6 @@ app.use(savedCardRouter);
 app.use(employeeValeRouter);
 app.use(employeePaymentRouter);
 app.use(superAdminRouter);
-app.use('/efi', efiRoutes);
 app.use(errorHandler);
 
 
