@@ -39,7 +39,7 @@ function getServiceDurationMinutes(service: any): number {
 
 const SAO_PAULO_TIME_ZONE = "America/Sao_Paulo";
 const THIRTY_DAYS_IN_MS = 30 * 24 * 60 * 60 * 1000;
-const SCHEDULE_BLOCK_MINUTES = 30;
+const SCHEDULE_BLOCK_MINUTES = 5;
 
 function roundUpToScheduleBlock(minutes: number): number {
   if (!Number.isFinite(minutes) || minutes <= 0) {
@@ -183,7 +183,7 @@ function serializeAppointment(a: any) {
 
 const OPEN_HOUR = 9;
 const CLOSE_HOUR = 20;
-const SLOT_STEP = 30;
+const SLOT_STEP = 5;
 
 function normalizeText(value: string) {
   return String(value || "")
