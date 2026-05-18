@@ -14,6 +14,8 @@ const appointmentSelect = {
   barbershop_id: true,
   created_at: true,
   updated_at: true,
+  last_modified_by: true,
+  last_action_description: true,
   barbers: {
     select: { id: true, display_name: true, photo_url: true },
   },
@@ -133,6 +135,8 @@ export async function createAppointmentTx(data: {
   startAt: Date;
   endAt: Date;
   notes?: string | null;
+  lastModifiedBy?: string | null;
+  lastActionDescription?: string | null;
   services: {
     serviceId: string;
     serviceName: string;
@@ -157,6 +161,8 @@ export async function createAppointmentTx(data: {
         dependent_id: data.dependentId ?? null,
         start_at: data.startAt,
         end_at: data.endAt,
+        last_modified_by: data.lastModifiedBy ?? null,
+        last_action_description: data.lastActionDescription ?? null,
         notes: data.notes ?? null,
         status: "scheduled",
         appointment_services: {
@@ -226,6 +232,7 @@ export async function cancelAppointmentInBarbershop(
     data: {
       status: "cancelled",
       updated_at: new Date(),
+      last_action_description: "",
     },
     select: appointmentSelect,
   });

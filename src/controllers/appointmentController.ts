@@ -84,6 +84,8 @@ export async function createAppointment(req: Request, res: Response) {
 
   const result = await createAppointmentService({
     barbershopId: req.user!.barbershopId,
+    actorId: req.user!.id,
+    actorRole: req.user!.role,
     data: {
       barberId: value.barberId,
       clientId: value.clientId,
