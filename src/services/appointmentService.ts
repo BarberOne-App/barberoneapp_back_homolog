@@ -146,25 +146,25 @@ function serializeAppointment(a: any) {
     updatedAt: a.updated_at,
     barber: a.barbers
       ? {
-          id: a.barbers.id,
-          displayName: a.barbers.display_name,
-          photoUrl: a.barbers.photo_url,
-        }
+        id: a.barbers.id,
+        displayName: a.barbers.display_name,
+        photoUrl: a.barbers.photo_url,
+      }
       : null,
     client: a.users
       ? {
-          id: a.users.id,
-          name: a.users.name,
-          email: a.users.email,
-          phone: a.users.phone,
-        }
+        id: a.users.id,
+        name: a.users.name,
+        email: a.users.email,
+        phone: a.users.phone,
+      }
       : null,
     dependent: a.dependents
       ? {
-          id: a.dependents.id,
-          name: a.dependents.name,
-          age: a.dependents.age,
-        }
+        id: a.dependents.id,
+        name: a.dependents.name,
+        age: a.dependents.age,
+      }
       : null,
     services,
     products,
@@ -790,7 +790,7 @@ export async function updateAppointmentService(params: {
   // construir descrição da ação realizada
   const actorDisplay = await resolveActorDisplayName(params.barbershopId, params.actorRole, params.actorId);
   let actionDescription: string | null = null;
-
+  let motivo = "";
   if (params.data.status !== undefined) {
     const statusNormalized = String(params.data.status || "").toLowerCase();
     if (statusNormalized === "confirmed") {
@@ -804,7 +804,12 @@ export async function updateAppointmentService(params: {
     } else if (statusNormalized === "cancelled" || statusNormalized === "canceled") {
       actionDescription = `${actorDisplay} cancelou`;
     } else {
-      actionDescription = `${actorDisplay} alterou status para ${params.data.status}`;
+      if (params.data.status === "no_show" || statusNormalized === "noshow") {
+        motivo = "não compareceu";
+      } else {
+        motivo = "cliente cancelou";
+      }
+      actionDescription = `${actorDisplay} alterou status para ${motivo}`;
     }
   } else if (params.data.barberId !== undefined) {
     const newBarber = await findBarberByIdInBarbershop(params.barbershopId, params.data.barberId!);
