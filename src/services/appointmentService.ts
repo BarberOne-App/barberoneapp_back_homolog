@@ -174,6 +174,8 @@ function serializeAppointment(a: any) {
     commissionPercent:
       services.length === 1 ? services[0].commissionPercent : null,
     commissionAmount: Math.round(commissionAmount * 100) / 100,
+    lastModifiedBy: a.last_modified_by ?? null,
+    lastActionDescription: a.last_action_description ?? null,
   };
 }
 
@@ -335,6 +337,18 @@ function toValidDate(value: any): Date | null {
   const date = value instanceof Date ? value : new Date(value);
 
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+async function resolveActorDisplayName(barbershopId: string, actorRole: string | undefined, actorId?: string | undefined) {
+  if (!actorId) return "Usuário";
+
+  if (actorRole === "barber") {
+    const barber = await findBarberByUserIdInBarbershop(barbershopId, actorId);
+    if (barber) return barber.display_name;
+  }
+
+  const user = await prisma.users.findUnique({ where: { id: actorId }, select: { name: true } });
+  return user?.name ?? "Usuário";
 }
 
 function getSubscriptionRenewalDate(subscription: any): Date | null {
@@ -535,6 +549,8 @@ export async function getAppointmentByIdService(params: {
 
 export async function createAppointmentService(params: {
   barbershopId: string;
+  actorId?: string;
+  actorRole?: string;
   data: {
     barberId: string;
     clientId: string;
@@ -656,6 +672,8 @@ export async function createAppointmentService(params: {
     startAt,
     endAt,
     notes: params.data.notes,
+    lastModifiedBy: params.actorId ?? null,
+    lastActionDescription: `Agendado por ${await resolveActorDisplayName(params.barbershopId, params.actorRole, params.actorId)}`,
     services: normalizedServices,
     products: (products ?? []).map((product) => ({
       productId: product.id,
@@ -769,10 +787,39 @@ export async function updateAppointmentService(params: {
     updateData.barber_id = params.data.barberId;
   }
 
+  // construir descrição da ação realizada
+  const actorDisplay = await resolveActorDisplayName(params.barbershopId, params.actorRole, params.actorId);
+  let actionDescription: string | null = null;
+
+  if (params.data.status !== undefined) {
+    const statusNormalized = String(params.data.status || "").toLowerCase();
+    if (statusNormalized === "confirmed") {
+      if (params.actorRole === "barber") {
+        actionDescription = `Barbeiro ${actorDisplay} confirmou`;
+      } else if (params.actorRole === "admin") {
+        actionDescription = `Admin ${actorDisplay} confirmou`;
+      } else {
+        actionDescription = `${actorDisplay} confirmou`;
+      }
+    } else if (statusNormalized === "cancelled" || statusNormalized === "canceled") {
+      actionDescription = `${actorDisplay} cancelou`;
+    } else {
+      actionDescription = `${actorDisplay} alterou status para ${params.data.status}`;
+    }
+  } else if (params.data.barberId !== undefined) {
+    const newBarber = await findBarberByIdInBarbershop(params.barbershopId, params.data.barberId!);
+    actionDescription = `${actorDisplay} mudou barbeiro para ${newBarber?.display_name ?? params.data.barberId}`;
+  } else if (params.data.notes !== undefined) {
+    actionDescription = `${actorDisplay} atualizou observações`;
+  } else {
+    actionDescription = `${actorDisplay} atualizou agendamento`;
+  }
+
   const updated = await updateAppointmentInBarbershop(
     params.barbershopId,
     params.appointmentId,
-    updateData,
+    // registrar último usuário que fez alteração e descrição
+    { ...updateData, last_modified_by: params.actorId, last_action_description: actionDescription },
   );
 
   if (!updated) throw notFound("Agendamento não encontrado");
@@ -895,6 +942,8 @@ export async function cancelAppointmentService(params: {
       data: {
         status: "cancelled",
         updated_at: new Date(),
+        last_modified_by: params.actorId,
+        last_action_description: await resolveActorDisplayName(params.barbershopId, params.actorRole, params.actorId) + " cancelou",
       },
     });
   });
