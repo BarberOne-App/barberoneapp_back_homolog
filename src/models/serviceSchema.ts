@@ -1,10 +1,15 @@
 // src/models/serviceSchemas.ts
 import joi from "joi";
 
+const serviceDurationSchema = joi.number().integer().min(10).multiple(10).messages({
+  "number.min": "A duração do serviço deve ser de pelo menos 10 minutos",
+  "number.multiple": "A duração do serviço deve ser em intervalos de 10 minutos",
+});
+
 export const CreateServiceSchema = joi.object({
   name: joi.string().trim().min(2).required(),
   basePrice: joi.number().precision(2).positive().required(),
-  durationMinutes: joi.number().integer().min(1).required(),
+  durationMinutes: serviceDurationSchema.required(),
   commissionPercent: joi.number().precision(2).min(0).max(100).allow(null),
   comissionPercent: joi.number().precision(2).min(0).max(100).allow(null),
   promotionalPrice: joi.number().precision(2).min(0).optional(),
@@ -16,7 +21,7 @@ export const CreateServiceSchema = joi.object({
 const ImportServiceRowSchema = joi.object({
   name: joi.string().trim().min(2).required(),
   basePrice: joi.number().precision(2).positive().required(),
-  durationMinutes: joi.number().integer().min(1).required(),
+  durationMinutes: serviceDurationSchema.required(),
   commissionPercent: joi.number().precision(2).min(0).max(100).allow(null).optional(),
   comissionPercent: joi.number().precision(2).min(0).max(100).allow(null).optional(),
   promotionalPrice: joi.number().precision(2).min(0).optional(),
@@ -33,7 +38,7 @@ export const UpdateServiceSchema = joi
   .object({
     name: joi.string().trim().min(2).optional(),
     basePrice: joi.number().precision(2).positive().optional(),
-    durationMinutes: joi.number().integer().min(1).optional(),
+    durationMinutes: serviceDurationSchema.optional(),
     commissionPercent: joi.number().precision(2).min(0).max(100).allow(null),
     comissionPercent: joi.number().precision(2).min(0).max(100).allow(null),
     promotionalPrice: joi.number().precision(2).min(0).optional(),

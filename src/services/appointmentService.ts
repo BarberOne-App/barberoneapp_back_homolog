@@ -660,8 +660,17 @@ export async function createAppointmentService(params: {
     date,
   });
 
-  if (activeSubscription && existingForClient.length > 0) {
-    throw badRequest("Cliente/dependente já possui agendamento neste dia");
+  const clientHasConflict = existingForClient.some((appt) => {
+    const existStart = new Date(appt.start_at).getTime();
+    const existEnd = new Date(appt.end_at).getTime();
+
+    if (Number.isNaN(existStart) || Number.isNaN(existEnd)) return false;
+
+    return startAt.getTime() < existEnd && endAt.getTime() > existStart;
+  });
+
+  if (clientHasConflict) {
+    throw badRequest("Cliente/dependente já possui agendamento neste horário");
   }
 
   const created = await createAppointmentTx({
