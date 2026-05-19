@@ -622,6 +622,15 @@ export async function createAppointmentService(params: {
     clientId,
   );
 
+  console.log("[createAppointment] Verificação de assinatura ativa:", {
+    userId: clientId,
+    subscriptionId: activeSubscription?.id ?? null,
+    subscriptionStatus: activeSubscription?.status ?? null,
+    endedAt: (activeSubscription as any)?.ended_at ?? null,
+    nextBillingAt: (activeSubscription as any)?.next_billing_at ?? null,
+    hasActiveSubscription: !!activeSubscription,
+  });
+
   if (
     activeSubscription?.monthly_barber_id &&
     activeSubscription.monthly_barber_id !== barberId
@@ -774,6 +783,15 @@ export async function updateAppointmentService(params: {
         params.barbershopId,
         appointmentClientId,
       );
+
+      console.log("[updateAppointment] Verificação de assinatura ativa:", {
+        userId: appointmentClientId,
+        subscriptionId: activeSubscription?.id ?? null,
+        subscriptionStatus: activeSubscription?.status ?? null,
+        endedAt: (activeSubscription as any)?.ended_at ?? null,
+        nextBillingAt: (activeSubscription as any)?.next_billing_at ?? null,
+        hasActiveSubscription: !!activeSubscription,
+      });
 
       if (
         activeSubscription?.monthly_barber_id &&
