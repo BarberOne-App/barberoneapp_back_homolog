@@ -117,7 +117,7 @@ function getPlatformFeeAmount(amountInCents: number, bodyFeeAmount: string | num
 
 function buildSplit({ amountInCents, barbershopRecipientId, platformFeeAmountInCents }: BuildSplitParams): SplitItem[] {
     // const platformRecipientId = process.env.PAGARME_PLATFORM_RECIPIENT_ID;
-    const platformRecipientId = "re_cmpe4uszd000i0m9t5tikj0ev";
+    const platformRecipientId = "re_cmpe51mtq003a0m9t73cmihc6";
 
     if (!barbershopRecipientId) {
         throw new Error('A barbearia ainda não possui pagarme_recipient_id cadastrado.');
