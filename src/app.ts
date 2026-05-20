@@ -16,6 +16,7 @@ import subscriptionRouter from "./routes/subscriptionRouter.js";
 import paymentRouter from "./routes/paymentRouter.js";
 import paymentMethodRouter from "./routes/paymentMethodRouter.js";
 import galleryRouter from "./routes/galleryRouter.js";
+import pagarmeRoutes from "./routes/pagarmeRoutes.js";
 // import mercadoPagoRouter from "./routes/mercadoPagoRouter.js";
 import webhookRouter from "./routes/webhookRouter.js";
 import dependentRouter from "./routes/dependentRouter.js";
@@ -1225,6 +1226,7 @@ app.use(savedCardRouter);
 app.use(employeeValeRouter);
 app.use(employeePaymentRouter);
 app.use(superAdminRouter);
+app.use("/pagarme", pagarmeRoutes);
 app.use(errorHandler);
 
 

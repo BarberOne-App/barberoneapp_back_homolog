@@ -220,7 +220,7 @@ export async function createPagarmeOrderService(params: any) {
 
     const paymentMethod = String(params.paymentMethod || '').toLowerCase();
 
-    const payment = {
+    const payment: any = {
         payment_method: paymentMethod === 'pix' ? 'pix' : 'credit_card',
         split: buildSplit({
             amountInCents,
