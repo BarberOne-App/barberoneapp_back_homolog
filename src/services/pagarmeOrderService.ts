@@ -210,7 +210,7 @@ export async function createPagarmeOrderService(params: any) {
         email: params?.customer?.email,
         type: 'individual',
         document: '30895382024',
-            phones: {mobile_phone: {country_code: '55', area_code: '32', number: '998456585'}},
+        phones: { mobile_phone: { country_code: '55', area_code: '32', number: '998456585' } },
     };
 
     const itemName = params?.item?.name || 'Agendamento';
@@ -236,11 +236,21 @@ export async function createPagarmeOrderService(params: any) {
             throw new Error('cardToken é obrigatório para pagamento com cartão.');
         }
 
+        const billingAddress = {
+            line_1: '123, Rua Teste, Centro',
+            line_2: 'Casa',
+            zip_code: '36880000',
+            city: 'Muriae',
+            state: 'MG',
+            country: 'BR',
+        };
+
         payment.credit_card = {
             operation_type: 'auth_and_capture',
             installments: 1,
             statement_descriptor: 'Minas Gerais',
             card_token: params.cardToken,
+            billing_address: billingAddress,
         };
     }
 
