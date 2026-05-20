@@ -79,7 +79,7 @@ export async function pagarmeWebhookController(req: Request, res: Response, next
                 data: {
                     status: isPaid ? 'paid' : 'failed',
                     // payment_provider: 'pagarme',
-                    payment_method: normalized.paymentMethod === 'pix' ? 'pix' : 'card',
+                    method: 'credito',
                     paid_at: isPaid ? new Date() : null,
                     pagarme_order_id: normalized.orderId,
                     pagarme_charge_id: normalized.chargeId,
