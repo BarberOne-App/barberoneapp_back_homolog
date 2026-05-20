@@ -15,19 +15,6 @@ const SUB_INCLUDE = {
   },
 } as const;
 
-function getStartOfToday() {
-  const date = new Date();
-  date.setHours(0, 0, 0, 0);
-  return date;
-}
-
-function getPendingGraceLimitDate() {
-  const startOfToday = getStartOfToday();
-  const graceLimit = new Date(startOfToday);
-  graceLimit.setDate(graceLimit.getDate() - 5);
-  return graceLimit;
-}
-
 /* ───── LIST ───── */
 export async function listSubscriptionsInBarbershop(params: {
   barbershopId: string;
@@ -69,33 +56,22 @@ export async function findSubscriptionByIdInBarbershop(
   });
 }
 
-/* ───── FIND ACTIVE/PENDING BY USER ───── */
+/* ───── FIND ACTIVE BY USER ───── */
 export async function findActiveSubscriptionByUser(
   barbershopId: string,
   userId: string
 ) {
-  const startOfToday = getStartOfToday();
-  const pendingGraceLimit = getPendingGraceLimitDate();
+  const now = new Date();
 
-  return prisma.subscriptions.findFirst({
+  const subscription = await prisma.subscriptions.findFirst({
     where: {
       barbershop_id: barbershopId,
       user_id: userId,
+      status: "active",
+      ended_at: null,
       OR: [
-        {
-          status: "active",
-          OR: [
-            { next_billing_at: null },
-            { next_billing_at: { gte: startOfToday } },
-          ],
-        },
-        {
-          status: "paused",
-          next_billing_at: {
-            gte: pendingGraceLimit,
-            lt: startOfToday,
-          },
-        },
+        { next_billing_at: null },
+        { next_billing_at: { gte: now } },
       ],
     },
     orderBy: [
@@ -104,6 +80,18 @@ export async function findActiveSubscriptionByUser(
     ],
     include: SUB_INCLUDE,
   });
+
+  console.log("[findActiveSubscriptionByUser] Resultado:", {
+    userId,
+    barbershopId,
+    subscriptionId: subscription?.id ?? null,
+    status: subscription?.status ?? null,
+    endedAt: subscription?.ended_at ?? null,
+    nextBillingAt: subscription?.next_billing_at ?? null,
+    hasActiveSubscription: !!subscription,
+  });
+
+  return subscription;
 }
 
 /* ───── CREATE (subscription + first cycle) ───── */
@@ -172,6 +160,11 @@ export async function updateSubscriptionInBarbershop(
   if (!existing) return null;
 
   data.updated_at = new Date();
+
+  // Garante ended_at ao cancelar/expirar via endpoint de update
+  if ((data.status === "cancelled" || data.status === "expired") && data.ended_at === undefined) {
+    data.ended_at = new Date();
+  }
 
   return prisma.subscriptions.update({
     where: { id },
@@ -288,27 +281,16 @@ export async function applyOverdueStates(
 
 /* ───── FIND ACTIVE BY BARBERSHOP (any owner) ───── */
 export async function findActiveSubscriptionByBarbershop(barbershopId: string) {
-  const startOfToday = getStartOfToday();
-  const pendingGraceLimit = getPendingGraceLimitDate();
+  const now = new Date();
 
   return prisma.subscriptions.findFirst({
     where: {
       barbershop_id: barbershopId,
+      status: "active",
+      ended_at: null,
       OR: [
-        {
-          status: "active",
-          OR: [
-            { next_billing_at: null },
-            { next_billing_at: { gte: startOfToday } },
-          ],
-        },
-        {
-          status: "paused",
-          next_billing_at: {
-            gte: pendingGraceLimit,
-            lt: startOfToday,
-          },
-        },
+        { next_billing_at: null },
+        { next_billing_at: { gte: now } },
       ],
     },
     orderBy: [

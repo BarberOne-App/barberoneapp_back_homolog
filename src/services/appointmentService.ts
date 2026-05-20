@@ -39,7 +39,7 @@ function getServiceDurationMinutes(service: any): number {
 
 const SAO_PAULO_TIME_ZONE = "America/Sao_Paulo";
 const THIRTY_DAYS_IN_MS = 30 * 24 * 60 * 60 * 1000;
-const SCHEDULE_BLOCK_MINUTES = 30;
+const SCHEDULE_BLOCK_MINUTES = 5;
 
 function roundUpToScheduleBlock(minutes: number): number {
   if (!Number.isFinite(minutes) || minutes <= 0) {
@@ -183,7 +183,7 @@ function serializeAppointment(a: any) {
 
 const OPEN_HOUR = 9;
 const CLOSE_HOUR = 20;
-const SLOT_STEP = 30;
+const SLOT_STEP = 5;
 
 function normalizeText(value: string) {
   return String(value || "")
@@ -622,6 +622,15 @@ export async function createAppointmentService(params: {
     clientId,
   );
 
+  console.log("[createAppointment] Verificação de assinatura ativa:", {
+    userId: clientId,
+    subscriptionId: activeSubscription?.id ?? null,
+    subscriptionStatus: activeSubscription?.status ?? null,
+    endedAt: (activeSubscription as any)?.ended_at ?? null,
+    nextBillingAt: (activeSubscription as any)?.next_billing_at ?? null,
+    hasActiveSubscription: !!activeSubscription,
+  });
+
   if (
     activeSubscription?.monthly_barber_id &&
     activeSubscription.monthly_barber_id !== barberId
@@ -660,8 +669,17 @@ export async function createAppointmentService(params: {
     date,
   });
 
-  if (activeSubscription && existingForClient.length > 0) {
-    throw badRequest("Cliente/dependente já possui agendamento neste dia");
+  const clientHasConflict = existingForClient.some((appt) => {
+    const existStart = new Date(appt.start_at).getTime();
+    const existEnd = new Date(appt.end_at).getTime();
+
+    if (Number.isNaN(existStart) || Number.isNaN(existEnd)) return false;
+
+    return startAt.getTime() < existEnd && endAt.getTime() > existStart;
+  });
+
+  if (clientHasConflict) {
+    throw badRequest("Cliente/dependente já possui agendamento neste horário");
   }
 
   const created = await createAppointmentTx({
@@ -765,6 +783,15 @@ export async function updateAppointmentService(params: {
         params.barbershopId,
         appointmentClientId,
       );
+
+      console.log("[updateAppointment] Verificação de assinatura ativa:", {
+        userId: appointmentClientId,
+        subscriptionId: activeSubscription?.id ?? null,
+        subscriptionStatus: activeSubscription?.status ?? null,
+        endedAt: (activeSubscription as any)?.ended_at ?? null,
+        nextBillingAt: (activeSubscription as any)?.next_billing_at ?? null,
+        hasActiveSubscription: !!activeSubscription,
+      });
 
       if (
         activeSubscription?.monthly_barber_id &&
