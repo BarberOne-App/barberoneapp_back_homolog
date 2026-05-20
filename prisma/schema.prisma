@@ -128,6 +128,9 @@ model payment_transactions {
   stripe_charge_id              String?
   stripe_destination_account_id String?
   stripe_application_fee_amount Int?
+  pagarme_order_id String?
+  pagarme_charge_id String?
+  pagarme_status String?
   barbershops                   barbershops    @relation(fields: [barbershop_id], references: [id], onUpdate: NoAction, map: "fk_payments_barbershop")
   appointments                  appointments?  @relation(fields: [appointment_id], references: [id], onUpdate: NoAction)
   subscriptions                 subscriptions? @relation(fields: [subscription_id], references: [id], onUpdate: NoAction)
@@ -392,6 +395,7 @@ model barbershops {
   blocked_reason                         String?
   blocked_at                             DateTime?         @db.Timestamptz(6)
   deactivated_at                         DateTime?         @db.Timestamptz(6)
+  pagarme_recipient_id String?
   stripe_connect_account_id              String?           @unique
   stripe_connect_charges_enabled         Boolean           @default(false)
   stripe_connect_payouts_enabled         Boolean           @default(false)

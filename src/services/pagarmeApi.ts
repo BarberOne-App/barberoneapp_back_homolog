@@ -1,0 +1,44 @@
+const DEFAULT_BASE_URL = process.env.NODE_ENV === 'production'
+    ? 'https://api.pagar.me/core/v5'
+    : 'https://sdx-api.pagar.me/core/v5';
+
+export const PAGARME_BASE_URL = String(process.env.PAGARME_BASE_URL || DEFAULT_BASE_URL).replace(/\/+$/, '');
+
+function getAuthHeader() {
+    const secretKey = process.env.PAGARME_SECRET_KEY;
+
+    if (!secretKey) {
+        throw new Error('PAGARME_SECRET_KEY não foi definida no .env do backend.');
+    }
+
+    return `Basic ${Buffer.from(`${secretKey}:`).toString('base64')}`;
+}
+
+export async function pagarmeRequest(path: string, options: RequestInit = {}) {
+    const response = await fetch(`${PAGARME_BASE_URL}${path}`, {
+        ...options,
+        headers: {
+            accept: 'application/json',
+            'content-type': 'application/json',
+            Authorization: getAuthHeader(),
+            ...(options.headers || {}),
+        },
+    });
+
+    const data: any = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+        const message =
+            data?.message ||
+            data?.errors?.[0]?.message ||
+            data?.errors?.message ||
+            'Erro na API Pagar.me.';
+
+        const error: any = new Error(message);
+        error.status = response.status;
+        error.details = data;
+        throw error;
+    }
+
+    return data;
+}
