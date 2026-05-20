@@ -237,7 +237,7 @@ export async function createPagarmeOrderService(params: any) {
         }
 
         payment.credit_card = {
-            operation_type: 'auth_only',
+            operation_type: 'auth_and_capture',
             installments: 1,
             statement_descriptor: 'Minas Gerais',
             card_token: params.cardToken,
