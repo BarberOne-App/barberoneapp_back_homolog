@@ -269,7 +269,7 @@ export async function createPagarmeOrderService(params: any) {
     });
 
     console.log('Pagarme order created:', order);
-    return normalizePagarmeOrder(order);
+    return order;
 }
 
 export async function getPagarmeOrderStatusService(orderId: string) {
