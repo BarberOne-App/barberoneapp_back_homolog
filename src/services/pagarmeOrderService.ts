@@ -274,6 +274,7 @@ export async function createPagarmeOrderService(params: any) {
         body: JSON.stringify(payload),
     });
 
+    console.log('Pagarme order created:', order);
     return normalizePagarmeOrder(order);
 }
 
