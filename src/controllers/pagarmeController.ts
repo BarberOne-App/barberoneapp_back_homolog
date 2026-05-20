@@ -8,6 +8,7 @@ import prisma from '../database/database.js';
 import { Request, Response, NextFunction } from 'express';
 
 export async function createPagarmeOrderController(req: Request, res: Response, next: NextFunction) {
+    console.log('createPagarmeOrderController called with body:', req.body);
     try {
         const result = await createPagarmeOrderService(req.body);
         return res.status(201).json(result);
