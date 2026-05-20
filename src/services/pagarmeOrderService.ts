@@ -103,20 +103,21 @@ function getPlatformFeeAmount(amountInCents: number, bodyFeeAmount: string | num
     return Math.round(amountInCents * (percent / 100));
 }
 
-async function getBarbershopRecipientId(barbershopId: string | undefined | null): Promise<string | null> {
-    if (!barbershopId) return null;
+// async function getBarbershopRecipientId(barbershopId: string | undefined | null): Promise<string | null> {
+//     if (!barbershopId) return null;
 
-    // Ajuste o nome do model/campo se no seu schema estiver diferente.
-    const shop = await prisma.barbershops.findUnique({
-        where: { id: String(barbershopId) },
-        select: { pagarme_recipient_id: true },
-    });
+//     // Ajuste o nome do model/campo se no seu schema estiver diferente.
+//     const shop = await prisma.barbershops.findUnique({
+//         where: { id: String(barbershopId) },
+//         select: { pagarme_recipient_id: true },
+//     });
 
-    return shop?.pagarme_recipient_id || null;
-}
+//     return shop?.pagarme_recipient_id || null;
+// }
 
 function buildSplit({ amountInCents, barbershopRecipientId, platformFeeAmountInCents }: BuildSplitParams): SplitItem[] {
-    const platformRecipientId = process.env.PAGARME_PLATFORM_RECIPIENT_ID;
+    // const platformRecipientId = process.env.PAGARME_PLATFORM_RECIPIENT_ID;
+    const platformRecipientId = "re_cmpe4uszd000i0m9t5tikj0ev";
 
     if (!barbershopRecipientId) {
         throw new Error('A barbearia ainda não possui pagarme_recipient_id cadastrado.');
@@ -192,7 +193,8 @@ export async function createPagarmeOrderService(params: any) {
     }
 
     const barbershopId = params?.metadata?.barbershopId;
-    const barbershopRecipientId = await getBarbershopRecipientId(barbershopId);
+    const barbershopRecipientId = "re_cmpe4uszd000i0m9t5tikj0ev";
+    // const barbershopRecipientId = await getBarbershopRecipientId(barbershopId);
 
     if (!barbershopRecipientId) {
         throw new Error('A barbearia ainda não possui pagarme_recipient_id cadastrado.');
