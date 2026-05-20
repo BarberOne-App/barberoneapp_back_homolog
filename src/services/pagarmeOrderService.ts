@@ -250,7 +250,9 @@ export async function createPagarmeOrderService(params: any) {
             installments: 1,
             statement_descriptor: 'Minas Gerais',
             card_token: params.cardToken,
-            billing_address: billingAddress,
+            card: {
+                billing_address: billingAddress,
+            },
         };
     }
 
