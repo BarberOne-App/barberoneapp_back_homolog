@@ -208,13 +208,9 @@ export async function createPagarmeOrderService(params: any) {
     const customer = {
         name: params?.customer?.name || 'Cliente',
         email: params?.customer?.email,
-        type: customerDocument.length > 11 ? 'company' : 'individual',
-        document: customerDocument || undefined,
-        phones: customerPhone
-            ? {
-                mobile_phone: customerPhone,
-            }
-            : undefined,
+        type: 'individual',
+        document: '30895382024',
+            phones: {mobile_phone: {country_code: '55', area_code: '32', number: '998456585'}},
     };
 
     const itemName = params?.item?.name || 'Agendamento';
@@ -223,7 +219,7 @@ export async function createPagarmeOrderService(params: any) {
     const paymentMethod = String(params.paymentMethod || '').toLowerCase();
 
     const payment: any = {
-        payment_method: paymentMethod === 'pix' ? 'pix' : 'credit_card',
+        payment_method: 'credit_card',
         split: buildSplit({
             amountInCents,
             barbershopRecipientId,
@@ -241,11 +237,9 @@ export async function createPagarmeOrderService(params: any) {
         }
 
         payment.credit_card = {
-            operation_type: 'auth_and_capture',
-            installments: Number(params.installments || 1),
-            statement_descriptor: String(process.env.PAGARME_STATEMENT_DESCRIPTOR || 'BARBERONE')
-                .replace(/[^a-zA-Z0-9 ]/g, '')
-                .slice(0, 13),
+            operation_type: 'auth_only',
+            installments: 1,
+            statement_descriptor: 'Minas Gerais',
             card_token: params.cardToken,
         };
     }
@@ -259,7 +253,7 @@ export async function createPagarmeOrderService(params: any) {
                 amount: amountInCents,
                 description: itemName,
                 quantity: 1,
-                code: String(params?.item?.id || 'service'),
+                code: '1234',
             },
         ],
         payments: [payment],
