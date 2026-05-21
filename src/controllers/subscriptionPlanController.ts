@@ -17,46 +17,6 @@ function joiErrors(error: any) {
   return error.details?.map((d: any) => d.message) ?? ["Dados inválidos"];
 }
 
-function normalizePlanPayload(body: any) {
-  const mpPreapprovalPlanId =
-    body?.mpPreapprovalPlanId ??
-    body?.mp_preapproval_plan_id ??
-    body?.mp_preapproval_id ??
-    body?.productId ??
-    undefined;
-
-  const stripeProductId =
-    body?.stripeProductId ??
-    body?.stripe_product_id ??
-    undefined;
-
-  const stripePriceId =
-    body?.stripePriceId ??
-    body?.stripe_price_id ??
-    undefined;
-
-  const stripePaymentLinkUrl =
-    body?.stripePaymentLinkUrl ??
-    body?.stripe_payment_link_url ??
-    body?.subscriptionUrl ??
-    undefined;
-
-  const syncStripe =
-    body?.syncStripe ??
-    body?.autoCreateStripe ??
-    body?.createOnStripe ??
-    undefined;
-
-  return {
-    ...body,
-    ...(stripeProductId !== undefined ? { stripeProductId } : {}),
-    ...(stripePriceId !== undefined ? { stripePriceId } : {}),
-    ...(stripePaymentLinkUrl !== undefined ? { stripePaymentLinkUrl } : {}),
-    ...(syncStripe !== undefined ? { syncStripe } : {}),
-    ...(mpPreapprovalPlanId !== undefined ? { mpPreapprovalPlanId } : {}),
-  };
-}
-
 /* ───── LIST ───── */
 export async function listPlans(req: Request, res: Response) {
   const { error, value } = ListPlansQuerySchema.validate(req.query, { abortEarly: false });
@@ -85,8 +45,7 @@ export async function getPlanById(req: Request, res: Response) {
 
 /* ───── CREATE ───── */
 export async function createPlan(req: Request, res: Response) {
-  const normalizedBody = normalizePlanPayload(req.body);
-  const { error, value } = CreatePlanSchema.validate(normalizedBody);
+  const { error, value } = CreatePlanSchema.validate(req.body);
   if (error) return res.status(422).send(joiErrors(error));
 
   const result = await createPlanService({
@@ -102,8 +61,7 @@ export async function updatePlan(req: Request, res: Response) {
   const p = PlanIdParamSchema.validate(req.params);
   if (p.error) return res.status(422).send(joiErrors(p.error));
 
-  const normalizedBody = normalizePlanPayload(req.body);
-  const b = UpdatePlanSchema.validate(normalizedBody, { abortEarly: false });
+  const b = UpdatePlanSchema.validate(req.body, { abortEarly: false });
   if (b.error) return res.status(422).send(joiErrors(b.error));
 
   const result = await updatePlanService({

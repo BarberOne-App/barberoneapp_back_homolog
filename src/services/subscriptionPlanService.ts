@@ -6,7 +6,6 @@ import {
   listPlansInBarbershop,
   updatePlanInBarbershop,
 } from "../repository/subscriptionPlanRepository.js";
-import { provisionConnectRecurringPlan } from "./stripeConnectPlanService.js";
 
 /* ─────────────── helpers ─────────────── */
 
@@ -31,13 +30,6 @@ function serialize(plan: any) {
     maxAdmins: plan.max_admins,
     active: plan.active,
     recommended: plan.recommended,
-    stripeProductId: plan.stripe_product_id,
-    stripePriceId: plan.stripe_price_id,
-    stripePaymentLinkUrl: plan.stripe_payment_link_url,
-    mpSubscriptionUrl: plan.stripe_payment_link_url || plan.mp_subscription_url,
-    mpPreapprovalPlanId: plan.stripe_product_id || plan.mp_preapproval_plan_id,
-    subscriptionUrl: plan.stripe_payment_link_url || plan.mp_subscription_url,
-    externalPlanId: plan.stripe_product_id || plan.mp_preapproval_plan_id,
     features: (plan.subscription_plan_features ?? []).map((f: any) => f.feature),
     createdAt: plan.created_at,
     updatedAt: plan.updated_at,
@@ -77,45 +69,20 @@ export async function createPlanService(params: {
     cutsPerMonth: number;
     active?: boolean;
     recommended?: boolean;
-    syncStripe?: boolean;
-    stripeProductId?: string | null;
-    stripePriceId?: string | null;
-    stripePaymentLinkUrl?: string | null;
-    mpSubscriptionUrl?: string | null;
-    mpPreapprovalPlanId?: string | null;
     features?: string[];
     maxBarbers?: number | null;
     maxReceptionists?: number | null;
     maxAdmins?: number | null;
   };
 }) {
-  const { syncStripe, ...dataToPersist } = params.data;
-
-  let stripeData:
-    | {
-        stripeProductId: string;
-        stripePriceId: string;
-        stripePaymentLinkUrl: string;
-      }
-    | undefined;
-
-  if (syncStripe !== false) {
-    stripeData = await provisionConnectRecurringPlan({
-      barbershopId: params.barbershopId,
-      planName: dataToPersist.name,
-      amount: dataToPersist.price,
-    });
-  }
+  const {...dataToPersist } = params.data;
 
   const created = await createPlanInBarbershop({
     barbershopId: params.barbershopId,
     ...dataToPersist,
     maxBarbers: dataToPersist.maxBarbers,
     maxReceptionists: dataToPersist.maxReceptionists,
-    maxAdmins: dataToPersist.maxAdmins,
-    stripeProductId: stripeData?.stripeProductId,
-    stripePriceId: stripeData?.stripePriceId,
-    stripePaymentLinkUrl: stripeData?.stripePaymentLinkUrl,
+    maxAdmins: dataToPersist.maxAdmins
   });
   return serialize(created);
 }
@@ -132,47 +99,16 @@ export async function updatePlanService(params: {
     cutsPerMonth?: number;
     active?: boolean;
     recommended?: boolean;
-    syncStripe?: boolean;
-    stripeProductId?: string | null;
-    stripePriceId?: string | null;
-    stripePaymentLinkUrl?: string | null;
-    mpSubscriptionUrl?: string | null;
-    mpPreapprovalPlanId?: string | null;
     features?: string[];
     maxBarbers?: number | null;
     maxReceptionists?: number | null;
     maxAdmins?: number | null;
   };
 }) {
-  const { syncStripe, ...dataToPersist } = params.data;
+  const {...dataToPersist } = params.data;
 
   const existing = await findPlanByIdInBarbershop(params.barbershopId, params.planId);
   if (!existing) throw notFound("Plano não encontrado");
-
-  const shouldSyncStripe =
-    syncStripe !== false &&
-    (dataToPersist.name !== undefined ||
-      dataToPersist.price !== undefined ||
-      !existing.stripe_product_id ||
-      !existing.stripe_price_id ||
-      !existing.stripe_payment_link_url);
-
-  let stripeData:
-    | {
-        stripeProductId: string;
-        stripePriceId: string;
-        stripePaymentLinkUrl: string;
-      }
-    | undefined;
-
-  if (shouldSyncStripe) {
-    stripeData = await provisionConnectRecurringPlan({
-      barbershopId: params.barbershopId,
-      planName: dataToPersist.name ?? existing.name,
-      amount: dataToPersist.price ?? decimalToNumber(existing.price),
-      existingProductId: existing.stripe_product_id,
-    });
-  }
 
   const updated = await updatePlanInBarbershop(
     params.barbershopId,
@@ -181,10 +117,7 @@ export async function updatePlanService(params: {
       ...dataToPersist,
       maxBarbers: dataToPersist.maxBarbers,
       maxReceptionists: dataToPersist.maxReceptionists,
-      maxAdmins: dataToPersist.maxAdmins,
-      stripeProductId: stripeData?.stripeProductId,
-      stripePriceId: stripeData?.stripePriceId,
-      stripePaymentLinkUrl: stripeData?.stripePaymentLinkUrl,
+      maxAdmins: dataToPersist.maxAdmins
     }
   );
   if (!updated) throw notFound("Plano não encontrado");
