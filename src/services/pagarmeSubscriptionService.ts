@@ -186,7 +186,7 @@ export async function createPagarmeClientSubscriptionService(params: any, curren
             payment_method: 'credito',
             amount: Number(plan.price),
 
-            start_date: new Date(),
+            created_at: new Date(),
             next_billing_date: pagarmeSubscription.next_billing_at
                 ? new Date(pagarmeSubscription.next_billing_at)
                 : null,
