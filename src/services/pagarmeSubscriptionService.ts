@@ -187,10 +187,10 @@ export async function createPagarmeClientSubscriptionService(params: any, curren
             amount: Number(plan.price),
 
             created_at: new Date(),
-            next_billing_date: pagarmeSubscription.next_billing_at
+            next_billing_at: pagarmeSubscription.next_billing_at
                 ? new Date(pagarmeSubscription.next_billing_at)
                 : null,
-            last_billing_date: new Date(),
+            last_billing_at: new Date(),
         },
     });
 
