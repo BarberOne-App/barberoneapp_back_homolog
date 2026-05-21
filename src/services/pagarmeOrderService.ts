@@ -186,6 +186,7 @@ export function normalizePagarmeOrder(order: PagarmeOrder): NormalizedOrder {
 }
 
 export async function createPagarmeOrderService(params: any) {
+    console.log("createPagarmeOrderService called with params:", params);
     const amountInCents = toCents(params.amount);
 
     if (!amountInCents || amountInCents <= 0) {
@@ -219,7 +220,7 @@ export async function createPagarmeOrderService(params: any) {
     const paymentMethod = String(params.paymentMethod || '').toLowerCase();
 
     const payment: any = {
-        payment_method: 'credit_card',
+        payment_method: paymentMethod,
         split: buildSplit({
             amountInCents,
             barbershopRecipientId,
