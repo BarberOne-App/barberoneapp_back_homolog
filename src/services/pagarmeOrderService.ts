@@ -164,6 +164,24 @@ function buildSplit({ amountInCents, barbershopRecipientId, platformFeeAmountInC
     ];
 }
 
+function normalizePaymentMethod(method: any) {
+    const value = String(method || '').trim().toLowerCase();
+
+    if (value === 'pix') return 'pix';
+
+    if (
+        value === 'card' ||
+        value === 'cartao' ||
+        value === 'cartão' ||
+        value === 'credit_card' ||
+        value === 'creditcard'
+    ) {
+        return 'credit_card';
+    }
+
+    throw new Error(`Método de pagamento inválido: ${method}`);
+}
+
 export function normalizePagarmeOrder(order: PagarmeOrder): NormalizedOrder {
     const charge = order?.charges?.[0] || {};
     const lastTransaction = charge?.last_transaction || {};
@@ -217,7 +235,7 @@ export async function createPagarmeOrderService(params: any) {
     const itemName = params?.item?.name || 'Agendamento';
     const orderCode = `barberone_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
 
-    const paymentMethod = String(params.paymentMethod || '').toLowerCase();
+    const paymentMethod = normalizePaymentMethod(params.paymentMethod);
 
     const payment: any = {
         payment_method: paymentMethod,
