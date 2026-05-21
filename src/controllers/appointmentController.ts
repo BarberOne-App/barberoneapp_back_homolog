@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import { NextFunction, Request, Response } from "express";
 import {
   AppointmentIdParamSchema,
   AvailableSlotsQuerySchema,
@@ -23,7 +23,7 @@ function joiErrors(error: any) {
 }
 
 /* ───── LIST ───── */
-export async function listAppointments(req: Request, res: Response) {
+export async function listAppointments(req: Request, res: Response, next: NextFunction) {
   const { error, value } = ListAppointmentsQuerySchema.validate(req.query, {
     abortEarly: false,
     stripUnknown: true,
@@ -33,27 +33,31 @@ export async function listAppointments(req: Request, res: Response) {
     return res.status(422).send(joiErrors(error));
   }
 
-  const result = await listAppointmentsService({
-    barbershopId: req.user!.barbershopId,
-    actorRole: req.user!.role,
-    actorId: req.user!.id,
-    query: {
-      barberId: value.barberId,
-      clientId: value.clientId,
-      status: value.status,
-      dateFrom: value.dateFrom,
-      dateTo: value.dateTo,
-      page: value.page,
-      limit: value.limit,
-      allAppointments: value.allAppointments,
-    },
-  });
+  try {
+    const result = await listAppointmentsService({
+      barbershopId: req.user!.barbershopId,
+      actorRole: req.user!.role,
+      actorId: req.user!.id,
+      query: {
+        barberId: value.barberId,
+        clientId: value.clientId,
+        status: value.status,
+        dateFrom: value.dateFrom,
+        dateTo: value.dateTo,
+        page: value.page,
+        limit: value.limit,
+        allAppointments: value.allAppointments,
+      },
+    });
 
-  return res.status(200).send(result);
+    return res.status(200).send(result);
+  } catch (err) {
+    next(err);
+  }
 }
 
 /* ───── GET BY ID ───── */
-export async function getAppointmentById(req: Request, res: Response) {
+export async function getAppointmentById(req: Request, res: Response, next: NextFunction) {
   const { error, value } = AppointmentIdParamSchema.validate(req.params, {
     abortEarly: false,
     stripUnknown: true,
@@ -63,46 +67,71 @@ export async function getAppointmentById(req: Request, res: Response) {
     return res.status(422).send(joiErrors(error));
   }
 
-  const result = await getAppointmentByIdService({
-    barbershopId: req.user!.barbershopId,
-    appointmentId: value.id,
-  });
+  try {
+    const result = await getAppointmentByIdService({
+      barbershopId: req.user!.barbershopId,
+      appointmentId: value.id,
+    });
 
-  return res.status(200).send(result);
+    return res.status(200).send(result);
+  } catch (err) {
+    next(err);
+  }
 }
 
 /* ───── CREATE ───── */
-export async function createAppointment(req: Request, res: Response) {
+export async function createAppointment(req: Request, res: Response, next: NextFunction) {
   const { error, value } = CreateAppointmentSchema.validate(req.body, {
     abortEarly: false,
     stripUnknown: true,
   });
 
   if (error) {
+    console.error("[createAppointment] Joi validation error:", joiErrors(error), "| body:", JSON.stringify(req.body));
     return res.status(422).send(joiErrors(error));
   }
 
-  const result = await createAppointmentService({
-    barbershopId: req.user!.barbershopId,
-    actorId: req.user!.id,
-    actorRole: req.user!.role,
-    data: {
+  try {
+    console.log("[createAppointment] Payload recebido:", JSON.stringify({
+      barbershopId: req.user!.barbershopId,
+      actorId: req.user!.id,
+      actorRole: req.user!.role,
       barberId: value.barberId,
       clientId: value.clientId,
       dependentId: value.dependentId ?? null,
       date: value.date,
       time: value.time,
       notes: value.notes ?? null,
-      services: value.services ?? [],
-      products: value.products ?? [],
-    },
-  });
+      servicesCount: (value.services ?? []).length,
+      services: value.services,
+      productsCount: (value.products ?? []).length,
+    }));
 
-  return res.status(201).send(result);
+    const result = await createAppointmentService({
+      barbershopId: req.user!.barbershopId,
+      actorId: req.user!.id,
+      actorRole: req.user!.role,
+      data: {
+        barberId: value.barberId,
+        clientId: value.clientId,
+        dependentId: value.dependentId ?? null,
+        date: value.date,
+        time: value.time,
+        notes: value.notes ?? null,
+        services: value.services ?? [],
+        products: value.products ?? [],
+      },
+    });
+
+    return res.status(201).send(result);
+  } catch (err) {
+    console.error("[createAppointment] Erro ao criar agendamento:", err);
+    next(err);
+  }
 }
 
 /* ───── UPDATE ───── */
-export async function updateAppointment(req: Request, res: Response) {
+export async function updateAppointment(req: Request, res: Response, next: NextFunction) {
   const paramsValidation = AppointmentIdParamSchema.validate(req.params, {
     abortEarly: false,
     stripUnknown: true,
@@ -121,24 +150,28 @@ export async function updateAppointment(req: Request, res: Response) {
     return res.status(422).send(joiErrors(bodyValidation.error));
   }
 
-  const result = await updateAppointmentService({
-    barbershopId: req.user!.barbershopId,
-    actorRole: req.user!.role,
-    actorIsAdmin: req.user!.isAdmin,
-    actorId: req.user!.id,
-    appointmentId: paramsValidation.value.id,
-    data: {
-      status: bodyValidation.value.status,
-      notes: bodyValidation.value.notes,
-      barberId: bodyValidation.value.barberId,
-    },
-  });
+  try {
+    const result = await updateAppointmentService({
+      barbershopId: req.user!.barbershopId,
+      actorRole: req.user!.role,
+      actorIsAdmin: req.user!.isAdmin,
+      actorId: req.user!.id,
+      appointmentId: paramsValidation.value.id,
+      data: {
+        status: bodyValidation.value.status,
+        notes: bodyValidation.value.notes,
+        barberId: bodyValidation.value.barberId,
+      },
+    });
 
-  return res.status(200).send(result);
+    return res.status(200).send(result);
+  } catch (err) {
+    next(err);
+  }
 }
 
 /* ───── CANCEL (soft delete) ───── */
-export async function deleteAppointment(req: Request, res: Response) {
+export async function deleteAppointment(req: Request, res: Response, next: NextFunction) {
   const { error, value } = AppointmentIdParamSchema.validate(req.params, {
     abortEarly: false,
     stripUnknown: true,
@@ -148,19 +181,23 @@ export async function deleteAppointment(req: Request, res: Response) {
     return res.status(422).send(joiErrors(error));
   }
 
-  const result = await cancelAppointmentService({
-    barbershopId: req.user!.barbershopId,
-    appointmentId: value.id,
-    actorRole: req.user!.role,
-    actorIsAdmin: req.user!.isAdmin,
-    actorId: req.user!.id,
-  });
+  try {
+    const result = await cancelAppointmentService({
+      barbershopId: req.user!.barbershopId,
+      appointmentId: value.id,
+      actorRole: req.user!.role,
+      actorIsAdmin: req.user!.isAdmin,
+      actorId: req.user!.id,
+    });
 
-  return res.status(200).send(result);
+    return res.status(200).send(result);
+  } catch (err) {
+    next(err);
+  }
 }
 
 /* ───── AVAILABLE SLOTS ───── */
-export async function getAvailableSlots(req: Request, res: Response) {
+export async function getAvailableSlots(req: Request, res: Response, next: NextFunction) {
   const { error, value } = AvailableSlotsQuerySchema.validate(req.query, {
     abortEarly: false,
     stripUnknown: true,
@@ -170,14 +207,18 @@ export async function getAvailableSlots(req: Request, res: Response) {
     return res.status(422).send(joiErrors(error));
   }
 
-  const slots = await getAvailableSlotsService({
-    barbershopId: req.user!.barbershopId,
-    barberId: value.barberId,
-    date: value.date,
-    duration: value.duration,
-  });
+  try {
+    const slots = await getAvailableSlotsService({
+      barbershopId: req.user!.barbershopId,
+      barberId: value.barberId,
+      date: value.date,
+      duration: value.duration,
+    });
 
-  return res.status(200).send({ slots });
+    return res.status(200).send({ slots });
+  } catch (err) {
+    next(err);
+  }
 }
 
 /* ───── TEST E-MAIL ───── */
