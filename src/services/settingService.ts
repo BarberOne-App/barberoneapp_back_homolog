@@ -2,6 +2,7 @@ import { forbidden } from "../errors/index.js";
 import {
     getSettingsByBarbershop,
     upsertSettingsByBarbershop,
+    updateSlotIntervalByBarbershop,
     getHomeInfoByBarbershop,
     upsertHomeInfoByBarbershop,
 } from "../repository/settingRepository.js";
@@ -84,17 +85,24 @@ function getDefaultHomeInfo() {
     };
 }
 
+const VALID_SLOT_INTERVALS = [5, 10, 15, 30] as const;
+
+function normalizeSlotIntervalMinutes(value: unknown): number {
+    const n = Number(value);
+    if (VALID_SLOT_INTERVALS.includes(n as any)) return n;
+    return 30;
+}
+
 export async function getSettingsService(barbershopId: string) {
+    // getSettingsByBarbershop usa raw SQL — retorna slot_interval_minutes mesmo com Prisma client desatualizado
     const row = await getSettingsByBarbershop(barbershopId);
-    const hiddenBookingPaymentMethods = normalizeHiddenBookingPaymentMethods(
-        (row as any)?.hidden_booking_payment_methods,
-    );
 
     return {
         pixKey: row?.pix_key ?? "",
         termsDocumentUrl: row?.terms_document_url ?? "",
         termsDocumentName: row?.terms_document_name ?? "",
-        hiddenBookingPaymentMethods,
+        hiddenBookingPaymentMethods: normalizeHiddenBookingPaymentMethods(row?.hidden_booking_payment_methods),
+        slotIntervalMinutes: normalizeSlotIntervalMinutes(row?.slot_interval_minutes ?? 30),
     };
 }
 
@@ -105,29 +113,51 @@ export async function upsertSettingsService(params: {
     termsDocumentUrl?: string;
     termsDocumentName?: string;
     hiddenBookingPaymentMethods?: string[];
+    slotIntervalMinutes?: number;
 }) {
     if (params.actorRole !== "admin") {
         throw forbidden("Apenas admin pode alterar configurações");
     }
 
-    const hiddenBookingPaymentMethods = normalizeHiddenBookingPaymentMethods(
-        params.hiddenBookingPaymentMethods,
-    );
+    // Lê estado atual para evitar update destrutivo: só sobrescreve campos presentes no request
+    const current = await getSettingsByBarbershop(params.barbershopId);
+
+    const pix_key = params.pixKey !== undefined
+        ? (params.pixKey || null)
+        : (current?.pix_key ?? null);
+
+    const terms_document_url = params.termsDocumentUrl !== undefined
+        ? (params.termsDocumentUrl || null)
+        : (current?.terms_document_url ?? null);
+
+    const terms_document_name = params.termsDocumentName !== undefined
+        ? (params.termsDocumentName || null)
+        : (current?.terms_document_name ?? null);
+
+    const hidden_booking_payment_methods = params.hiddenBookingPaymentMethods !== undefined
+        ? normalizeHiddenBookingPaymentMethods(params.hiddenBookingPaymentMethods)
+        : normalizeHiddenBookingPaymentMethods(current?.hidden_booking_payment_methods);
 
     const row = await upsertSettingsByBarbershop(params.barbershopId, {
-        pix_key: params.pixKey ?? "",
-        terms_document_url: params.termsDocumentUrl ?? null,
-        terms_document_name: params.termsDocumentName ?? null,
-        hidden_booking_payment_methods: hiddenBookingPaymentMethods,
+        pix_key,
+        terms_document_url,
+        terms_document_name,
+        hidden_booking_payment_methods,
     });
+
+    // slot_interval_minutes: campo novo, usa raw SQL para não depender do Prisma client
+    let slotIntervalMinutes = normalizeSlotIntervalMinutes(current?.slot_interval_minutes ?? 30);
+    if (params.slotIntervalMinutes !== undefined) {
+        slotIntervalMinutes = normalizeSlotIntervalMinutes(params.slotIntervalMinutes);
+        await updateSlotIntervalByBarbershop(params.barbershopId, slotIntervalMinutes);
+    }
 
     return {
         pixKey: row.pix_key ?? "",
         termsDocumentUrl: row.terms_document_url ?? "",
         termsDocumentName: row.terms_document_name ?? "",
-        hiddenBookingPaymentMethods: normalizeHiddenBookingPaymentMethods(
-            (row as any)?.hidden_booking_payment_methods,
-        ),
+        hiddenBookingPaymentMethods: normalizeHiddenBookingPaymentMethods(row.hidden_booking_payment_methods),
+        slotIntervalMinutes,
     };
 }
 

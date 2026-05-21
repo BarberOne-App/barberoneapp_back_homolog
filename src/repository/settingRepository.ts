@@ -1,10 +1,24 @@
 import prisma from "../database/database.js";
 import type { Prisma } from "@prisma/client";
 
-export function getSettingsByBarbershop(barbershopId: string) {
-    return prisma.barbershop_settings.findUnique({
+export async function getSettingsByBarbershop(barbershopId: string) {
+    // Prisma findUnique retorna os campos que o client conhece
+    const row = await prisma.barbershop_settings.findUnique({
         where: { barbershop_id: barbershopId },
     });
+
+    if (!row) return null;
+
+    // $queryRawUnsafe para buscar slot_interval_minutes sem depender do Prisma client regenerado
+    const extra = await prisma.$queryRawUnsafe<{ slot_interval_minutes: number }[]>(
+        `SELECT slot_interval_minutes FROM barbershop_settings WHERE barbershop_id = $1::uuid`,
+        barbershopId,
+    );
+
+    return {
+        ...row,
+        slot_interval_minutes: extra[0]?.slot_interval_minutes ?? 30,
+    };
 }
 
 export function upsertSettingsByBarbershop(
@@ -34,6 +48,17 @@ export function upsertSettingsByBarbershop(
     });
 }
 
+// $executeRawUnsafe — bypassa o Prisma client tipado para escrever slot_interval_minutes
+export async function updateSlotIntervalByBarbershop(barbershopId: string, value: number): Promise<void> {
+    await prisma.$executeRawUnsafe(
+        `UPDATE barbershop_settings
+         SET slot_interval_minutes = $1, updated_at = NOW()
+         WHERE barbershop_id = $2::uuid`,
+        value,
+        barbershopId,
+    );
+}
+
 export function getHomeInfoByBarbershop(barbershopId: string) {
     return prisma.barbershop_home_info.findUnique({
         where: { barbershop_id: barbershopId },
@@ -44,7 +69,6 @@ export function upsertHomeInfoByBarbershop(
     barbershopId: string,
     data: Prisma.barbershop_home_infoUncheckedCreateInput
 ) {
-    // como barbershop_id é unique, dá pra upsert por ele
     return prisma.barbershop_home_info.upsert({
         where: { barbershop_id: barbershopId },
         update: {
