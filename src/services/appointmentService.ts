@@ -631,7 +631,10 @@ export async function createAppointmentService(params: {
     hasActiveSubscription: !!activeSubscription,
   });
 
+  const isFitAppointment = String(params.data.notes || '').includes('[barberone:fit]');
+
   if (
+    !isFitAppointment &&
     activeSubscription?.monthly_barber_id &&
     activeSubscription.monthly_barber_id !== barberId
   ) {
@@ -658,7 +661,7 @@ export async function createAppointmentService(params: {
     return newStart < existEnd && newEnd > existStart;
   });
 
-  if (hasConflict) {
+  if (!isFitAppointment && hasConflict) {
     throw badRequest("Conflito de horário — barbeiro já possui agendamento neste período");
   }
 
@@ -678,7 +681,7 @@ export async function createAppointmentService(params: {
     return startAt.getTime() < existEnd && endAt.getTime() > existStart;
   });
 
-  if (clientHasConflict) {
+  if (!isFitAppointment && clientHasConflict) {
     throw badRequest("Cliente/dependente já possui agendamento neste horário");
   }
 
