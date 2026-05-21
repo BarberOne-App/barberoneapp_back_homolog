@@ -20,7 +20,6 @@ import pagarmeSubs from "./routes/pagarmeSubscriptionRouter.js";
 import dependentRouter from "./routes/dependentRouter.js";
 import savedCardRouter from "./routes/savedCardRouter.js";
 import employeeValeRouter from "./routes/employeeValeRouter.js";
-import stripeWebhookRoutes from "./routes/stripeWebhookRoutes.js";
 import employeePaymentRouter from "./routes/employeePaymentRouter.js";
 import superAdminRouter from "./routes/superAdminRouter.js";
 import path from "path";
@@ -33,7 +32,6 @@ const corsOptions: cors.CorsOptions = { origin: true };
 
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
-app.use("/stripe", stripeWebhookRoutes);
 app.use(express.json({ limit: "10mb" }));
 
 app.get("/health", (_req, res) => res.send({ ok: true }));

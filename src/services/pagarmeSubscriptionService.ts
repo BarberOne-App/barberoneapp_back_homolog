@@ -174,7 +174,6 @@ export async function createPagarmeClientSubscriptionService(params: any, curren
     const subscription = await prisma.subscriptions.create({
         data: {
             user_id: String(currentUser.id),
-            user_name: currentUser.name,
             barbershop_id: String(barbershopId),
             plan_id: String(plan.id),
 
@@ -184,7 +183,7 @@ export async function createPagarmeClientSubscriptionService(params: any, curren
             pagarme_recipient_id: shop.pagarme_recipient_id,
 
             status: pagarmeSubscription.status || 'active',
-            method: 'credit_card',
+            payment_method: 'credito',
             amount: Number(plan.price),
 
             start_date: new Date(),
