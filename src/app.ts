@@ -19,6 +19,7 @@ import galleryRouter from "./routes/galleryRouter.js";
 import pagarmeRoutes from "./routes/pagarmeRoutes.js";
 // import mercadoPagoRouter from "./routes/mercadoPagoRouter.js";
 import webhookRouter from "./routes/webhookRouter.js";
+import pagarmeSubs from "./routes/pagarmeSubscriptionRouter.js";
 import dependentRouter from "./routes/dependentRouter.js";
 import savedCardRouter from "./routes/savedCardRouter.js";
 import employeeValeRouter from "./routes/employeeValeRouter.js";
@@ -1227,6 +1228,7 @@ app.use(employeeValeRouter);
 app.use(employeePaymentRouter);
 app.use(superAdminRouter);
 app.use("/pagarme", pagarmeRoutes);
+app.use('/pagarme/subscriptions', pagarmeSubs);
 app.use(errorHandler);
 
 
