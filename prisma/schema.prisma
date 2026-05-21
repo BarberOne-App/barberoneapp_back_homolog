@@ -243,12 +243,7 @@ model subscription_plans {
   color       String?
   recommended Boolean @default(false)
 
-  stripe_product_id       String?
-  stripe_price_id         String?
-  stripe_payment_link_url String?
-
-  mp_subscription_url    String?
-  mp_preapproval_plan_id String? @unique
+  pagarme_plan_id    String?
 
   created_at DateTime @default(now()) @db.Timestamptz(6)
   updated_at DateTime @default(now()) @db.Timestamptz(6)
@@ -261,8 +256,6 @@ model subscription_plans {
 
   @@unique([barbershop_id, name], map: "uq_plan_name_per_barbershop")
   @@index([barbershop_id], map: "idx_plans_barbershop_id")
-  @@index([barbershop_id, stripe_product_id], map: "idx_plans_barbershop_stripe_product")
-  @@index([barbershop_id, stripe_price_id], map: "idx_plans_barbershop_stripe_price")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -294,7 +287,10 @@ model subscriptions {
   days_overdue              Int       @default(0)
   overdue_notification_sent Boolean   @default(false)
 
-  mp_preapproval_id String?
+  pagarme_subscription_id     String?
+  pagarme_plan_id             String?
+  pagarme_customer_id         String?
+  pagarme_recipient_id        String?
 
   monthly_barber_id     String?   @db.Uuid
   monthly_barber_set_at DateTime? @db.Timestamptz(6)
@@ -440,6 +436,7 @@ model barbershop_settings {
   terms_document_url             String?
   terms_document_name            String?
   hidden_booking_payment_methods String[] @default([])
+  slot_interval_minutes          Int      @default(30)
 
   created_at DateTime @default(now()) @db.Timestamptz(6)
   updated_at DateTime @default(now()) @db.Timestamptz(6)

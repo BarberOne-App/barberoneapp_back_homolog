@@ -1,1 +1,2 @@
-ALTER TABLE "barbershops" ADD COLUMN IF NOT EXISTS "logo_url" TEXT;
+ALTER TABLE "barbershops"
+ADD COLUMN "logo_url" TEXT;
