@@ -222,8 +222,8 @@ export async function createPlanService(params: {
       where: { id: created.id },
       data: {
         pagarme_plan_id: pagarmePlan.id,
-        pagarme_plan_code: pagarmePlan.code || null,
-        pagarme_plan_status: pagarmePlan.status || 'active',
+        // pagarme_plan_code: pagarmePlan.code || null,
+        // pagarme_plan_status: pagarmePlan.status || 'active',
       },
       include: {
         subscription_plan_features: {
