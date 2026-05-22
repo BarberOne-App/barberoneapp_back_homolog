@@ -150,9 +150,7 @@ export async function createPagarmeClientSubscriptionService(params: any, curren
                 mobile_phone: customerPhone,
             },
         },
-        card: {
-            card_token: params.cardToken,
-        },
+        card_token: params.cardToken,
         metadata: {
             type: 'client_barbershop_subscription',
             userId: String(currentUser?.id || params.userId || ''),
@@ -163,13 +161,13 @@ export async function createPagarmeClientSubscriptionService(params: any, curren
             enabled: true,
             rules: [
                 {
-                    amount: 100,
+                    percentage: 100,
                     recipient_id: shop.pagarme_recipient_id,
-                    type: "percentage",
+                    type: 'percentage',
                     options: {
                         charge_processing_fee: true,
                         charge_remainder_fee: true,
-                        liable: true
+                        liable: true,
                     }
                 }
             ]
