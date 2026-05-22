@@ -238,7 +238,7 @@ export async function createPlanService(params: {
       where: { id: created.id },
       data: {
         active: false,
-        pagarme_plan_status: 'pagarme_create_failed',
+        // pagarme_plan_status: 'pagarme_create_failed',
       },
     });
 
