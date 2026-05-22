@@ -97,6 +97,7 @@ async function ensurePagarmePlan(plan: any) {
 }
 
 export async function createPagarmeClientSubscriptionService(params: any, currentUser: any) {
+    console.log("PARAMS RECEBIDOS PARA CRIAR ASSINATURA:", params);
     const plan = await prisma.subscription_plans.findUnique({
         where: { id: String(params.planId) },
     });
