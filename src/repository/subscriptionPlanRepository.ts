@@ -41,6 +41,56 @@ export async function findPlanByIdInBarbershop(
 }
 
 /* ───── CREATE (plan + features em transação) ───── */
+// export async function createPlanInBarbershop(data: {
+//   barbershopId: string;
+//   name: string;
+//   subtitle?: string | null;
+//   price: number;
+//   color?: string | null;
+//   cutsPerMonth: number;
+//   active?: boolean;
+//   recommended?: boolean;
+//   features?: string[];
+//   maxBarbers?: number | null;
+//   maxReceptionists?: number | null;
+//   maxAdmins?: number | null;
+// }) {
+//   return prisma.$transaction(async (tx) => {
+//     const plan = await tx.subscription_plans.create({
+//       data: {
+//         barbershop_id: data.barbershopId,
+//         name: data.name,
+//         subtitle: data.subtitle ?? null,
+//         price: data.price,
+//         color: data.color ?? null,
+//         cuts_per_month: data.cutsPerMonth,
+//         max_barbers: data.maxBarbers ?? null,
+//         max_receptionists: data.maxReceptionists ?? null,
+//         max_admins: data.maxAdmins ?? null,
+//         active: data.active ?? true,
+//         recommended: data.recommended ?? false
+//       },
+//     });
+
+//     if (data.features && data.features.length > 0) {
+//       await tx.subscription_plan_features.createMany({
+//         data: data.features.map((f, i) => ({
+//           plan_id: plan.id,
+//           feature: f,
+//           sort_order: i,
+//         })),
+//       });
+//     }
+
+//     return tx.subscription_plans.findUnique({
+//       where: { id: plan.id },
+//       include: {
+//         subscription_plan_features: { orderBy: { sort_order: "asc" } },
+//       },
+//     });
+//   });
+// }
+
 export async function createPlanInBarbershop(data: {
   barbershopId: string;
   name: string;
@@ -68,7 +118,7 @@ export async function createPlanInBarbershop(data: {
         max_receptionists: data.maxReceptionists ?? null,
         max_admins: data.maxAdmins ?? null,
         active: data.active ?? true,
-        recommended: data.recommended ?? false
+        recommended: data.recommended ?? false,
       },
     });
 
@@ -85,7 +135,9 @@ export async function createPlanInBarbershop(data: {
     return tx.subscription_plans.findUnique({
       where: { id: plan.id },
       include: {
-        subscription_plan_features: { orderBy: { sort_order: "asc" } },
+        subscription_plan_features: {
+          orderBy: { sort_order: 'asc' },
+        },
       },
     });
   });
