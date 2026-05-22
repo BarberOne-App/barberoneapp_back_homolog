@@ -137,7 +137,7 @@ export async function createPagarmeClientSubscriptionService(params: any, curren
 
     const payload: any = {
         code: `client_sub_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`,
-        plan_id: pagarmePlanId,
+        plan_id: "plan_29oPEm3tgF9vzml3",
         payment_method: 'credit_card',
         installments: 1,
         customer: {
