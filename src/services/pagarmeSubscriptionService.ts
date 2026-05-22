@@ -161,7 +161,7 @@ export async function createPagarmeClientSubscriptionService(params: any, curren
             enabled: true,
             rules: [
                 {
-                    percentage: 100,
+                    amount: 100,
                     recipient_id: shop.pagarme_recipient_id,
                     type: 'percentage',
                     options: {
