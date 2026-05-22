@@ -158,9 +158,24 @@ export async function createPagarmeClientSubscriptionService(params: any, curren
             barbershopId: String(barbershopId),
             planId: String(plan.id),
         },
+        split: {
+            enabled: true,
+            rules: [
+                {
+                    amount: amountInCents,
+                    recipient_id: shop.pagarme_recipient_id,
+                    type: "flat",
+                    options: {
+                        charge_processing_fee: true,
+                        charge_remainder_fee: true,
+                        liable: true
+                    }
+                }
+            ]
+        },
 
-        // 100% para a barbearia
-        split: buildBarbershopFullSplit(amountInCents, shop.pagarme_recipient_id),
+        // // 100% para a barbearia
+        // split: buildBarbershopFullSplit(amountInCents, shop.pagarme_recipient_id),
     };
 
     const pagarmeSubscription = await pagarmeRequest('/subscriptions', {
@@ -170,6 +185,8 @@ export async function createPagarmeClientSubscriptionService(params: any, curren
         },
         body: JSON.stringify(payload),
     });
+
+    console.log("PAGARME SUBSCRIPTION CRIADA:", pagarmeSubscription);
 
     const subscription = await prisma.subscriptions.create({
         data: {
