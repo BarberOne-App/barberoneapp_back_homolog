@@ -65,6 +65,8 @@ export async function pagarmeRequest(path: string, options: RequestInit = {}) {
         data = { raw: rawText };
     }
 
+    console.log("DATA AQUI:", data);
+
     if (!response.ok) {
         console.log("Erro API PAGARME AQUI:", JSON.stringify({
             status: response.status,
