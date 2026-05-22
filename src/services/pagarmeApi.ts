@@ -28,6 +28,7 @@ export async function pagarmeRequest(path: string, options: RequestInit = {}) {
     const data: any = await response.json().catch(() => ({}));
 
     if (!response.ok) {
+        console.log("Erro API PAGARME AQUI:", response);
         const message =
             data?.message ||
             data?.errors?.[0]?.message ||
