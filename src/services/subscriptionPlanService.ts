@@ -55,8 +55,8 @@ function serialize(plan: any) {
     recommended: plan.recommended,
 
     pagarmePlanId: plan.pagarme_plan_id,
-    pagarmePlanCode: plan.pagarme_plan_code,
-    pagarmePlanStatus: plan.pagarme_plan_status,
+    // pagarmePlanCode: plan.pagarme_plan_code,
+    // pagarmePlanStatus: plan.pagarme_plan_status,
 
     features: (plan.subscription_plan_features ?? []).map((f: any) => f.feature),
     createdAt: plan.created_at,
