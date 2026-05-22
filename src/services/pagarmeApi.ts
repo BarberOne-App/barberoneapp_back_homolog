@@ -14,6 +14,36 @@ function getAuthHeader() {
     return `Basic ${Buffer.from(`${secretKey}:`).toString('base64')}`;
 }
 
+// export async function pagarmeRequest(path: string, options: RequestInit = {}) {
+//     const response = await fetch(`${PAGARME_BASE_URL}${path}`, {
+//         ...options,
+//         headers: {
+//             accept: 'application/json',
+//             'content-type': 'application/json',
+//             Authorization: getAuthHeader(),
+//             ...(options.headers || {}),
+//         },
+//     });
+
+//     const data: any = await response.json().catch(() => ({}));
+
+//     if (!response.ok) {
+//         console.log("Erro API PAGARME AQUI:", response);
+//         const message =
+//             data?.message ||
+//             data?.errors?.[0]?.message ||
+//             data?.errors?.message ||
+//             'Erro na API Pagar.me.';
+
+//         const error: any = new Error(message);
+//         error.status = response.status;
+//         error.details = data;
+//         throw error;
+//     }
+
+//     return data;
+// }
+
 export async function pagarmeRequest(path: string, options: RequestInit = {}) {
     const response = await fetch(`${PAGARME_BASE_URL}${path}`, {
         ...options,
@@ -25,14 +55,29 @@ export async function pagarmeRequest(path: string, options: RequestInit = {}) {
         },
     });
 
-    const data: any = await response.json().catch(() => ({}));
+    const rawText = await response.text();
+
+    let data: any = {};
+
+    try {
+        data = rawText ? JSON.parse(rawText) : {};
+    } catch {
+        data = { raw: rawText };
+    }
 
     if (!response.ok) {
-        console.log("Erro API PAGARME AQUI:", response);
+        console.log("Erro API PAGARME AQUI:", JSON.stringify({
+            status: response.status,
+            statusText: response.statusText,
+            url: response.url,
+            data,
+        }, null, 2));
+
         const message =
             data?.message ||
+            data?.details ||
+            data?.error ||
             data?.errors?.[0]?.message ||
-            data?.errors?.message ||
             'Erro na API Pagar.me.';
 
         const error: any = new Error(message);
