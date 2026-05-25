@@ -336,10 +336,20 @@ export async function createPagarmeRecipientService(params: any) {
     });
 
     if (params.barbershopId && recipient?.id) {
-        await prisma.barbershops.update({
+        const existingBarbershop = await prisma.barbershops.findUnique({
             where: { id: String(params.barbershopId) },
-            data: { pagarme_recipient_id: recipient.id },
+            select: { id: true },
         });
+
+        if (existingBarbershop) {
+            await prisma.barbershops.update({
+                where: { id: String(params.barbershopId) },
+                data: {
+                    pagarme_recipient_id: recipient.id,
+                    pagarme_recipient_status: recipient.status || recipient?.status_raw || null,
+                },
+            });
+        }
     }
 
     return recipient;

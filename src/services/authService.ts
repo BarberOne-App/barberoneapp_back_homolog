@@ -1,6 +1,5 @@
 import bcrypt from "bcrypt";
 import crypto from "crypto";
-import Stripe from "stripe";
 import prisma from "../database/database.js";
 import { signToken, signRefreshToken, verifyRefreshToken } from "../utils/jwt.js";
 import { slugify, normalizeEmail } from "../utils/slugify.js";
@@ -15,10 +14,7 @@ import {
   findUserById,
   findUserByCpf
 } from "../repository/authRepository.js";
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2026-02-25.clover",
-});
+import { createPagarmeRecipientService } from "./pagarmeOrderService.js";
 
 function isPrismaUniqueError(e: any) {
   return e?.code === "P2002";
@@ -38,46 +34,16 @@ function getFrontendAppBaseUrl() {
   ).replace(/\/+$/, "");
 }
 
-function getLandingPlanPriceId(selectedPlan?: "basic" | "premium") {
-  if (selectedPlan === "basic") {
-    return String(process.env.STRIPE_LANDING_BASIC_PRICE_ID || "").trim();
-  }
-
-  if (selectedPlan === "premium") {
-    return String(process.env.STRIPE_LANDING_PREMIUM_PRICE_ID || "").trim();
-  }
-
-  return "";
-}
-
 async function createLandingSubscriptionCheckoutUrl(params: {
-  selectedPlan?: "basic" | "premium";
+  selectedPlan?: "basic" | "premium" | "master";
   userId: string;
   userEmail?: string | null;
   barbershopId: string;
 }) {
-  const priceId = getLandingPlanPriceId(params.selectedPlan);
-  if (!priceId) return null;
-
   const frontendBase = getFrontendAppBaseUrl();
+  const selectedPlan = String(params.selectedPlan || "").trim();
 
-  const session = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    line_items: [{ price: priceId, quantity: 1 }],
-    customer_email: String(params.userEmail || "").trim() || undefined,
-    success_url: `${frontendBase}/admin?subscription=success&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${frontendBase}/admin?subscription=cancelled`,
-    allow_promotion_codes: true,
-    client_reference_id: params.userId,
-    metadata: {
-      flow: "landing_barbershop_register",
-      selectedPlan: String(params.selectedPlan || ""),
-      userId: params.userId,
-      barbershopId: params.barbershopId,
-    },
-  });
-
-  return session.url || null;
+  return `${frontendBase}/admin?subscription=required&selectedPlan=${encodeURIComponent(selectedPlan)}&barbershopId=${encodeURIComponent(params.barbershopId)}&userId=${encodeURIComponent(params.userId)}`;
 }
 
 function generateTokenPair(payload: { userId: string; barbershopId: string | null; role: any; isAdmin: boolean }) {
@@ -314,25 +280,50 @@ export async function registerBarbershopService(params: {
   adminEmail: string;
   adminPhone?: string;
   password: string;
-  selectedPlan: "basic" | "premium";
+  selectedPlan: "basic" | "premium" | "master";
 }) {
   const adminEmail = normalizeEmail(params.adminEmail);
   const slug = slugify(params.slug?.trim() || params.barbershopName);
+  const barbershopId = crypto.randomUUID();
 
   const passwordHash = await bcrypt.hash(params.password, rounds());
 
   console.log("Plano selecionado:", params.selectedPlan);
 
+  const recipientPayload = {
+    code: `barbershop_${barbershopId}`,
+    barbershopId,
+    register_information: {
+      name: params.barbershopName.trim(),
+      email: adminEmail,
+      document: String(params.cnpj || "").replace(/\D/g, "") || undefined,
+      phone_numbers: params.phone ? [String(params.phone).replace(/\D/g, "")] : undefined,
+      type: "company",
+    },
+    metadata: {
+      source: "barbershop_registration",
+      selectedPlan: params.selectedPlan,
+      adminEmail,
+    },
+  };
+
   try {
+    console.log("Criando recipient Pagar.me para barbearia", { barbershopId, slug, selectedPlan: params.selectedPlan });
+    const recipient = await createPagarmeRecipientService(recipientPayload);
+
     const result = await prisma.$transaction(async (tx) => {
       const shop = await createBarbershop(
         {
+          id: barbershopId,
           name: params.barbershopName.trim(),
           slug,
           cnpj: params.cnpj ?? null,
           phone: params.phone ?? null,
           email: adminEmail,
           selectedPlan: params.selectedPlan,
+          pagarmeRecipientId: recipient?.id ?? null,
+          pagarmeRecipientStatus: recipient?.status ?? null,
+          platformSubscriptionStatus: null,
         },
         tx
       );
@@ -375,6 +366,9 @@ export async function registerBarbershopService(params: {
       checkoutUrl,
       selectedPlan: params.selectedPlan ?? null,
       barbershop: result.shop,
+      recipient: {
+        id: recipient?.id ?? null,
+      },
       user: {
         id: result.user.id,
         name: result.user.name,

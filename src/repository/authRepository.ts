@@ -18,26 +18,42 @@ export async function findBarbershopBySlug(slug: string, tx?: Prisma.Transaction
 
 export async function createBarbershop(
   data: {
+    id?: string;
     name: string;
     slug: string;
     cnpj?: string | null;
     phone?: string | null;
     email?: string | null;
-    selectedPlan: "basic" | "premium";
+    selectedPlan: "basic" | "premium" | "master";
+    pagarmeRecipientId?: string | null;
+    pagarmeRecipientStatus?: string | null;
+    platformSubscriptionStatus?: string | null;
   },
   tx?: Prisma.TransactionClient
 ) {
   const db = dbClient(tx);
   return db.barbershops.create({
     data: {
+      ...(data.id ? { id: data.id } : {}),
       name: data.name,
       slug: data.slug,
       cnpj: data.cnpj ?? null,
       phone: data.phone ?? null,
       email: data.email ?? null,
       selected_plan: data.selectedPlan,
+      pagarme_recipient_id: data.pagarmeRecipientId ?? null,
+      pagarme_recipient_status: data.pagarmeRecipientStatus ?? null,
+      platform_subscription_status: data.platformSubscriptionStatus ?? null,
     },
-    select: { id: true, name: true, slug: true },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      selected_plan: true,
+      pagarme_recipient_id: true,
+      pagarme_recipient_status: true,
+      platform_subscription_status: true,
+    },
   });
 }
 
