@@ -9,6 +9,13 @@ import {
 
 type PayrollFrequency = "weekly" | "biweekly" | "monthly";
 
+const SCHEDULE_PLACEHOLDERS = new Set([
+    "Ex: Horário de Funcionamento",
+    "Ex: Seg - 14h as 20h",
+    "Ex: Terça a Sab. - 09h as 20h",
+    "Ex: Domingo: Fechado",
+]);
+
 function normalizeHiddenBookingPaymentMethods(value: unknown) {
     if (!Array.isArray(value)) return [];
 
@@ -33,6 +40,12 @@ function normalizeHeroImages(value: unknown): string[] {
                 .filter((item) => item.length > 0),
         ),
     );
+}
+
+function normalizeScheduleField(value: unknown): string | null {
+    const trimmed = String(value ?? "").trim();
+    if (!trimmed || SCHEDULE_PLACEHOLDERS.has(trimmed)) return null;
+    return trimmed;
 }
 
 function normalizePayrollFrequency(value: unknown): PayrollFrequency | null {
@@ -73,9 +86,9 @@ function getDefaultHomeInfo() {
         about_text2: "Combinamos técnicas tradicionais com tendências modernas para garantir o melhor atendimento.",
         about_text3: "Nosso ambiente proporciona conforto e uma experiência única.",
         schedule_title: "Horário de Funcionamento",
-        schedule_line1: "Seg - 14h as 20h",
-        schedule_line2: "Terça a Sab. - 09h as 20h",
-        schedule_line3: "Domingo: Fechado",
+        schedule_line1: null,
+        schedule_line2: null,
+        schedule_line3: null,
         whatsapp_number: "",
         location_title: "Localização",
         location_address: "Av. val paraíso,1396",
@@ -174,6 +187,10 @@ export async function getHomeInfoService(barbershopId: string) {
         return {
             ...row,
             hero_images: heroImages,
+            schedule_title: normalizeScheduleField((row as any)?.schedule_title),
+            schedule_line1: normalizeScheduleField((row as any)?.schedule_line1),
+            schedule_line2: normalizeScheduleField((row as any)?.schedule_line2),
+            schedule_line3: normalizeScheduleField((row as any)?.schedule_line3),
             barber_payment_frequency:
                 normalizePayrollFrequency((row as any)?.barber_payment_frequency) ?? null,
             employee_payment_frequency:
@@ -212,6 +229,10 @@ export async function upsertHomeInfoService(params: {
         hero_subtitle: params.data?.hero_subtitle ?? null,
         hero_image: heroImage || heroImages[0] || null,
         hero_images: heroImages,
+        schedule_title: normalizeScheduleField(params.data?.schedule_title ?? params.data?.scheduleTitle),
+        schedule_line1: normalizeScheduleField(params.data?.schedule_line1 ?? params.data?.scheduleLine1),
+        schedule_line2: normalizeScheduleField(params.data?.schedule_line2 ?? params.data?.scheduleLine2),
+        schedule_line3: normalizeScheduleField(params.data?.schedule_line3 ?? params.data?.scheduleLine3),
         barber_payment_frequency: barberPaymentFrequency,
         employee_payment_frequency: employeePaymentFrequency,
     };
