@@ -184,12 +184,23 @@ function serializeAppointment(a: any) {
 const OPEN_HOUR = 9;
 const CLOSE_HOUR = 20;
 const SLOT_STEP = 5;
+const SCHEDULE_PLACEHOLDERS = new Set([
+  "Ex: Horário de Funcionamento",
+  "Ex: Seg - 14h as 20h",
+  "Ex: Terça a Sab. - 09h as 20h",
+  "Ex: Domingo: Fechado",
+]);
 
 function normalizeText(value: string) {
   return String(value || "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
+}
+
+function isRealScheduleLine(value: unknown) {
+  const trimmed = String(value ?? "").trim();
+  return Boolean(trimmed && !SCHEDULE_PLACEHOLDERS.has(trimmed));
 }
 
 function parseTimeToMinutes(raw: string) {
@@ -298,7 +309,7 @@ async function getOpeningWindowFromHomeInfo(barbershopId: string, date: string) 
     row?.schedule_line1,
     row?.schedule_line2,
     row?.schedule_line3,
-  ].filter(Boolean) as string[];
+  ].filter(isRealScheduleLine) as string[];
 
   for (const line of lines) {
     if (!lineAppliesToWeekday(line, weekday)) continue;
