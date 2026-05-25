@@ -130,7 +130,7 @@ export async function createPagarmeBarbershopPlatformSubscriptionService(params:
     const customerDocument = onlyNumbers(params.customer?.document || currentUser?.cpf || currentUser?.document || shop.cnpj);
 
     const payload: any = {
-        code: `barbershop_platform_${barbershopId}_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`,
+        code: `barbershop_${barbershopId}`,
         plan_id: planId,
         payment_method: 'credit_card',
         installments: 1,
