@@ -10,6 +10,8 @@ import {
   updateSuperAdminUser,
   updateSuperAdminBarbershopStatus,
   resetUserPassword,
+  listPlatformPlansController,
+  createPlatformPlanController,
 } from "../controllers/superAdminController.js";
 
 const router = Router();
