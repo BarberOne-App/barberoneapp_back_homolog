@@ -558,6 +558,7 @@ export async function createAppointmentService(params: {
     date: string;
     time: string;
     notes?: string | null;
+    isOutOfHours?: boolean;
     services: {
       id: string;
       name?: string;
@@ -612,8 +613,27 @@ export async function createAppointmentService(params: {
   const isPastDate = date < todayStr;
   const isPastTimeToday =
     date === todayStr && startMinutes != null && startMinutes <= nowMinutes;
+  const isOutOfHoursAppointment = params.data.isOutOfHours === true;
+  const canCreateOutOfHoursAppointment =
+    params.actorRole === "admin" || params.actorRole === "receptionist";
 
-  if (isPastDate || isPastTimeToday) {
+  if (isOutOfHoursAppointment && !canCreateOutOfHoursAppointment) {
+    throw forbidden("Apenas admin ou recepcionista pode agendar fora do horário");
+  }
+
+  if (isOutOfHoursAppointment) {
+    const openingWindow = await getOpeningWindowFromHomeInfo(params.barbershopId, date);
+    const isOutsideWorkingHours =
+      !openingWindow ||
+      (startMinutes != null &&
+        (startMinutes < openingWindow.start || startMinutes >= openingWindow.end));
+
+    if (!isOutsideWorkingHours) {
+      throw badRequest("Selecione um horário fora do expediente da barbearia");
+    }
+  }
+
+  if (!isOutOfHoursAppointment && (isPastDate || isPastTimeToday)) {
     throw badRequest("Não é possível agendar no passado");
   }
 

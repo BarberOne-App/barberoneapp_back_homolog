@@ -16,6 +16,7 @@ export const CreateAppointmentSchema = joi
       .required()
       .messages({ "string.pattern.base": "time deve ser HH:MM" }),
     notes: joi.string().trim().allow("", null).optional(),
+    isOutOfHours: joi.boolean().optional().default(false),
     services: joi
       .array()
       .items(
