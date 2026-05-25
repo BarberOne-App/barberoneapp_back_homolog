@@ -143,9 +143,7 @@ export async function createPagarmeBarbershopPlatformSubscriptionService(params:
                 mobile_phone: customerPhone,
             },
         },
-        card: {
-            card_token: params.cardToken,
-        },
+        card_token: params.cardToken,
         metadata: {
             type: 'barbershop_platform_subscription',
             barbershopId,
