@@ -344,7 +344,7 @@ export async function createPagarmeRecipientService(params: any) {
     //     default_bank_account: {
     //         holder_name: 'Tony Stark',
     //         holder_type: 'individual',
-    //         holder_document: '26224451990',
+    //         holder_document: '90980497027',
     //         bank: '341',
     //         branch_number: '1234',
     //         branch_check_digit: '6',
@@ -396,7 +396,7 @@ export async function createPagarmeRecipientService(params: any) {
         default_bank_account: {
             holder_name: 'Tony Stark',
             holder_type: 'individual',
-            holder_document: '26224451990',
+            holder_document: '90980497027',
             bank: '341',
             branch_number: '1234',
             branch_check_digit: '6',
