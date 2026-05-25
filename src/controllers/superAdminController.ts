@@ -145,6 +145,9 @@ export async function updateSuperAdminBarbershopStatus(req: Request, res: Respon
 export async function listPlatformPlansController(req: Request, res: Response, next: NextFunction) {
   try {
     const items = await prisma.subscription_plans.findMany({
+      where: {
+        barbershop_id: null,
+      },
       orderBy: [
         // { sort_order: 'asc' },
         { created_at: 'desc' },
