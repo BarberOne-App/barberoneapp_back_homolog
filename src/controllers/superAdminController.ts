@@ -17,7 +17,6 @@ import {
   resetUserPasswordService,
   updateSuperAdminUserService,
   createPagarmePlatformPlan,
-
 } from "../services/superAdminService.js";
 import prisma from "../database/database.js";
 
@@ -147,7 +146,7 @@ export async function listPlatformPlansController(req: Request, res: Response, n
   try {
     const items = await prisma.subscription_plans.findMany({
       orderBy: [
-        { sort_order: 'asc' },
+        // { sort_order: 'asc' },
         { created_at: 'desc' },
       ],
     });
@@ -209,19 +208,19 @@ export async function createPlatformPlanController(req: Request, res: Response, 
         name,
         description: description || null,
         price: Number(amountInCents) / 100,
-        interval: interval || 'month',
-        interval_count: Number(intervalCount || 1),
-        trial_period_days: Number(trialPeriodDays || 0),
+        // interval: interval || 'month',
+        // interval_count: Number(intervalCount || 1),
+        // trial_period_days: Number(trialPeriodDays || 0),
         pagarme_plan_id: pagarmePlan.id,
         // pagarme_payment_link_id: paymentLink.id || null,
         // checkout_url: paymentLink.url || null,
-        features: Array.isArray(features) ? features : [],
+        // features: Array.isArray(features) ? features : [],
         max_barbers: limits?.maxBarbers ?? null,
         max_admins: limits?.maxAdmins ?? null,
         max_receptionists: limits?.maxReceptionists ?? null,
-        is_public: Boolean(isPublic),
-        is_recommended: Boolean(isRecommended),
-        sort_order: Number(sortOrder || 0),
+        // is_public: Boolean(isPublic),
+        // is_recommended: Boolean(isRecommended),
+        // sort_order: Number(sortOrder || 0),
         status: 'active',
       },
     });
