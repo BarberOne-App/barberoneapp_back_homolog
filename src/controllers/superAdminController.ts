@@ -221,7 +221,7 @@ export async function createPlatformPlanController(req: Request, res: Response, 
         // is_public: Boolean(isPublic),
         // is_recommended: Boolean(isRecommended),
         // sort_order: Number(sortOrder || 0),
-        status: 'active',
+        active: true,
       },
     });
 
