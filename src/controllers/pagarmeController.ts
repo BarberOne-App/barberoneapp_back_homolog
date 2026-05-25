@@ -4,6 +4,7 @@ import {
     getPagarmeOrderStatusService,
     normalizePagarmeOrder,
 } from '../services/pagarmeOrderService.js';
+import { syncPagarmeSubscriptionWebhook } from '../services/pagarmePlatformSubscriptionService.js';
 import prisma from '../database/database.js';
 import { Request, Response, NextFunction } from 'express';
 
@@ -42,23 +43,44 @@ export async function pagarmeWebhookController(req: Request, res: Response, next
         const eventType = req.body?.type || req.body?.event || '';
         const eventData = req.body?.data || req.body?.order || req.body;
         const order = eventData?.object === 'order' || eventData?.charges ? eventData : eventData?.order || eventData;
-        const normalized = normalizePagarmeOrder(order);
+        const subscription = eventData?.object === 'subscription'
+            ? eventData
+            : eventData?.subscription || eventData?.data?.subscription || req.body?.subscription || req.body?.data?.subscription || null;
+        const normalized = order ? normalizePagarmeOrder(order) : null;
 
-        const metadata = order?.metadata || {};
+        const metadata = subscription?.metadata || order?.metadata || eventData?.metadata || {};
+        const metadataType = String(metadata?.type || '').trim();
         const paymentId = metadata.paymentId;
         const appointmentId = metadata.appointmentId;
+
+        console.log('[pagarmeWebhook] evento recebido', {
+            eventType,
+            metadataType,
+            paymentId: paymentId || null,
+            appointmentId: appointmentId || null,
+            subscriptionId: subscription?.id || null,
+            orderId: order?.id || null,
+        });
+
+        if (metadataType === 'barbershop_platform_subscription' || metadataType === 'client_barbershop_subscription') {
+            const subscriptionResult = await syncPagarmeSubscriptionWebhook(eventType, subscription || order || eventData, metadata);
+
+            if (subscriptionResult?.handled) {
+                return res.status(200).json({ received: true });
+            }
+        }
 
         const isPaid =
             eventType === 'order.paid' ||
             eventType === 'charge.paid' ||
-            normalized.status === 'paid' ||
-            normalized.chargeStatus === 'paid';
+            normalized?.status === 'paid' ||
+            normalized?.chargeStatus === 'paid';
 
         const isFailed =
             eventType === 'order.payment_failed' ||
             eventType === 'charge.payment_failed' ||
-            normalized.status === 'failed' ||
-            normalized.chargeStatus === 'failed';
+            normalized?.status === 'failed' ||
+            normalized?.chargeStatus === 'failed';
 
         if ((isPaid || isFailed) && paymentId) {
             // Ajuste para o nome real do seu model/tabela de pagamentos, se necessário.
@@ -82,9 +104,9 @@ export async function pagarmeWebhookController(req: Request, res: Response, next
                     // payment_provider: 'pagarme',
                     method: 'credito',
                     paid_at: isPaid ? new Date() : null,
-                    pagarme_order_id: normalized.orderId,
-                    pagarme_charge_id: normalized.chargeId,
-                    pagarme_status: normalized.status,
+                    pagarme_order_id: normalized?.orderId,
+                    pagarme_charge_id: normalized?.chargeId,
+                    pagarme_status: normalized?.status,
                 },
             });
             //   });

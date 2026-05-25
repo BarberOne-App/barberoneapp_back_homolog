@@ -3,6 +3,7 @@ import prisma from "../database/database.js";
 import { notFound } from "../errors/index.js";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
+import { pagarmeRequest } from "./pagarmeApi.js";
 
 function rounds() {
   return Number(process.env.BCRYPT_SALT_ROUNDS || 10);
@@ -34,11 +35,11 @@ function serializeUser(user: any) {
     barbershopId: user.current_barbershop_id,
     barbershop: user.current_barbershop
       ? {
-          id: user.current_barbershop.id,
-          name: user.current_barbershop.name,
-          slug: user.current_barbershop.slug,
-          status: user.current_barbershop.status,
-        }
+        id: user.current_barbershop.id,
+        name: user.current_barbershop.name,
+        slug: user.current_barbershop.slug,
+        status: user.current_barbershop.status,
+      }
       : null,
   };
 }
@@ -621,3 +622,64 @@ export async function updateSuperAdminUserService(params: {
 
   return serializeUser(updated);
 }
+
+export async function createPagarmePlatformPlan(params: any) {
+  const paymentMethods = Array.isArray(params.paymentMethods) && params.paymentMethods.length
+    ? params.paymentMethods
+    : ['credit_card'];
+
+  const payload = {
+    name: params.name,
+    description: params.description || undefined,
+    currency: 'BRL',
+    interval: params.interval || 'month',
+    interval_count: Number(params.intervalCount || 1),
+    billing_type: 'prepaid',
+    payment_methods: paymentMethods,
+    installments: [1],
+    trial_period_days: Number(params.trialPeriodDays || 0),
+    statement_descriptor: params.statementDescriptor || 'BARBERONE',
+    items: [
+      {
+        name: params.name,
+        quantity: 1,
+        pricing_scheme: {
+          price: Number(params.amountInCents),
+        },
+      },
+    ],
+  };
+
+  return pagarmeRequest('/plans', {
+    method: 'POST',
+    headers: {
+      'Idempotency-Key': crypto.randomUUID(),
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
+// export async function createPagarmeSubscriptionPaymentLink(planId: string, paymentMethods: string[]) {
+//   const payload = {
+//     type: 'subscription',
+//     payment_settings: {
+//       accepted_payment_methods: paymentMethods,
+//     },
+//     cart_settings: {
+//       recurrences: [
+//         {
+//           plan_id: planId,
+//           start_in: 1,
+//         },
+//       ],
+//     },
+//   };
+
+//   const { data } = await axios.post(
+//     `${PAGARME_BASE_URL}/paymentlinks`,
+//     payload,
+//     { headers: getPagarmeHeaders() }
+//   );
+
+//   return data;
+// }

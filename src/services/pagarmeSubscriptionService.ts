@@ -1,6 +1,7 @@
 // services/pagarmeSubscriptionService.ts
 import crypto from 'crypto';
 import prisma from '../database/database.js';
+import { findActiveSubscriptionByUser } from '../repository/subscriptionRepository.js';
 import { pagarmeRequest } from './pagarmeApi.js';
 
 function onlyNumbers(value: any) {
@@ -97,7 +98,6 @@ async function ensurePagarmePlan(plan: any) {
 }
 
 export async function createPagarmeClientSubscriptionService(params: any, currentUser: any) {
-    console.log("PARAMS RECEBIDOS PARA CRIAR ASSINATURA:", params);
     const plan = await prisma.subscription_plans.findUnique({
         where: { id: String(params.planId) },
     });
@@ -131,6 +131,15 @@ export async function createPagarmeClientSubscriptionService(params: any, curren
         throw new Error('cardToken é obrigatório para assinatura no cartão.');
     }
 
+    const currentUserId = String(currentUser?.id || params.userId || '');
+    const existingActiveSubscription = currentUserId
+        ? await findActiveSubscriptionByUser(String(barbershopId), currentUserId)
+        : null;
+
+    if (existingActiveSubscription) {
+        throw new Error('Usuário já possui uma assinatura ativa nesta barbearia.');
+    }
+
     const amountInCents = toCents(plan.price);
     const pagarmePlanId = await ensurePagarmePlan(plan);
 
@@ -138,7 +147,7 @@ export async function createPagarmeClientSubscriptionService(params: any, curren
 
     const payload: any = {
         code: `client_sub_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`,
-        plan_id: "plan_29oPEm3tgF9vzml3",
+        plan_id: pagarmePlanId,
         payment_method: 'credit_card',
         installments: 1,
         customer: {
@@ -184,8 +193,6 @@ export async function createPagarmeClientSubscriptionService(params: any, curren
         },
         body: JSON.stringify(payload),
     });
-
-    console.log("PAGARME SUBSCRIPTION CRIADA:", pagarmeSubscription);
 
     const subscription = await prisma.subscriptions.create({
         data: {
