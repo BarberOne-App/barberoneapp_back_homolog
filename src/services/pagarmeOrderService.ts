@@ -381,7 +381,7 @@ export async function createPagarmeRecipientService(params: any) {
             document: '90980497027',
             type: 'individual',
             name: 'Teste',
-            bbirthdate: "20/09/1990",
+            birthdate: "20/09/1990",
             monthly_income: 100000,
             professional_occupation: 'teste',
             phone_numbers: [
