@@ -323,6 +323,7 @@ export async function createPagarmeRecipientService(params: any) {
         // },
         // automatic_anticipation_settings: params.automatic_anticipation_settings,
         register_information: {
+            phone_numbers: { ddd: '32', number: '998855665' },
             address: {
                 street: 'teste',
                 complementary: 'teste',
@@ -357,6 +358,8 @@ export async function createPagarmeRecipientService(params: any) {
             barbershopId: String(params.barbershopId || ''),
             ...(params.metadata || {})
         },
+        code: params.code || `barbershop_${params.barbershopId || crypto.randomUUID()}`,
+
         // metadata: {
         //     barbershopId: String(params.barbershopId || ''),
         //     ...(params.metadata || {}),
