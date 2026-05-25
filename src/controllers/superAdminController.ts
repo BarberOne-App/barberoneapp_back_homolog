@@ -206,7 +206,7 @@ export async function createPlatformPlanController(req: Request, res: Response, 
     const plan = await prisma.subscription_plans.create({
       data: {
         name,
-        description: description || null,
+        // description: description || null,
         price: Number(amountInCents) / 100,
         // interval: interval || 'month',
         // interval_count: Number(intervalCount || 1),
