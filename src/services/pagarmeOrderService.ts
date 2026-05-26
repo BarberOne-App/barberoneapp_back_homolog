@@ -313,110 +313,21 @@ export async function getPagarmeOrderStatusService(orderId: string) {
 }
 
 export async function createPagarmeRecipientService(params: any) {
-    // const payload = {
-    //     // code: params.code || `barbershop_${params.barbershopId || crypto.randomUUID()}`,
-    //     // register_information: params.register_information,
-    //     // default_bank_account: params.default_bank_account,
-    //     // transfer_settings: params.transfer_settings || {
-    //     //     transfer_enabled: true,
-    //     //     transfer_interval: 'daily',
-    //     // },
-    //     // automatic_anticipation_settings: params.automatic_anticipation_settings,
-    //     register_information: {
-    //         address: {
-    //             street: 'teste',
-    //             complementary: 'teste',
-    //             street_number: '1',
-    //             neighborhood: 'teste',
-    //             city: 'teste',
-    //             state: 'teste',
-    //             zip_code: '36855502',
-    //             reference_point: 'teste'
-    //         },
-    //         email: 'empresax@avengers.com',
-    //         document: '77699131000133',
-    //         type: 'individual',
-    //         name: 'Teste',
-    //         birthdate: '20091990',
-    //         monthly_income: 100000,
-    //         professional_occupation: 'teste'
-    //     },
-    //     default_bank_account: {
-    //         holder_name: 'Tony Stark',
-    //         holder_type: 'individual',
-    //         holder_document: '90980497027',
-    //         bank: '341',
-    //         branch_number: '1234',
-    //         branch_check_digit: '6',
-    //         account_number: '12345',
-    //         account_check_digit: '6',
-    //         type: 'checking'
-    //     },
-    //     transfer_settings: { transfer_enabled: true, transfer_interval: 'Daily' },
-    //     metadata: {
-    //         barbershopId: String(params.barbershopId || ''),
-    //         ...(params.metadata || {})
-    //     },
-    //     code: params.code || `barbershop_${params.barbershopId || crypto.randomUUID()}`,
-
-    //     // metadata: {
-    //     //     barbershopId: String(params.barbershopId || ''),
-    //     //     ...(params.metadata || {}),
-    //     // },
-    // };
-
     const payload = {
-        register_information: {
-            address: {
-                street: 'teste',
-                complementary: 'teste',
-                street_number: '1',
-                neighborhood: 'teste',
-                city: 'teste',
-                state: 'MG',
-                zip_code: '36855502',
-                reference_point: 'teste'
+        register_information: params.register_information || params.registerInformation,
+        default_bank_account: params.default_bank_account || params.defaultBankAccount,
+        transfer_settings:
+            params.transfer_settings || params.transferSettings || {
+                transfer_enabled: true,
+                transfer_interval: 'daily',
             },
-            email: 'empresax@avengers.com',
-            document: '90980497027',
-            type: 'individual',
-            name: 'Teste',
-            birthdate: "20/09/1990",
-            monthly_income: 100000,
-            professional_occupation: 'teste',
-            phone_numbers: [
-                {
-                    ddd: '32',
-                    number: '999999999',
-                    type: 'mobile'
-                }
-            ]
-        },
-
-        default_bank_account: {
-            holder_name: 'Tony Stark',
-            holder_type: 'individual',
-            holder_document: '90980497027',
-            bank: '341',
-            branch_number: '1234',
-            branch_check_digit: '6',
-            account_number: '12345',
-            account_check_digit: '6',
-            type: 'checking'
-        },
-
-        transfer_settings: {
-            transfer_enabled: true,
-            transfer_interval: 'Daily',
-            transfer_day: 0
-        },
-
+        automatic_anticipation_settings:
+            params.automatic_anticipation_settings || params.automaticAnticipationSettings,
         metadata: {
             barbershopId: String(params.barbershopId || ''),
-            ...(params.metadata || {})
+            ...(params.metadata || {}),
         },
-
-        code: params.code || `barbershop_${params.barbershopId || crypto.randomUUID()}`
+        code: params.code || `barbershop_${params.barbershopId || crypto.randomUUID()}`,
     };
 
     const recipient = await pagarmeRequest('/recipients', {
@@ -427,7 +338,13 @@ export async function createPagarmeRecipientService(params: any) {
         body: JSON.stringify(payload),
     });
 
-    if (params.barbershopId && recipient?.id) {
+    const shouldLinkBarbershop = params.linkBarbershop === true;
+
+    if (params.barbershopId && !shouldLinkBarbershop) {
+        throw new Error('Vinculação da barbearia ao recebedor precisa ser feita explicitamente pelo admin.');
+    }
+
+    if (params.barbershopId && recipient?.id && shouldLinkBarbershop) {
         const existingBarbershop = await prisma.barbershops.findUnique({
             where: { id: String(params.barbershopId) },
             select: { id: true },
