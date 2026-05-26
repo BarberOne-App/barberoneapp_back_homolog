@@ -14,7 +14,6 @@ import {
   findUserById,
   findUserByCpf
 } from "../repository/authRepository.js";
-import { createPagarmeRecipientService } from "./pagarmeOrderService.js";
 
 function isPrismaUniqueError(e: any) {
   return e?.code === "P2002";
@@ -290,27 +289,7 @@ export async function registerBarbershopService(params: {
 
   console.log("Plano selecionado:", params.selectedPlan);
 
-  const recipientPayload = {
-    code: `barbershop_${barbershopId}`,
-    barbershopId,
-    register_information: {
-      name: params.barbershopName.trim(),
-      email: adminEmail,
-      document: String(params.cnpj || "").replace(/\D/g, "") || undefined,
-      phone_numbers: params.phone ? [String(params.phone).replace(/\D/g, "")] : undefined,
-      type: "company",
-    },
-    metadata: {
-      source: "barbershop_registration",
-      selectedPlan: params.selectedPlan,
-      adminEmail,
-    },
-  };
-
   try {
-    console.log("Criando recipient Pagar.me para barbearia", { barbershopId, slug, selectedPlan: params.selectedPlan });
-    const recipient = await createPagarmeRecipientService(recipientPayload);
-
     const result = await prisma.$transaction(async (tx) => {
       const shop = await createBarbershop(
         {
@@ -321,8 +300,8 @@ export async function registerBarbershopService(params: {
           phone: params.phone ?? null,
           email: adminEmail,
           selectedPlan: params.selectedPlan,
-          pagarmeRecipientId: recipient?.id ?? null,
-          pagarmeRecipientStatus: recipient?.status ?? null,
+          pagarmeRecipientId: null,
+          pagarmeRecipientStatus: null,
           platformSubscriptionStatus: null,
         },
         tx
@@ -366,9 +345,6 @@ export async function registerBarbershopService(params: {
       checkoutUrl,
       selectedPlan: params.selectedPlan ?? null,
       barbershop: result.shop,
-      recipient: {
-        id: recipient?.id ?? null,
-      },
       user: {
         id: result.user.id,
         name: result.user.name,
