@@ -84,7 +84,7 @@ export async function findUserByEmail(email: string, tx?: Prisma.TransactionClie
   return db.users.findFirst({
     where: { email },
     include: {
-      current_barbershop: { select: { id: true, name: true, slug: true } },
+      current_barbershop: { select: { id: true, name: true, slug: true, created_at: true, platform_subscription_status: true } },
     },
   });
 }
@@ -170,7 +170,7 @@ export async function findUserById(userId: string, tx?: Prisma.TransactionClient
       updated_at: true,
       current_barbershop_id: true,
       current_barbershop: {
-        select: { id: true, name: true, slug: true },
+        select: { id: true, name: true, slug: true, created_at: true, platform_subscription_status: true },
       },
       barbers: {
         select: {
