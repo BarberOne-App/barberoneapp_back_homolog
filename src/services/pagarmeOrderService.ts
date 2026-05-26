@@ -316,11 +316,11 @@ export async function createPagarmeRecipientService(params: any) {
     const payload = {
         register_information: params.register_information || params.registerInformation,
         default_bank_account: params.default_bank_account || params.defaultBankAccount,
-        transfer_settings:
-            params.transfer_settings || params.transferSettings || {
-                transfer_enabled: true,
-                transfer_interval: 'daily',
-            },
+        transfer_settings: {
+            transfer_enabled: true,
+            transfer_interval: 'daily',
+            transfer_day: 0
+        },
         automatic_anticipation_settings:
             params.automatic_anticipation_settings || params.automaticAnticipationSettings,
         metadata: {
