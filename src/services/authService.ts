@@ -134,7 +134,26 @@ async function findGoogleAuthUser(email: string, googleId: string) {
       ],
     },
     include: {
-      current_barbershop: { select: { id: true, name: true, slug: true, created_at: true, platform_subscription_status: true, status: true } },
+      current_barbershop: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          cnpj: true,
+          phone: true,
+          email: true,
+          created_at: true,
+          updated_at: true,
+          status: true,
+          blocked_reason: true,
+          blocked_at: true,
+          deactivated_at: true,
+          selected_plan: true,
+          pagarme_recipient_id: true,
+          pagarme_recipient_status: true,
+          platform_subscription_status: true,
+        },
+      },
     },
   });
 }
@@ -227,7 +246,26 @@ export async function googleAuthService(params: {
           : {}),
       },
       include: {
-        current_barbershop: { select: { id: true, name: true, slug: true, created_at: true, platform_subscription_status: true, status: true } },
+        current_barbershop: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            cnpj: true,
+            phone: true,
+            email: true,
+            created_at: true,
+            updated_at: true,
+            status: true,
+            blocked_reason: true,
+            blocked_at: true,
+            deactivated_at: true,
+            selected_plan: true,
+            pagarme_recipient_id: true,
+            pagarme_recipient_status: true,
+            platform_subscription_status: true,
+          },
+        },
       },
     });
 
@@ -262,7 +300,26 @@ export async function googleAuthService(params: {
         : {}),
     },
     include: {
-      current_barbershop: { select: { id: true, name: true, slug: true, created_at: true, platform_subscription_status: true, status: true } },
+      current_barbershop: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          cnpj: true,
+          phone: true,
+          email: true,
+          created_at: true,
+          updated_at: true,
+          status: true,
+          blocked_reason: true,
+          blocked_at: true,
+          deactivated_at: true,
+          selected_plan: true,
+          pagarme_recipient_id: true,
+          pagarme_recipient_status: true,
+          platform_subscription_status: true,
+        },
+      },
     },
   });
 
