@@ -388,7 +388,7 @@ export async function updatePagarmeRecipientService(params: any) {
     const payload = buildPagarmeRecipientPayload(params);
 
     const recipient = await pagarmeRequest(`/recipients/${recipientId}`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers: {
             'Idempotency-Key': crypto.randomUUID(),
         },
