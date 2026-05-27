@@ -1,8 +1,10 @@
 import {
     createPagarmeOrderService,
     createPagarmeRecipientService,
+    getPagarmeRecipientService,
     getPagarmeOrderStatusService,
     normalizePagarmeOrder,
+    updatePagarmeRecipientService,
 } from '../services/pagarmeOrderService.js';
 import { syncPagarmeSubscriptionWebhook } from '../services/pagarmePlatformSubscriptionService.js';
 import prisma from '../database/database.js';
@@ -31,6 +33,27 @@ export async function createPagarmeRecipientController(req: Request, res: Respon
     try {
         const result = await createPagarmeRecipientService(req.body);
         return res.status(201).json(result);
+    } catch (error) {
+        return next(error);
+    }
+}
+
+export async function getPagarmeRecipientController(req: Request, res: Response, next: NextFunction) {
+    try {
+        const result = await getPagarmeRecipientService(req.params.recipientId);
+        return res.status(200).json(result);
+    } catch (error) {
+        return next(error);
+    }
+}
+
+export async function updatePagarmeRecipientController(req: Request, res: Response, next: NextFunction) {
+    try {
+        const result = await updatePagarmeRecipientService({
+            ...req.body,
+            recipientId: req.params.recipientId,
+        });
+        return res.status(200).json(result);
     } catch (error) {
         return next(error);
     }
