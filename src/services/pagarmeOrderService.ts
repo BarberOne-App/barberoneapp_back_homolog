@@ -349,6 +349,9 @@ export async function createPagarmeRecipientService(params: any) {
 
 function buildPagarmeRecipientPayload(params: any) {
     return {
+        // name: params.name,
+        // email: params.email,
+        document: params.document || params.register_information.document,
         register_information: params.register_information || params.registerInformation,
         default_bank_account: params.default_bank_account || params.defaultBankAccount,
         transfer_settings: {
