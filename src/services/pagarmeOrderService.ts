@@ -227,7 +227,7 @@ export async function createPagarmeOrderService(params: any) {
         name: params?.customer?.name || 'Cliente',
         email: params?.customer?.email,
         type: 'individual',
-        document: '30895382024',
+        document: params?.customer?.document,
         phones: { mobile_phone: { country_code: '55', area_code: '32', number: '998456585' } },
     };
 
