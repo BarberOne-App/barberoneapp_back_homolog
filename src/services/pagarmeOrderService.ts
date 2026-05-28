@@ -349,9 +349,6 @@ export async function createPagarmeRecipientService(params: any) {
 
 function buildPagarmeRecipientPayload(params: any) {
     return {
-        // name: params.name,
-        // email: params.email,
-        document: params.document || params.register_information.document,
         register_information: params.register_information || params.registerInformation,
         default_bank_account: params.default_bank_account || params.defaultBankAccount,
         transfer_settings: {
@@ -379,6 +376,23 @@ export async function getPagarmeRecipientService(recipientId: string) {
     });
 }
 
+function buildPagarmeRecipientUpdatePayload(params: any) {
+    const registerInformation =
+        params.register_information || params.registerInformation;
+
+    if (!registerInformation) {
+        throw new Error('register_information é obrigatório para atualizar o recebedor.');
+    }
+
+    return {
+        register_information: registerInformation,
+        metadata: {
+            barbershopId: String(params.barbershopId || ''),
+            ...(params.metadata || {}),
+        },
+    };
+}
+
 export async function updatePagarmeRecipientService(params: any) {
     const recipientId = String(params.recipientId || params.id || '').trim();
 
@@ -386,9 +400,14 @@ export async function updatePagarmeRecipientService(params: any) {
         throw new Error('Recipient ID é obrigatório para atualização.');
     }
 
-    const payload = buildPagarmeRecipientPayload(params);
+    const payload = buildPagarmeRecipientUpdatePayload(params);
 
-    const recipient = await pagarmeRequest(`/recipients/${recipientId}`, {
+    console.log(
+        'PAYLOAD UPDATE RECIPIENT PAGARME:',
+        JSON.stringify(payload, null, 2)
+    );
+
+    const updateResult = await pagarmeRequest(`/recipients/${recipientId}`, {
         method: 'PUT',
         headers: {
             'Idempotency-Key': crypto.randomUUID(),
@@ -396,28 +415,82 @@ export async function updatePagarmeRecipientService(params: any) {
         body: JSON.stringify(payload),
     });
 
+    console.log(
+        'RETORNO UPDATE RECIPIENT PAGARME:',
+        JSON.stringify(updateResult, null, 2)
+    );
+
+    const refreshedRecipient = await pagarmeRequest(`/recipients/${recipientId}`, {
+        method: 'GET',
+    });
+
+    console.log(
+        'RECIPIENT APÓS GET:',
+        JSON.stringify(refreshedRecipient, null, 2)
+    );
+
     const shouldLinkBarbershop = params.linkBarbershop === true;
 
     if (params.barbershopId && !shouldLinkBarbershop) {
         throw new Error('Vinculação da barbearia ao recebedor precisa ser feita explicitamente pelo admin.');
     }
 
-    if (params.barbershopId && recipient?.id && shouldLinkBarbershop) {
-        const existingBarbershop = await prisma.barbershops.findUnique({
+    if (params.barbershopId && shouldLinkBarbershop) {
+        await prisma.barbershops.update({
             where: { id: String(params.barbershopId) },
-            select: { id: true },
+            data: {
+                pagarme_recipient_id: refreshedRecipient?.id || recipientId,
+                pagarme_recipient_status:
+                    refreshedRecipient?.status ||
+                    refreshedRecipient?.status_raw ||
+                    null,
+            },
         });
-
-        if (existingBarbershop) {
-            await prisma.barbershops.update({
-                where: { id: String(params.barbershopId) },
-                data: {
-                    pagarme_recipient_id: recipient.id,
-                    pagarme_recipient_status: recipient.status || recipient?.status_raw || null,
-                },
-            });
-        }
     }
 
-    return recipient;
+    return refreshedRecipient;
 }
+
+
+// export async function updatePagarmeRecipientService(params: any) {
+//     const recipientId = String(params.recipientId || params.id || '').trim();
+
+//     if (!recipientId) {
+//         throw new Error('Recipient ID é obrigatório para atualização.');
+//     }
+
+//     const payload = buildPagarmeRecipientPayload(params);
+
+//     const recipient = await pagarmeRequest(`/recipients/${recipientId}`, {
+//         method: 'PUT',
+//         headers: {
+//             'Idempotency-Key': crypto.randomUUID(),
+//         },
+//         body: JSON.stringify(payload),
+//     });
+
+//     const shouldLinkBarbershop = params.linkBarbershop === true;
+
+//     if (params.barbershopId && !shouldLinkBarbershop) {
+//         throw new Error('Vinculação da barbearia ao recebedor precisa ser feita explicitamente pelo admin.');
+//     }
+
+//     if (params.barbershopId && recipient?.id && shouldLinkBarbershop) {
+//         const existingBarbershop = await prisma.barbershops.findUnique({
+//             where: { id: String(params.barbershopId) },
+//             select: { id: true },
+//         });
+
+//         if (existingBarbershop) {
+//             await prisma.barbershops.update({
+//                 where: { id: String(params.barbershopId) },
+//                 data: {
+//                     pagarme_recipient_id: recipient.id,
+//                     pagarme_recipient_status: recipient.status || recipient?.status_raw || null,
+//                 },
+//             });
+//         }
+//     }
+
+//     return recipient;
+// }
