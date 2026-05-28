@@ -299,7 +299,7 @@ export async function createPagarmeOrderService(params: any) {
         body: JSON.stringify(payload),
     });
 
-    console.log('Pagarme order created:', order);
+    console.log('Pagarme order created:', JSON.stringify(order.charges?.[0]?.last_transaction));
     return order;
 }
 
