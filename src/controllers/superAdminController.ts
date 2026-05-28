@@ -16,9 +16,7 @@ import {
   updateSuperAdminBarbershopStatusService,
   resetUserPasswordService,
   updateSuperAdminUserService,
-  createPagarmePlatformPlan,
 } from "../services/superAdminService.js";
-import prisma from "../database/database.js";
 
 function joiErrors(error: any) {
   return error.details?.map((d: any) => d.message) ?? ["Dados inválidos"];
@@ -142,98 +140,3 @@ export async function updateSuperAdminBarbershopStatus(req: Request, res: Respon
   return res.status(200).send(result);
 }
 
-export async function listPlatformPlansController(req: Request, res: Response, next: NextFunction) {
-  try {
-    const items = await prisma.subscription_plans.findMany({
-      where: {
-        barbershop_id: null,
-      },
-      orderBy: [
-        // { sort_order: 'asc' },
-        { created_at: 'desc' },
-      ],
-    });
-
-    return res.json({ items });
-  } catch (error) {
-    next(error);
-  }
-}
-
-export async function createPlatformPlanController(req: Request, res: Response, next: NextFunction) {
-  try {
-    const {
-      name,
-      description,
-      amountInCents,
-      interval,
-      intervalCount,
-      trialPeriodDays,
-      statementDescriptor,
-      paymentMethods,
-      features,
-      limits,
-      isPublic,
-      isRecommended,
-      sortOrder,
-    } = req.body;
-
-    if (!name) {
-      return res.status(400).json({ message: 'Nome do plano é obrigatório.' });
-    }
-
-    if (!amountInCents || Number(amountInCents) <= 0) {
-      return res.status(400).json({ message: 'Valor do plano é obrigatório.' });
-    }
-
-    const safePaymentMethods = Array.isArray(paymentMethods) && paymentMethods.length
-      ? paymentMethods.filter((method) => ['credit_card', 'boleto'].includes(method))
-      : ['credit_card'];
-
-    const pagarmePlan = await createPagarmePlatformPlan({
-      name,
-      description,
-      amountInCents,
-      interval,
-      intervalCount,
-      trialPeriodDays,
-      statementDescriptor,
-      paymentMethods: safePaymentMethods,
-    });
-
-    // const paymentLink = await createPagarmeSubscriptionPaymentLink(
-    //   pagarmePlan.id,
-    //   safePaymentMethods
-    // );
-
-    const plan = await prisma.subscription_plans.create({
-      data: {
-        name,
-        // description: description || null,
-        price: Number(amountInCents) / 100,
-        // interval: interval || 'month',
-        // interval_count: Number(intervalCount || 1),
-        // trial_period_days: Number(trialPeriodDays || 0),
-        pagarme_plan_id: pagarmePlan.id,
-        // pagarme_payment_link_id: paymentLink.id || null,
-        // checkout_url: paymentLink.url || null,
-        // features: Array.isArray(features) ? features : [],
-        max_barbers: limits?.maxBarbers ?? null,
-        max_admins: limits?.maxAdmins ?? null,
-        max_receptionists: limits?.maxReceptionists ?? null,
-        // is_public: Boolean(isPublic),
-        // is_recommended: Boolean(isRecommended),
-        // sort_order: Number(sortOrder || 0),
-        active: true,
-      },
-    });
-
-    return res.status(201).json({
-      plan,
-      pagarmePlan,
-      // paymentLink,
-    });
-  } catch (error) {
-    next(error);
-  }
-}

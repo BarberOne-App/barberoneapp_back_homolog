@@ -1,7 +1,11 @@
 // controllers/pagarmeSubscriptionController.ts
 import { Request, Response, NextFunction } from 'express';
 import { createPagarmeClientSubscriptionService } from '../services/pagarmeSubscriptionService.js';
-import { createPagarmeBarbershopPlatformSubscriptionService } from '../services/pagarmePlatformSubscriptionService.js';
+import {
+  createPagarmeBarbershopPlatformSubscriptionService,
+  getBarbershopPlatformSubscriptionService,
+  cancelBarbershopPlatformSubscriptionService,
+} from '../services/pagarmePlatformSubscriptionService.js';
 import { CreateBarbershopPlatformSubscriptionSchema } from '../models/pagarmeSubscriptionSchemas.js';
 
 export async function createPagarmeClientSubscriptionController(
@@ -31,6 +35,40 @@ export async function createPagarmeBarbershopPlatformSubscriptionController(
 
     const result = await createPagarmeBarbershopPlatformSubscriptionService(value, req.user);
     return res.status(201).json(result);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function getBarbershopPlatformSubscriptionController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const barbershopId = String(req.user?.barbershopId || '').trim();
+    if (!barbershopId) {
+      return res.status(422).json(['Barbearia não identificada.']);
+    }
+    const result = await getBarbershopPlatformSubscriptionService(barbershopId);
+    return res.json(result);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function cancelBarbershopPlatformSubscriptionController(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const barbershopId = String(req.user?.barbershopId || '').trim();
+    if (!barbershopId) {
+      return res.status(422).json(['Barbearia não identificada.']);
+    }
+    const result = await cancelBarbershopPlatformSubscriptionService(barbershopId);
+    return res.json(result);
   } catch (error) {
     return next(error);
   }

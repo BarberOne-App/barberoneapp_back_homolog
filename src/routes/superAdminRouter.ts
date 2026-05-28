@@ -10,8 +10,6 @@ import {
   updateSuperAdminUser,
   updateSuperAdminBarbershopStatus,
   resetUserPassword,
-  listPlatformPlansController,
-  createPlatformPlanController,
 } from "../controllers/superAdminController.js";
 
 const router = Router();
@@ -70,20 +68,6 @@ router.patch(
   requireAuth,
   requireSuperAdmin,
   asyncHandler(resetUserPassword)
-);
-
-router.get(
-    '/platform-plans',
-    requireAuth,
-    requireSuperAdmin,
-    listPlatformPlansController
-);
-
-router.post(
-    '/platform-plans',
-    requireAuth,
-    requireSuperAdmin,
-    createPlatformPlanController
 );
 
 export default router;

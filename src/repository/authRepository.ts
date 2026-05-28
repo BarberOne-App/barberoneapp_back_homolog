@@ -41,7 +41,7 @@ export async function createBarbershop(
     cnpj?: string | null;
     phone?: string | null;
     email?: string | null;
-    selectedPlan: "basic" | "premium" | "master";
+    selectedPlan?: string | null;
     pagarmeRecipientId?: string | null;
     pagarmeRecipientStatus?: string | null;
     platformSubscriptionStatus?: string | null;

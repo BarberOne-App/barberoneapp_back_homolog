@@ -34,7 +34,7 @@ function getFrontendAppBaseUrl() {
 }
 
 async function createLandingSubscriptionCheckoutUrl(params: {
-  selectedPlan?: "basic" | "premium" | "master";
+  selectedPlan?: string | null;
   userId: string;
   userEmail?: string | null;
   barbershopId: string;
@@ -158,6 +158,11 @@ async function findGoogleAuthUser(email: string, googleId: string) {
   });
 }
 
+const TRIAL_PERIOD_DAYS = Number(process.env.TRIAL_PERIOD_DAYS || 14);
+
+// Status de assinatura que indicam acesso ativo à plataforma
+const ACTIVE_SUBSCRIPTION_STATUSES = new Set(['active', 'trialing', 'pending']);
+
 export async function loginService(params: { email: string; password: string }) {
   const email = normalizeEmail(params.email);
 
@@ -172,6 +177,32 @@ export async function loginService(params: { email: string; password: string }) 
 
   if (!shop && !isSuperAdmin) {
     throw notFound("Usuário não vinculado a nenhuma barbearia");
+  }
+
+  // Verifica período de teste da barbearia
+  if (!isSuperAdmin && shop) {
+    const subStatus = String(shop.platform_subscription_status || '').toLowerCase().trim();
+    const hasActiveSub = ACTIVE_SUBSCRIPTION_STATUSES.has(subStatus);
+
+    if (!hasActiveSub) {
+      const createdAt = shop.created_at instanceof Date
+        ? shop.created_at
+        : new Date(shop.created_at as string);
+
+      const trialEndsAt = new Date(createdAt.getTime() + TRIAL_PERIOD_DAYS * 24 * 60 * 60 * 1000);
+      const now = new Date();
+
+      if (now > trialEndsAt) {
+        const formatted = trialEndsAt.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+        return {
+          trialExpired: true,
+          trialExpiredAt: trialEndsAt.toISOString(),
+          barbershopId: shop.id,
+          barbershopName: shop.name,
+          message: `O período de teste da barbearia "${shop.name}" expirou em ${formatted}. Assine um plano para continuar usando a plataforma.`,
+        };
+      }
+    }
   }
 
   return buildAuthResponse(user);
@@ -336,7 +367,7 @@ export async function registerBarbershopService(params: {
   adminEmail: string;
   adminPhone?: string;
   password: string;
-  selectedPlan: "basic" | "premium" | "master";
+  selectedPlan?: string | null;
 }) {
   const adminEmail = normalizeEmail(params.adminEmail);
   const slug = slugify(params.slug?.trim() || params.barbershopName);
