@@ -111,6 +111,60 @@ async function createPagarmePlanForPlatform(params: {
   }
 }
 
+async function updatePagarmePlanForPlatform(pagarmePlanId: string, params: {
+  name: string;
+  status: string;
+  currency: string;
+  interval: string;
+  intervalCount: number;
+  description?: string | null;
+  statementDescriptor?: string | null;
+  paymentMethods?: string[];
+}) {
+  // Pagar.me não permite alterar preço via PUT — apenas campos de metadados do plano
+  const payload: Record<string, any> = {
+    name: params.name,
+    status: params.status,
+    currency: params.currency,
+    interval: params.interval,
+    interval_count: params.intervalCount,
+    billing_type: 'prepaid',
+  };
+
+  if (typeof params.description === 'string' && params.description.trim()) {
+    payload.description = params.description.trim();
+  }
+  if (params.statementDescriptor) {
+    payload.statement_descriptor = params.statementDescriptor;
+  }
+  if (Array.isArray(params.paymentMethods) && params.paymentMethods.length) {
+    payload.payment_methods = params.paymentMethods;
+  }
+
+  try {
+    return await pagarmeRequest(`/plans/${pagarmePlanId}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  } catch (err: any) {
+    if (err instanceof AppError) throw err;
+    if (err?.status === 404) return null;
+    const msg = String(err?.message || 'Erro ao atualizar plano no Pagar.me.');
+    throw new AppError(err?.status === 422 ? 422 : 400, `Pagar.me: ${msg}`);
+  }
+}
+
+async function deletePagarmePlanForPlatform(pagarmePlanId: string) {
+  try {
+    return await pagarmeRequest(`/plans/${pagarmePlanId}`, { method: 'DELETE' });
+  } catch (err: any) {
+    // Qualquer erro do Pagar.me no DELETE não bloqueia a exclusão local
+    // (plano pode já estar deletado, ter assinaturas ativas, ou estar inacessível)
+    console.warn(`[Pagar.me] Erro ao excluir plano ${pagarmePlanId} (status ${err?.status}): ${err?.message}`);
+    return null;
+  }
+}
+
 export async function listPlatformPlansService(params: {
   activeOnly?: boolean;
   publicOnly?: boolean;
@@ -194,17 +248,67 @@ export async function updatePlatformPlanService(
     sortOrder?: number;
     active?: boolean;
     features?: string[];
+    statementDescriptor?: string | null;
+    paymentMethods?: string[];
   }
 ) {
   const existing = await findPlatformPlanById(id);
   if (!existing) throw notFound('Plano não encontrado');
 
-  const updated = await updatePlatformPlanInDB(id, data);
+  let newPagarmePlanId: string | undefined;
+
+  if (existing.pagarme_plan_id && isPagarmeConfigured()) {
+    const currentPrice = decimalToNumber(existing.price);
+    const priceChanged = data.price !== undefined && Math.abs(currentPrice - data.price) > 0.001;
+
+    if (priceChanged) {
+      // Pagar.me não permite alterar preço de plano existente
+      // Solução: cria novo plano com o novo preço e arquiva o antigo
+      const newPagarmePlan = await createPagarmePlanForPlatform({
+        name: data.name ?? existing.name,
+        description: typeof data.description === 'string'
+          ? data.description
+          : (existing.description ?? undefined),
+        price: data.price!,
+        interval: existing.interval,
+        intervalCount: Number(existing.interval_count ?? 1),
+        trialPeriodDays: Number(existing.trial_period_days ?? 0),
+        statementDescriptor: data.statementDescriptor || 'BARBERONE',
+        paymentMethods: data.paymentMethods ?? ['credit_card'],
+      });
+      await deletePagarmePlanForPlatform(existing.pagarme_plan_id);
+      newPagarmePlanId = newPagarmePlan.id;
+    } else {
+      // Preço não mudou — atualiza metadados via PUT
+      await updatePagarmePlanForPlatform(existing.pagarme_plan_id, {
+        name: data.name ?? existing.name,
+        status: 'active',
+        currency: 'BRL',
+        interval: existing.interval,
+        intervalCount: Number(existing.interval_count ?? 1),
+        description: data.description !== undefined ? data.description : existing.description,
+        statementDescriptor: data.statementDescriptor,
+        paymentMethods: data.paymentMethods,
+      });
+    }
+  }
+
+  const updated = await updatePlatformPlanInDB(id, {
+    ...data,
+    ...(newPagarmePlanId !== undefined ? { pagarmePlanId: newPagarmePlanId } : {}),
+  });
   if (!updated) throw notFound('Plano não encontrado');
   return serialize(updated);
 }
 
 export async function deletePlatformPlanService(id: string) {
+  const existing = await findPlatformPlanById(id);
+  if (!existing) throw notFound('Plano não encontrado');
+
+  if (existing.pagarme_plan_id && isPagarmeConfigured()) {
+    await deletePagarmePlanForPlatform(existing.pagarme_plan_id);
+  }
+
   const deleted = await deletePlatformPlanFromDB(id);
   if (!deleted) throw notFound('Plano não encontrado');
   return { message: 'Plano da plataforma removido com sucesso' };

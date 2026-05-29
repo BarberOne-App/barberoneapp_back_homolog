@@ -38,6 +38,11 @@ export const UpdatePlatformPlanSchema = joi.object({
   sortOrder: joi.number().integer().optional(),
   active: joi.boolean().optional(),
   features: joi.array().items(joi.string().trim().min(1)).optional(),
+  statementDescriptor: joi.string().trim().max(13).allow('', null).optional(),
+  paymentMethods: joi
+    .array()
+    .items(joi.string().valid('credit_card', 'boleto'))
+    .optional(),
 }).min(1).options({ abortEarly: false, stripUnknown: true });
 
 export const PlatformPlanIdParamSchema = joi.object({

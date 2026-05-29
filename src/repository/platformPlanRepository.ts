@@ -154,6 +154,15 @@ export async function updatePlatformPlanInDB(
 export async function deletePlatformPlanFromDB(id: string) {
   const existing = await prisma.platform_plans.findUnique({ where: { id } });
   if (!existing) return null;
-  await prisma.platform_plans.delete({ where: { id } });
-  return existing;
+
+  return prisma.$transaction(async (tx) => {
+    // Desvincula assinaturas que referenciam este plano antes de deletar
+    await tx.barbershop_platform_subscriptions.updateMany({
+      where: { platform_plan_id: id },
+      data: { platform_plan_id: null },
+    });
+
+    await tx.platform_plans.delete({ where: { id } });
+    return existing;
+  });
 }
