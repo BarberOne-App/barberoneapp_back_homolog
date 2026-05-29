@@ -3,9 +3,10 @@ import joi from 'joi';
 export const CreateBarbershopPlatformSubscriptionSchema = joi
     .object({
         barbershopId: joi.string().trim().uuid().optional(),
-        selectedPlan: joi.string().trim().valid('basic', 'premium', 'master').required(),
+        platformPlanId: joi.string().trim().uuid().required(),
         cardToken: joi.string().trim().required(),
         amount: joi.number().positive().precision(2).optional(),
+        isUpgrade: joi.boolean().default(false),
         customer: joi
             .object({
                 name: joi.string().trim().min(2).optional(),

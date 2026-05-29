@@ -100,6 +100,9 @@ function getDefaultHomeInfo() {
 
 const VALID_SLOT_INTERVALS = [5, 10, 15, 30] as const;
 
+// Formas de pagamento ocultas por padrão para novas barbearias
+const DEFAULT_HIDDEN_PAYMENT_METHODS = ['cartao', 'pix', 'local'];
+
 function normalizeSlotIntervalMinutes(value: unknown): number {
     const n = Number(value);
     if (VALID_SLOT_INTERVALS.includes(n as any)) return n;
@@ -110,11 +113,17 @@ export async function getSettingsService(barbershopId: string) {
     // getSettingsByBarbershop usa raw SQL — retorna slot_interval_minutes mesmo com Prisma client desatualizado
     const row = await getSettingsByBarbershop(barbershopId);
 
+    // Barbearia sem nenhuma configuração salva ainda: todos os métodos de pagamento
+    // ficam ocultos/desmarcados por padrão — o admin ativa manualmente os que desejar.
+    const hiddenBookingPaymentMethods = row !== null
+        ? normalizeHiddenBookingPaymentMethods(row.hidden_booking_payment_methods)
+        : [...DEFAULT_HIDDEN_PAYMENT_METHODS];
+
     return {
         pixKey: row?.pix_key ?? "",
         termsDocumentUrl: row?.terms_document_url ?? "",
         termsDocumentName: row?.terms_document_name ?? "",
-        hiddenBookingPaymentMethods: normalizeHiddenBookingPaymentMethods(row?.hidden_booking_payment_methods),
+        hiddenBookingPaymentMethods,
         slotIntervalMinutes: normalizeSlotIntervalMinutes(row?.slot_interval_minutes ?? 30),
     };
 }
@@ -149,7 +158,9 @@ export async function upsertSettingsService(params: {
 
     const hidden_booking_payment_methods = params.hiddenBookingPaymentMethods !== undefined
         ? normalizeHiddenBookingPaymentMethods(params.hiddenBookingPaymentMethods)
-        : normalizeHiddenBookingPaymentMethods(current?.hidden_booking_payment_methods);
+        : current !== null
+            ? normalizeHiddenBookingPaymentMethods(current.hidden_booking_payment_methods)
+            : [...DEFAULT_HIDDEN_PAYMENT_METHODS]; // Primeira gravação: preserva o padrão oculto
 
     const row = await upsertSettingsByBarbershop(params.barbershopId, {
         pix_key,
