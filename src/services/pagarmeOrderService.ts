@@ -26,6 +26,7 @@ interface BuildSplitParams {
     amountInCents: number;
     barbershopRecipientId: string;
     platformFeeAmountInCents: number;
+    paymentMethod: string;
 }
 
 interface Card {
@@ -116,13 +117,91 @@ async function getBarbershopRecipientId(barbershopId: string | undefined | null)
     return shop?.pagarme_recipient_id || null;
 }
 
-function buildSplit({ amountInCents, barbershopRecipientId, platformFeeAmountInCents }: BuildSplitParams): SplitItem[] {
+// function buildSplit({ amountInCents, barbershopRecipientId, platformFeeAmountInCents, paymentMethod }: BuildSplitParams): SplitItem[] {
+//     const platformRecipientId = process.env.PAGARME_PLATFORM_RECIPIENT_ID;
+
+//     if (!barbershopRecipientId) {
+//         throw new Error('A barbearia ainda não possui pagarme_recipient_id cadastrado.');
+//     }
+
+//     if(paymentMethod == 'pix') {
+
+//     }
+
+//     if (!platformRecipientId || platformFeeAmountInCents <= 0) {
+//         return [
+//             {
+//                 amount: amountInCents,
+//                 recipient_id: barbershopRecipientId,
+//                 type: 'flat',
+//                 options: {
+//                     liable: true,
+//                     charge_processing_fee: true,
+//                     charge_remainder_fee: true,
+//                 },
+//             },
+//         ];
+//     }
+
+//     const sellerAmount = Math.max(0, amountInCents - platformFeeAmountInCents);
+
+//     return [
+//         {
+//             amount: sellerAmount,
+//             recipient_id: barbershopRecipientId,
+//             type: 'flat',
+//             options: {
+//                 liable: false,
+//                 charge_processing_fee: false,
+//                 charge_remainder_fee: false,
+//             },
+//         },
+//         {
+//             amount: platformFeeAmountInCents,
+//             recipient_id: platformRecipientId,
+//             type: 'flat',
+//             options: {
+//                 liable: true,
+//                 charge_processing_fee: true,
+//                 charge_remainder_fee: true,
+//             },
+//         },
+//     ];
+// }
+
+function buildSplit({
+    amountInCents,
+    barbershopRecipientId,
+    platformFeeAmountInCents,
+    paymentMethod,
+}: BuildSplitParams): SplitItem[] {
     const platformRecipientId = process.env.PAGARME_PLATFORM_RECIPIENT_ID;
 
     if (!barbershopRecipientId) {
         throw new Error('A barbearia ainda não possui pagarme_recipient_id cadastrado.');
     }
 
+    const normalizedPaymentMethod = String(paymentMethod || '').toLowerCase();
+
+    // PIX: não envia nada para a plataforma
+    // 100% do valor vai para a barbearia
+    if (normalizedPaymentMethod === 'pix') {
+        return [
+            {
+                amount: amountInCents,
+                recipient_id: barbershopRecipientId,
+                type: 'flat',
+                options: {
+                    liable: true,
+                    charge_processing_fee: true,
+                    charge_remainder_fee: true,
+                },
+            },
+        ];
+    }
+
+    // Caso não tenha recebedor da plataforma ou taxa inválida,
+    // também manda tudo para a barbearia
     if (!platformRecipientId || platformFeeAmountInCents <= 0) {
         return [
             {
@@ -228,7 +307,7 @@ export async function createPagarmeOrderService(params: any) {
         email: params?.customer?.email,
         type: 'individual',
         document: params?.customer?.document,
-        phones: { mobile_phone: { country_code: '55', area_code: '32', number: '998456585' } },
+        phones: { mobile_phone: { country_code: '55', area_code: '32', number: customerPhone } },
     };
 
     const itemName = params?.item?.name || 'Agendamento';
@@ -239,6 +318,7 @@ export async function createPagarmeOrderService(params: any) {
     const payment: any = {
         payment_method: paymentMethod,
         split: buildSplit({
+            paymentMethod,
             amountInCents,
             barbershopRecipientId,
             platformFeeAmountInCents,
