@@ -124,9 +124,6 @@ async function getBarbershopRecipientId(barbershopId: string | undefined | null)
 //         throw new Error('A barbearia ainda não possui pagarme_recipient_id cadastrado.');
 //     }
 
-//     if(paymentMethod == 'pix') {
-
-//     }
 
 //     if (!platformRecipientId || platformFeeAmountInCents <= 0) {
 //         return [
@@ -183,6 +180,7 @@ function buildSplit({
 
     const normalizedPaymentMethod = String(paymentMethod || '').toLowerCase();
 
+    console.log('VALOR AQUI:', amountInCents);
     // PIX: não envia nada para a plataforma
     // 100% do valor vai para a barbearia
     if (normalizedPaymentMethod === 'pix') {
@@ -283,7 +281,6 @@ export function normalizePagarmeOrder(order: PagarmeOrder): NormalizedOrder {
 }
 
 export async function createPagarmeOrderService(params: any) {
-    console.log("createPagarmeOrderService called with params:", params);
     const amountInCents = toCents(params.amount);
 
     if (!amountInCents || amountInCents <= 0) {
