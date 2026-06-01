@@ -82,17 +82,30 @@ function toCents(value: string | number | undefined | null): number {
     return Math.round(Number(value || 0) * 100);
 }
 
-function extractPhone(phone: string | undefined | null): PhoneData | null {
-    const digits = onlyNumbers(phone);
+// function extractPhone(phone: string | undefined | null): PhoneData | null {
+//     const digits = onlyNumbers(phone);
 
-    if (digits.length < 10) return null;
+//     if (digits.length < 10) return null;
 
-    const withoutCountry = digits.startsWith('55') && digits.length > 11 ? digits.slice(2) : digits;
+//     const withoutCountry = digits.startsWith('55') && digits.length > 11 ? digits.slice(2) : digits;
+
+//     return {
+//         country_code: '55',
+//         area_code: withoutCountry.slice(0, 2),
+//         number: withoutCountry.slice(2),
+//     };
+// }
+
+function extractPhone(phone: string) {
+    const digits = String(phone || '').replace(/\D/g, '');
+
+    if (digits.length < 10) {
+        throw new Error('Telefone do cliente inválido.');
+    }
 
     return {
-        country_code: '55',
-        area_code: withoutCountry.slice(0, 2),
-        number: withoutCountry.slice(2),
+        areaCode: digits.slice(0, 2),
+        number: digits.slice(2),
     };
 }
 
@@ -117,114 +130,14 @@ async function getBarbershopRecipientId(barbershopId: string | undefined | null)
     return shop?.pagarme_recipient_id || null;
 }
 
-function buildSplit({ amountInCents, barbershopRecipientId, platformFeeAmountInCents }: BuildSplitParams): SplitItem[] {
-    const platformRecipientId = process.env.PAGARME_PLATFORM_RECIPIENT_ID;
-
-    if (!barbershopRecipientId) {
-        throw new Error('A barbearia ainda não possui pagarme_recipient_id cadastrado.');
-    }
-
-
-    if (!platformRecipientId || platformFeeAmountInCents <= 0) {
-        return [
-            {
-                amount: amountInCents,
-                recipient_id: barbershopRecipientId,
-                type: 'flat',
-                options: {
-                    liable: true,
-                    charge_processing_fee: true,
-                    charge_remainder_fee: true,
-                },
-            },
-        ];
-    }
-
-    const sellerAmount = Math.max(0, amountInCents - platformFeeAmountInCents);
-
-    return [
-        {
-            amount: sellerAmount,
-            recipient_id: barbershopRecipientId,
-            type: 'flat',
-            options: {
-                liable: false,
-                charge_processing_fee: false,
-                charge_remainder_fee: false,
-            },
-        },
-        {
-            amount: platformFeeAmountInCents,
-            recipient_id: platformRecipientId,
-            type: 'flat',
-            options: {
-                liable: true,
-                charge_processing_fee: true,
-                charge_remainder_fee: true,
-            },
-        },
-    ];
-}
-
-// function buildSplit({
-//     amountInCents,
-//     barbershopRecipientId,
-//     platformFeeAmountInCents,
-//     paymentMethod,
-// }: BuildSplitParams): SplitItem[] {
+// function buildSplit({ amountInCents, barbershopRecipientId, platformFeeAmountInCents }: BuildSplitParams): SplitItem[] {
 //     const platformRecipientId = process.env.PAGARME_PLATFORM_RECIPIENT_ID;
 
 //     if (!barbershopRecipientId) {
 //         throw new Error('A barbearia ainda não possui pagarme_recipient_id cadastrado.');
 //     }
 
-//     const normalizedPaymentMethod = String(paymentMethod || '').toLowerCase();
 
-//     console.log('VALOR AQUI:', amountInCents);
-//     // PIX: não envia nada para a plataforma
-//     // 100% do valor vai para a barbearia
-//     if (normalizedPaymentMethod === 'pix') {
-//         if (!platformRecipientId) {
-//             return [
-//                 {
-//                     amount: amountInCents,
-//                     recipient_id: barbershopRecipientId,
-//                     type: 'flat',
-//                     options: {
-//                         liable: false,
-//                         charge_processing_fee: false,
-//                         charge_remainder_fee: false,
-//                     },
-//                 },
-//             ];
-//         }
-
-//         return [
-//             {
-//                 amount: amountInCents,
-//                 recipient_id: barbershopRecipientId,
-//                 type: 'flat',
-//                 options: {
-//                     liable: false,
-//                     charge_processing_fee: false,
-//                     charge_remainder_fee: false,
-//                 },
-//             },
-//             {
-//                 amount: 0,
-//                 recipient_id: platformRecipientId,
-//                 type: 'flat',
-//                 options: {
-//                     liable: true,
-//                     charge_processing_fee: true,
-//                     charge_remainder_fee: true,
-//                 },
-//             },
-//         ];
-//     }
-
-//     // Caso não tenha recebedor da plataforma ou taxa inválida,
-//     // também manda tudo para a barbearia
 //     if (!platformRecipientId || platformFeeAmountInCents <= 0) {
 //         return [
 //             {
@@ -265,6 +178,90 @@ function buildSplit({ amountInCents, barbershopRecipientId, platformFeeAmountInC
 //         },
 //     ];
 // }
+
+function buildSplit({
+  amountInCents,
+  barbershopRecipientId,
+  platformFeeAmountInCents,
+  paymentMethod,
+}: BuildSplitParams): SplitItem[] {
+  const platformRecipientId = process.env.PAGARME_PLATFORM_RECIPIENT_ID;
+
+  if (!barbershopRecipientId) {
+    throw new Error('A barbearia ainda não possui pagarme_recipient_id cadastrado.');
+  }
+
+  if (!amountInCents || amountInCents <= 0) {
+    throw new Error('Valor do pagamento inválido para split.');
+  }
+
+  const normalizedPaymentMethod = String(paymentMethod || '').toLowerCase();
+
+  console.log('VALOR AQUI:', amountInCents);
+  console.log('PAYMENT METHOD AQUI:', normalizedPaymentMethod);
+
+  // PIX: 100% para a barbearia.
+  // Não envia a plataforma no split, nem com amount 0.
+  if (normalizedPaymentMethod === 'pix') {
+    return [
+      {
+        amount: amountInCents,
+        recipient_id: barbershopRecipientId,
+        type: 'flat',
+        options: {
+          liable: true,
+          charge_processing_fee: true,
+          charge_remainder_fee: true,
+        },
+      },
+    ];
+  }
+
+  // Sem recebedor da plataforma ou taxa inválida: 100% para a barbearia
+  if (!platformRecipientId || platformFeeAmountInCents <= 0) {
+    return [
+      {
+        amount: amountInCents,
+        recipient_id: barbershopRecipientId,
+        type: 'flat',
+        options: {
+          liable: true,
+          charge_processing_fee: true,
+          charge_remainder_fee: true,
+        },
+      },
+    ];
+  }
+
+  const sellerAmount = amountInCents - platformFeeAmountInCents;
+
+  if (sellerAmount <= 0) {
+    throw new Error('Valor da barbearia ficou inválido após desconto da taxa da plataforma.');
+  }
+
+  return [
+    {
+      amount: sellerAmount,
+      recipient_id: barbershopRecipientId,
+      type: 'flat',
+      options: {
+        liable: false,
+        charge_processing_fee: false,
+        charge_remainder_fee: false,
+      },
+    },
+    {
+      amount: platformFeeAmountInCents,
+      recipient_id: platformRecipientId,
+      type: 'flat',
+      options: {
+        liable: true,
+        charge_processing_fee: true,
+        charge_remainder_fee: true,
+      },
+    },
+  ];
+}
 
 function normalizePaymentMethod(method: any) {
     const value = String(method || '').trim().toLowerCase();
@@ -329,7 +326,7 @@ export async function createPagarmeOrderService(params: any) {
         email: params?.customer?.email,
         type: 'individual',
         document: params?.customer?.document,
-        phones: { mobile_phone: { country_code: '55', area_code: '32', number: customerPhone } },
+        phones: { mobile_phone: { country_code: '55', area_code: customerPhone.areaCode, number: customerPhone.number } },
     };
 
     const itemName = params?.item?.name || 'Agendamento';
