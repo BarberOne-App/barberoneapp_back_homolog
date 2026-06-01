@@ -184,10 +184,35 @@ function buildSplit({
     // PIX: não envia nada para a plataforma
     // 100% do valor vai para a barbearia
     if (normalizedPaymentMethod === 'pix') {
+        if (!platformRecipientId) {
+            return [
+                {
+                    amount: amountInCents,
+                    recipient_id: barbershopRecipientId,
+                    type: 'flat',
+                    options: {
+                        liable: false,
+                        charge_processing_fee: false,
+                        charge_remainder_fee: false,
+                    },
+                },
+            ];
+        }
+
         return [
             {
                 amount: amountInCents,
                 recipient_id: barbershopRecipientId,
+                type: 'flat',
+                options: {
+                    liable: false,
+                    charge_processing_fee: false,
+                    charge_remainder_fee: false,
+                },
+            },
+            {
+                amount: 0,
+                recipient_id: platformRecipientId,
                 type: 'flat',
                 options: {
                     liable: true,
