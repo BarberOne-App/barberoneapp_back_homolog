@@ -79,10 +79,19 @@ export async function validatePlanUserLimit(
     );
   }
 
+  console.log("Assinatura ativa encontrada:", {
+    id: platformSubscription.id,
+    status: platformSubscription.status,
+    selected_plan: platformSubscription.selected_plan,
+    platform_plan: platformSubscription.platform_plan,
+  });
+
   const platformPlan = platformSubscription.platform_plan as any;
   const planName = platformPlan?.name ?? platformSubscription.selected_plan ?? null;
 
   const roleLimit = getRoleLimit(platformPlan, role);
+
+  console.log(`Limite para o papel ${role} no plano ${planName}:`, roleLimit);
 
   // null significa ilimitado
   if (roleLimit === null) {
@@ -90,6 +99,8 @@ export async function validatePlanUserLimit(
   }
 
   const currentCount = await countUsersByRoleInBarbershop(barbershopId, role);
+
+  console.log("Contagem atual de usuários com o papel", role, "na barbearia:", currentCount);
 
   if (currentCount >= roleLimit) {
     const roleLabel = getRoleLabel(role);
