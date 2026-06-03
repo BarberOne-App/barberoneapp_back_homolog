@@ -11,7 +11,9 @@ export async function getActivePlatformSubscription(barbershopId: string) {
   return prisma.barbershop_platform_subscriptions.findFirst({
     where: {
       barbershop_id: barbershopId,
-      status: 'active',
+      status: {
+        in: ['active', 'future'],
+      },
       canceled_at: null,
     },
     include: {
@@ -24,7 +26,7 @@ export async function getActivePlatformSubscription(barbershopId: string) {
           max_receptionists: true,
         },
       },
-    },
+    } as any,
     orderBy: { created_at: 'desc' },
   });
 }
@@ -77,7 +79,7 @@ export async function validatePlanUserLimit(
     );
   }
 
-  const platformPlan = platformSubscription.platform_plan;
+  const platformPlan = platformSubscription.platform_plan as any;
   const planName = platformPlan?.name ?? platformSubscription.selected_plan ?? null;
 
   const roleLimit = getRoleLimit(platformPlan, role);
