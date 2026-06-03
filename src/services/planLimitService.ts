@@ -67,6 +67,15 @@ function getRoleLabel(role: string): string {
   return labels[role] || role;
 }
 
+function getRoleLimitLabel(role: string): string {
+  const labels: Record<string, string> = {
+    barber: "BARBEIRO",
+    admin: "ADM",
+    receptionist: "RECEPCIONISTA",
+  };
+  return labels[role] || role.toUpperCase();
+}
+
 export async function validatePlanUserLimit(
   barbershopId: string,
   role: string
@@ -103,8 +112,9 @@ export async function validatePlanUserLimit(
   console.log("Contagem atual de usuários com o papel", role, "na barbearia:", currentCount);
 
   if (currentCount >= roleLimit) {
-    const roleLabel = getRoleLabel(role);
-    const message = `Seu plano permite no máximo ${roleLimit} ${roleLabel}${roleLimit !== 1 ? "s" : ""}. Faça upgrade para adicionar mais.`;
+    const roleLimitLabel = getRoleLimitLabel(role);
+    const currentPlanName = planName ?? "atual";
+    const message = `Limite para ${roleLimitLabel} atingido pelo plano ${currentPlanName}. Para adicionar mais, faça um upgrade do plano.`;
     throw forbidden(message);
   }
 
