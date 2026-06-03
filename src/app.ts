@@ -3,7 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
 import hbs from "hbs";
-import { fileURLToPath } from "url";
+import { fileURLToPath } from "url";    
 import { errorHandler } from "./middleware/errorHandler.js";
 import authRoutes from "./routes/authRoute.js";
 import productsRouter from "./routes/productsRouter.js";

@@ -2,6 +2,7 @@ import bcrypt from "bcrypt";
 import crypto from "crypto";
 import prisma from "../database/database.js";
 import { signToken, signRefreshToken, verifyRefreshToken } from "../utils/jwt.js";
+import { validatePlanUserLimit } from "./planLimitService.js";
 import { slugify, normalizeEmail } from "../utils/slugify.js";
 import { badRequest, conflict, forbidden, notFound, unauthorized } from "../errors/index.js";
 import {
@@ -521,6 +522,9 @@ export async function registerBarberService(params: {
   if (existing) throw conflict("E-mail já cadastrado nessa barbearia");
 
   const passwordHash = await bcrypt.hash(params.password, rounds());
+
+  // Validar limite de barbeiros do plano antes de criar usuário/barbeiro
+  await validatePlanUserLimit(params.barbershopId, "barber");
 
   const result = await prisma.$transaction(async (tx) => {
     const user = await createUser(

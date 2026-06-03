@@ -1,5 +1,6 @@
 import bcrypt from "bcrypt";
 import { conflict, forbidden, notFound } from "../errors/index.js";
+import { validatePlanUserLimit } from "./planLimitService.js";
 // import { ensureCanAddRole } from "./planLimitService.js";
 import {
   createUserInBarbershop,
@@ -427,6 +428,11 @@ export async function importUsersService(params: {
       //     await ensureCanAddRole(params.barbershopId, "admin", 1);
       //   }
       // }
+
+      // Validar limite de usuários/barbeiros do plano antes de criar (clientes não são limitados)
+      if (normalized.role && normalized.role !== "client") {
+        await validatePlanUserLimit(params.barbershopId, normalized.role);
+      }
 
       const user = await createUserInBarbershop({
         barbershopId: params.barbershopId,
