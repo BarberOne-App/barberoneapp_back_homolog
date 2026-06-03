@@ -86,12 +86,8 @@ export async function validatePlanUserLimit(
     platform_plan: platformSubscription.platform_plan,
   });
 
-  var platformPlan = platformSubscription.selected_plan as any;
+  const platformPlan = platformSubscription.platform_plan as any;
   const planName = platformPlan?.name ?? platformSubscription.selected_plan ?? null;
-
-  if (platformPlan == 'basic') {
-    platformPlan = 'Plano Básico';
-  }
 
   const roleLimit = getRoleLimit(platformPlan, role);
 
