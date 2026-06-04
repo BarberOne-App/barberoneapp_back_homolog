@@ -1,6 +1,8 @@
 import prisma from "../database/database.js";
 import { forbidden } from "../errors/index.js";
 
+const TRIAL_PERIOD_DAYS = Number(process.env.TRIAL_PERIOD_DAYS || 14);
+
 export interface PlanLimitValidation {
   allowed: boolean;
   planName: string | null;
@@ -12,7 +14,7 @@ export async function getActivePlatformSubscription(barbershopId: string) {
     where: {
       barbershop_id: barbershopId,
       status: {
-        in: ['active', 'future'],
+        in: ['active', 'future', 'trialing', 'pending'],
       },
       canceled_at: null,
     },
@@ -29,6 +31,87 @@ export async function getActivePlatformSubscription(barbershopId: string) {
     } as any,
     orderBy: { created_at: 'desc' },
   });
+}
+
+function toValidDate(value: unknown): Date | null {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value;
+  }
+
+  if (typeof value === "string" || typeof value === "number") {
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
+
+function isTrialStillActive(createdAt: unknown): boolean {
+  const validCreatedAt = toValidDate(createdAt);
+  if (!validCreatedAt) return false;
+
+  const trialEndsAt = new Date(
+    validCreatedAt.getTime() + TRIAL_PERIOD_DAYS * 24 * 60 * 60 * 1000
+  );
+
+  return new Date() <= trialEndsAt;
+}
+
+async function getTrialPlatformPlan(barbershopId: string) {
+  const barbershop = await prisma.barbershops.findUnique({
+    where: { id: barbershopId },
+    select: {
+      id: true,
+      created_at: true,
+      selected_plan: true,
+      platform_subscription_status: true,
+    },
+  });
+
+  if (!barbershop) {
+    return null;
+  }
+
+  const subscriptionStatus = String(barbershop.platform_subscription_status || "")
+    .toLowerCase()
+    .trim();
+  const hasActiveSubscription = ['active', 'future', 'trialing', 'pending'].includes(subscriptionStatus);
+
+  if (hasActiveSubscription) {
+    return null;
+  }
+
+  if (!isTrialStillActive(barbershop.created_at)) {
+    return null;
+  }
+
+  const selectedPlan = String(barbershop.selected_plan || "").trim();
+  if (!selectedPlan) {
+    return null;
+  }
+
+  const platformPlan = await prisma.platform_plans.findFirst({
+    where: { name: selectedPlan },
+    select: {
+      id: true,
+      name: true,
+      max_barbers: true,
+      max_admins: true,
+      max_receptionists: true,
+    },
+    orderBy: { created_at: 'desc' },
+  });
+
+  if (!platformPlan) {
+    return null;
+  }
+
+  return {
+    planName: platformPlan.name,
+    platformPlan,
+  };
 }
 
 export async function countUsersByRoleInBarbershop(
@@ -81,22 +164,37 @@ export async function validatePlanUserLimit(
   role: string
 ): Promise<PlanLimitValidation> {
   const platformSubscription = await getActivePlatformSubscription(barbershopId);
+  const trialPlatformPlan = platformSubscription
+    ? null
+    : await getTrialPlatformPlan(barbershopId);
 
-  if (!platformSubscription) {
+  if (!platformSubscription && !trialPlatformPlan) {
     throw forbidden(
       "Esta barbearia não possui um plano de assinatura ativo. Faça upgrade para continuar."
     );
   }
 
-  console.log("Assinatura ativa encontrada:", {
-    id: platformSubscription.id,
-    status: platformSubscription.status,
-    selected_plan: platformSubscription.selected_plan,
-    platform_plan: platformSubscription.platform_plan,
-  });
+  const platformPlan = (platformSubscription?.platform_plan ?? trialPlatformPlan?.platformPlan) as any;
+  const planName =
+    platformPlan?.name ??
+    platformSubscription?.selected_plan ??
+    trialPlatformPlan?.planName ??
+    null;
 
-  const platformPlan = platformSubscription.platform_plan as any;
-  const planName = platformPlan?.name ?? platformSubscription.selected_plan ?? null;
+  if (platformSubscription) {
+    console.log("Assinatura ativa encontrada:", {
+      id: platformSubscription.id,
+      status: platformSubscription.status,
+      selected_plan: platformSubscription.selected_plan,
+      platform_plan: platformSubscription.platform_plan,
+    });
+  } else if (trialPlatformPlan) {
+    console.log("Plano liberado pelo período de teste encontrado:", {
+      barbershopId,
+      planName,
+      platformPlan,
+    });
+  }
 
   const roleLimit = getRoleLimit(platformPlan, role);
 
