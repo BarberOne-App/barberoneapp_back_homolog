@@ -93,7 +93,12 @@ async function getTrialPlatformPlan(barbershopId: string) {
   }
 
   const platformPlan = await prisma.platform_plans.findFirst({
-    where: { name: selectedPlan },
+    where: {
+      OR: [
+        { name: selectedPlan },
+        { id: selectedPlan },
+      ],
+    },
     select: {
       id: true,
       name: true,
